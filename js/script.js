@@ -68,18 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ----- CONTACT FORM (Formspree) – optional client-side validation -----
-    const contactForm = document.querySelector('.contact-form form');
-    if (contactForm) {
-        contactForm.addEventListener('submit', function(e) {
-            const name = this.querySelector('[name="name"]');
-            const email = this.querySelector('[name="_replyto"]');
-            const message = this.querySelector('[name="message"]');
-            if (!name.value.trim() || !email.value.trim() || !message.value.trim()) {
-                e.preventDefault();
-                alert('Please fill in all required fields.');
-            }
-        });
     }
 
     // ----- SERVICE WORKER REGISTRATION (PWA) -----
@@ -90,3 +78,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 });
+
