@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://painterplus.github.io/sitemap.xml
