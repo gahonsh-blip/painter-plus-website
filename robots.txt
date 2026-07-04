@@ -1,0 +1,3 @@
+﻿User-agent: *
+Allow: /
+Sitemap: https://gahonsh-blip.github.io/painter-plus-website/sitemap.xml
