@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ----- CONTACT FORM (Formspree) – client-side validation -----
+    // ----- CONTACT FORM (Formspree) – optional client-side validation -----
     const contactForm = document.querySelector('.contact-form form');
     if (contactForm) {
         contactForm.addEventListener('submit', function(e) {

@@ -1,8 +1,15 @@
+<<<<<<< HEAD
 ﻿.DS_Store
 Thumbs.db
 *.log
 *.tmp
 *.swp
+=======
+DS_Store
+Thumbs.db
+*.log
+*.tmp
+>>>>>>> 6e6b646c42f798484e7208b221540adad4ec9f46
 node_modules/
 .vscode/
 .idea/

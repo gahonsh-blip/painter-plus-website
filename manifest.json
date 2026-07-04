@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿{
   "name": "Painter Plus",
   "short_name": "Painter Plus",
@@ -10,4 +11,15 @@
     { "src": "/painter-plus-website/images/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "/painter-plus-website/images/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
+=======
+{
+  "name": "Painter Plus",
+  "short_name": "PainterPlus",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": []
+>>>>>>> 6e6b646c42f798484e7208b221540adad4ec9f46
 }

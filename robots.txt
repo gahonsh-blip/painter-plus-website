@@ -1,3 +1,10 @@
+﻿<<<<<<< HEAD
 ﻿User-agent: *
 Allow: /
 Sitemap: https://gahonsh-blip.github.io/painter-plus-website/sitemap.xml
+=======
+User-agent: *
+Allow: /
+Sitemap: https://gahonsh-blip.github.io/sitemap.xml
+>>>>>>> 6e6b646c42f798484e7208b221540adad4ec9f46
+

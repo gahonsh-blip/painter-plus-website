@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" rx="40" fill="#0f172a"/>
+  <rect x="70" y="70" width="1060" height="490" rx="28" fill="#ffffff" opacity="0.96"/>
+  <circle cx="940" cy="190" r="120" fill="#2563eb" opacity="0.16"/>
+  <text x="120" y="250" font-family="Poppins, Arial, sans-serif" font-size="68" font-weight="700" fill="#0f172a">Painter Plus</text>
+  <text x="120" y="332" font-family="Inter, Arial, sans-serif" font-size="32" fill="#64748b">Premium painting services</text>
+  <text x="120" y="392" font-family="Inter, Arial, sans-serif" font-size="28" fill="#2563eb">Interior • Exterior • Texture • Warranty</text>
+</svg>
