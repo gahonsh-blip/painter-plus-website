@@ -47,7 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ----- REVEAL ON SCROLL (Intersection Observer) -----
-    const revealElements = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
+    // Reveals elements and triggers paint-roller image reveals as they enter view.
+    const revealElements = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .roller-reveal');
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -57,22 +58,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { threshold: 0.15 });
     revealElements.forEach(el => observer.observe(el));
 
+    // ----- PROCESS LINE: fills as the process section enters view -----
+    // Visualises the project journeying from step 1 to step 3 (CSS handles the fill).
+    const processLine = document.querySelector('.process-line');
+    if (processLine) {
+        const lineObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                processLine.classList.toggle('visible', entry.isIntersecting);
+            });
+        }, { threshold: 0.4 });
+        lineObserver.observe(processLine);
+    }
+
     // ----- FAQ TOGGLE -----
+    // The +/− toggle rotates (see CSS) instead of swapping text, so the
+    // open/closed state stays instantly legible.
     document.querySelectorAll('.faq-item').forEach(item => {
         const toggleBtn = item.querySelector('.toggle');
         if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {
                 item.classList.toggle('open');
-                toggleBtn.textContent = item.classList.contains('open') ? '−' : '+';
             });
         }
     });
 
-    }
-
     // ----- SERVICE WORKER REGISTRATION (PWA) -----
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(() => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {
             console.log('Service Worker registration failed.');
         });
     }

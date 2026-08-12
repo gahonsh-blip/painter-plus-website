@@ -1,435 +1,3 @@
-<<<<<<< HEAD
-﻿/* ============================================================
-   PAINTER PLUS – PREMIUM AGENCY CSS
-   ============================================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;600;700;800&display=swap');
-
-:root {
-    --font-sans: 'Inter', -apple-system, sans-serif;
-    --font-display: 'Poppins', var(--font-sans);
-    --bg: #F8FAFC;
-    --surface: #FFFFFF;
-    --surface-hover: #F1F5F9;
-    --primary: #2563EB;
-    --primary-hover: #1D4ED8;
-    --accent: #14B8A6;
-    --text: #0B1B33;
-    --text-light: #64748B;
-    --border: #E2E8F0;
-    --shadow: 0 12px 40px -12px rgba(0,0,0,0.08);
-    --shadow-lg: 0 30px 80px -20px rgba(0,0,0,0.12);
-    --radius: 24px;
-    --transition: 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-[data-theme="dark"] {
-    --bg: #020617;
-    --surface: #0F172A;
-    --surface-hover: #1E293B;
-    --primary: #3B82F6;
-    --primary-hover: #60A5FA;
-    --text: #F8FAFC;
-    --text-light: #94A3B8;
-    --border: #334155;
-    --shadow: 0 12px 40px -12px rgba(0,0,0,0.6);
-    --shadow-lg: 0 30px 80px -20px rgba(0,0,0,0.7);
-}
-
-* { margin:0; padding:0; box-sizing:border-box; }
-html { scroll-behavior: smooth; }
-body {
-    font-family: var(--font-sans);
-    background: var(--bg);
-    color: var(--text);
-    transition: background var(--transition), color var(--transition);
-    line-height: 1.7;
-    overflow-x: hidden;
-}
-.container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
-
-/* ----- GLASS HEADER ----- */
-header {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    backdrop-filter: blur(24px) saturate(1.4);
-    background: rgba(255,255,255,0.6);
-    border-bottom: 1px solid rgba(255,255,255,0.3);
-    padding: 14px 0;
-    transition: background var(--transition);
-}
-[data-theme="dark"] header {
-    background: rgba(2,6,23,0.7);
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-}
-.flex-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-.logo {
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: 1.8rem;
-    letter-spacing: -0.02em;
-}
-.logo span { color: var(--primary); }
-.nav-links {
-    display: flex;
-    gap: 28px;
-    align-items: center;
-}
-.nav-links a {
-    font-weight: 500;
-    font-size: 0.95rem;
-    color: var(--text);
-    opacity: 0.75;
-    transition: opacity 0.3s;
-    position: relative;
-    text-decoration: none;
-}
-.nav-links a::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background: var(--primary);
-    transition: width 0.4s cubic-bezier(0.22,1,0.36,1);
-}
-.nav-links a:hover { opacity: 1; }
-.nav-links a:hover::after { width: 100%; }
-
-.btn-primary {
-    background: var(--primary);
-    color: #fff !important;
-    padding: 10px 28px;
-    border-radius: 60px;
-    border: none;
-    font-weight: 600;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: transform 0.3s, box-shadow 0.3s;
-    box-shadow: 0 4px 16px rgba(37,99,235,0.25);
-    display: inline-block;
-    text-decoration: none;
-}
-.btn-primary:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 8px 30px rgba(37,99,235,0.35);
-}
-.btn-outline {
-    background: transparent;
-    border: 1.5px solid var(--border);
-    padding: 8px 22px;
-    border-radius: 60px;
-    font-weight: 600;
-    color: var(--text);
-    cursor: pointer;
-    transition: border-color 0.3s, color 0.3s;
-    text-decoration: none;
-    display: inline-block;
-}
-.btn-outline:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-}
-.theme-toggle {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 40px;
-    padding: 6px 18px;
-    cursor: pointer;
-    font-size: 1rem;
-    color: var(--text);
-    transition: background 0.3s;
-}
-.theme-toggle:hover { background: var(--surface-hover); }
-.mobile-toggle {
-    display: none;
-    background: none;
-    border: none;
-    font-size: 2rem;
-    color: var(--text);
-    cursor: pointer;
-}
-
-/* ----- HERO (Cinematic) ----- */
-.hero {
-    min-height: 88vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(135deg, var(--primary) 0%, #0F172A 100%);
-    color: #fff;
-}
-.hero .bg-glow {
-    position: absolute;
-    top: -30%;
-    right: -20%;
-    width: 70%;
-    height: 120%;
-    background: radial-gradient(ellipse, rgba(59,130,246,0.2) 0%, transparent 70%);
-    pointer-events: none;
-}
-.hero .content {
-    position: relative;
-    z-index: 2;
-    max-width: 780px;
-}
-.hero h1 {
-    font-family: var(--font-display);
-    font-size: 4.8rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-    margin-bottom: 20px;
-}
-.hero h1 .highlight { color: #FFD700; }
-.hero p {
-    font-size: 1.25rem;
-    opacity: 0.85;
-    max-width: 560px;
-    margin: 0 auto 30px;
-}
-
-/* ----- SECTIONS ----- */
-.section { padding: 80px 0; }
-.section-title {
-    font-family: var(--font-display);
-    font-size: 2.8rem;
-    font-weight: 700;
-    text-align: center;
-    margin-bottom: 50px;
-}
-.section-title span { color: var(--primary); }
-.section-subtitle {
-    text-align: center;
-    color: var(--text-light);
-    max-width: 560px;
-    margin: -30px auto 50px;
-}
-
-/* Cards */
-.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 30px; }
-.card {
-    background: var(--surface);
-    border-radius: var(--radius);
-    padding: 32px;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-    transition: transform 0.5s cubic-bezier(0.22,1,0.36,1), box-shadow 0.5s;
-    text-align: center;
-}
-.card:hover {
-    transform: translateY(-12px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--primary);
-}
-.card .icon { font-size: 3.6rem; margin-bottom: 16px; }
-.card h3 { font-size: 1.4rem; margin-bottom: 8px; }
-.card p { color: var(--text-light); }
-.card img { width: 100%; height: 220px; object-fit: cover; border-radius: 16px; margin-bottom: 16px; }
-
-/* Testimonials */
-.testimonial {
-    background: var(--surface);
-    padding: 32px;
-    border-radius: var(--radius);
-    border-left: 6px solid var(--primary);
-    box-shadow: var(--shadow);
-}
-.testimonial .name { font-weight: 600; margin-top: 12px; }
-.testimonial .role { color: var(--text-light); font-size: 0.9rem; }
-
-/* Process Steps */
-.process-step {
-    text-align: center;
-    padding: 20px;
-}
-.process-step .number {
-    display: inline-block;
-    width: 60px;
-    height: 60px;
-    line-height: 60px;
-    border-radius: 50%;
-    background: var(--primary);
-    color: #fff;
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin-bottom: 16px;
-}
-
-/* FAQ */
-.faq-item {
-    background: var(--surface);
-    padding: 20px 24px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    margin-bottom: 16px;
-    cursor: pointer;
-    transition: 0.3s;
-}
-.faq-item:hover { border-color: var(--primary); }
-.faq-item .question {
-    font-weight: 600;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.faq-item .answer {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.4s ease;
-    color: var(--text-light);
-}
-.faq-item.open .answer { max-height: 200px; margin-top: 12px; }
-.faq-item .toggle { font-size: 1.5rem; }
-
-/* Contact Form */
-.contact-form {
-    max-width: 520px;
-    margin: 0 auto;
-    background: var(--surface);
-    padding: 40px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-}
-.form-group { margin-bottom: 20px; }
-.form-group label { display: block; font-weight: 600; margin-bottom: 6px; }
-.form-control {
-    width: 100%;
-    padding: 14px 18px;
-    border: 1.5px solid var(--border);
-    border-radius: 14px;
-    background: var(--surface);
-    color: var(--text);
-    font-size: 1rem;
-    transition: border-color 0.3s, box-shadow 0.3s;
-}
-.form-control:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 4px rgba(37,99,235,0.08);
-}
-textarea.form-control { resize: vertical; }
-
-/* Footer (4 columns) */
-.footer {
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    padding: 60px 0 30px;
-}
-.footer-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 40px;
-    margin-bottom: 40px;
-}
-.footer-col h4 {
-    font-family: var(--font-display);
-    font-weight: 700;
-    margin-bottom: 16px;
-    color: var(--text);
-}
-.footer-col ul { list-style: none; }
-.footer-col ul li { margin-bottom: 8px; }
-.footer-col ul li a {
-    color: var(--text-light);
-    text-decoration: none;
-    transition: color 0.3s;
-}
-.footer-col ul li a:hover { color: var(--primary); }
-.footer-bottom {
-    text-align: center;
-    border-top: 1px solid var(--border);
-    padding-top: 20px;
-    color: var(--text-light);
-    font-size: 0.9rem;
-}
-.footer-bottom a { color: var(--primary); }
-
-/* WhatsApp Float */
-.whatsapp-float {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    background: #25D366;
-    color: #fff;
-    padding: 14px 22px;
-    border-radius: 60px;
-    font-weight: 600;
-    box-shadow: 0 6px 24px rgba(37,211,102,0.35);
-    z-index: 500;
-    transition: transform 0.3s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-}
-.whatsapp-float:hover { transform: scale(1.05); }
-
-/* Progress Bar */
-.progress-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--primary), var(--accent));
-    width: 0%;
-    z-index: 9999;
-    transition: width 0.1s;
-}
-
-/* Reveal animations */
-.reveal {
-    opacity: 0;
-    transform: translateY(30px);
-    transition: opacity 0.8s ease, transform 0.8s ease;
-}
-.reveal.visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-.reveal-left {
-    opacity: 0;
-    transform: translateX(-30px);
-    transition: opacity 0.8s ease, transform 0.8s ease;
-}
-.reveal-left.visible {
-    opacity: 1;
-    transform: translateX(0);
-}
-.reveal-right {
-    opacity: 0;
-    transform: translateX(30px);
-    transition: opacity 0.8s ease, transform 0.8s ease;
-}
-.reveal-right.visible {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-/* Responsive */
-@media (max-width: 992px) {
-    .footer-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 768px) {
-    .mobile-toggle { display: block; }
-    .nav-links { display: none; flex-direction: column; width: 100%; padding: 16px 0; gap: 12px; }
-    .nav-links.open { display: flex; }
-    .hero h1 { font-size: 2.8rem; }
-    .section-title { font-size: 2rem; }
-    .grid-3 { grid-template-columns: 1fr; }
-    .footer-grid { grid-template-columns: 1fr; gap: 30px; }
-=======
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;600;700;800&display=swap');
 
 :root {
@@ -695,6 +263,387 @@ textarea.form-control { resize: vertical; }
 .reveal.visible, .reveal-left.visible, .reveal-right.visible { opacity: 1; transform: translateY(0) translateX(0); }
 .reveal-left { transform: translateX(-30px); }
 .reveal-right { transform: translateX(30px); }
+
+/* ============================================================
+   PAGE ANIMATIONS
+   Each animation below is intentional and tied to the website's
+   purpose (a premium *painting* service). The metaphors echo how
+   paint is applied: colour fills in, a brush wipes across, a coat
+   reveals what is underneath, and a process moves from start to
+   finish. Animations are subtle and professional, never bouncy.
+   ============================================================ */
+
+/* Respect users who prefer reduced motion — disable non-essential motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal, .reveal-left, .reveal-right { opacity: 1 !important; transform: none !important; }
+  .paint-fill, .paint-wipe, .roller-reveal { animation: none !important; clip-path: none !important; }
+  .cta-pulse, .float-soft, .icon-brush { animation: none !important; }
+}
+
+/* --- 1. HERO: content rises into place in stages ---------------
+   Meaning: the page "comes to life" the way a freshly painted
+   wall settles into view — heading first, then message, then the
+   call to action. A calm, staged entrance signals a premium brand. */
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(26px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero .content > * { opacity: 0; animation: hero-rise 0.9s ease forwards; }
+.hero .content h1   { animation-delay: 0.15s; }
+.hero .content p    { animation-delay: 0.4s; }
+.hero .content a, .hero .content .btn-primary { animation-delay: 0.6s; }
+
+/* --- 2. HERO highlight: colour sweeps into the word ------------
+   Meaning: the highlighted word literally "fills with paint",
+   reinforcing that this is a painting business. */
+@keyframes paint-fill {
+  from { background-size: 0% 100%; }
+  to   { background-size: 100% 100%; }
+}
+.hero .highlight {
+  background: linear-gradient(90deg, #ffd700, #ffb300) no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  background-size: 0% 100%;
+  animation: paint-fill 1.4s ease 0.5s forwards;
+  padding: 0 0.05em;
+}
+
+/* --- 3. SERVICE / VALUE ICONS: a single brush-pop ---------------
+   Meaning: the icon tilts and settles like a brush touching the
+   wall once — a small, deliberate flourish on reveal. */
+@keyframes icon-brush {
+  0%   { transform: scale(0.6) rotate(-18deg); opacity: 0; }
+  60%  { transform: scale(1.08) rotate(4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.card.visible .icon, .about-card.visible .icon { animation: icon-brush 0.6s ease forwards; }
+
+/* --- 4. PORTFOLIO / RECENT WORK: paint-roller image reveal ------
+   Meaning: the photo is uncovered the way a roller reveals the
+   finished colour beneath — a horizontal wipe. Shows
+   transformation, the core promise of painting. */
+@keyframes roller-reveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+.roller-reveal { clip-path: inset(0 100% 0 0); }
+.roller-reveal.visible { animation: roller-reveal 1.1s ease forwards; }
+
+/* --- 5. PROCESS STEPS: a connecting line that fills --------------
+   Meaning: the line that joins steps 1 → 2 → 3 fills as you scroll,
+   showing your project progressing from consultation to a finished
+   result. Progress made visible. (Fill is driven by JS.) */
+.process-line {
+  position: absolute;
+  left: 0; right: 0; top: 30px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 999px;
+  z-index: 0;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.process-line::after {
+  content: "";
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+.process-line.visible::after { width: 100%; }
+.process-step { position: relative; z-index: 1; }
+
+/* --- 6. CTA BUTTON: a gentle pulse ------------------------------
+   Meaning: a soft, slow breathing pulse on the main action button
+   to quietly invite the visitor to get a quote — attention without
+   being loud. */
+@keyframes cta-pulse {
+  0%, 100% { box-shadow: 0 10px 24px rgba(37,99,235,0.25); }
+  50%      { box-shadow: 0 14px 34px rgba(37,99,235,0.45); }
+}
+.cta-card .btn-primary { animation: cta-pulse 2.8s ease-in-out infinite; }
+
+/* --- 7. WHATSAPP FLOAT: gentle float ---------------------------
+   Meaning: a barely-there up-and-down drift so the chat button
+   feels approachable and alive, not a static sticker. */
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+.whatsapp-float { animation: float-soft 3.2s ease-in-out infinite; }
+
+/* --- 8. FAQ: rotate the +/− toggle -----------------------------
+   Meaning: the toggle spins 45° when open, turning + into ×,
+   so the state change is instantly legible. */
+.faq-item .toggle { transition: transform 0.3s ease; display: inline-block; }
+.faq-item.open .toggle { transform: rotate(45deg); }
+
+/* --- 9. PAINT-WIPE: generic colour sweep for service cards -----
+   Meaning: on hover a thin band of brand colour wipes across the
+   top of a card, like a brush loading colour onto a surface. */
+@keyframes paint-wipe {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.card { position: relative; overflow: hidden; }
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s ease;
+}
+.card:hover::before { transform: scaleX(1); }
+
+/* --- 10. FORM FOCUS: colour fills the input border -------------
+   Meaning: when a field is selected, brand colour fills in — the
+   same idea as paint being applied, applied to the form. */
+.form-control:focus { animation: paint-fill 0.4s ease forwards; }
+
+/* ============================================================
+   COLOR STUDIO — live paint preview
+   A simple CSS-3D room lets the client pick colours and instantly
+   see them on walls. Day/night toggles lighting so they understand
+   how a shade looks in different conditions.
+   ============================================================ */
+.studio-intro { text-align: center; max-width: 640px; margin: 0 auto 36px; color: var(--text-light); }
+.studio {
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr;
+  gap: 30px;
+  align-items: start;
+}
+
+/* --- Live room preview --- */
+.studio-preview {
+  position: relative;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.room {
+  position: relative;
+  width: 100%;
+  height: 360px;
+  perspective: 900px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #2a2a2a;
+}
+.room-wall {
+  position: absolute;
+  transition: background-color 0.6s ease;
+  cursor: pointer;
+}
+.room-wall:hover { box-shadow: inset 0 0 0 3px var(--primary); }
+.room-wall.selected { box-shadow: inset 0 0 0 3px var(--primary); }
+/* Back wall */
+.room-wall--back {
+  width: 50%; height: 70%;
+  left: 25%; top: 8%;
+  transform: rotateY(0deg);
+  background: #e8e3d8;
+  border-radius: 4px 4px 0 0;
+}
+/* Left wall (angled) */
+.room-wall--left {
+  width: 26%; height: 70%;
+  left: 0; top: 8%;
+  transform: rotateY(40deg);
+  transform-origin: left center;
+  background: #d9d3c6;
+}
+/* Right wall (angled) */
+.room-wall--right {
+  width: 26%; height: 70%;
+  right: 0; top: 8%;
+  transform: rotateY(-40deg);
+  transform-origin: right center;
+  background: #d9d3c6;
+}
+.room-floor {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 22%;
+  background: linear-gradient(180deg, #6b4f2a, #4a3520);
+  transform: rotateX(60deg);
+  transform-origin: bottom center;
+}
+
+/* Furniture inside the room */
+.room-furniture { position: absolute; inset: 0; pointer-events: none; }
+.sofa {
+  position: absolute;
+  bottom: 18%; left: 30%;
+  width: 40%; height: 14%;
+  background: #6c757d;
+  border-radius: 12px 12px 4px 4px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.25);
+}
+.sofa::after {
+  content: ""; position: absolute; top: -28%; left: 8%; right: 8%; height: 40%;
+  background: #5a6268; border-radius: 10px 10px 0 0;
+}
+.window {
+  position: absolute;
+  top: 18%; left: 36%;
+  width: 16%; height: 26%;
+  background: #bfe3ff;
+  border: 6px solid #f4f1ea;
+  border-radius: 4px;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+}
+.window .sun {
+  position: absolute;
+  top: 14%; right: 14%;
+  width: 22%; aspect-ratio: 1;
+  background: radial-gradient(circle, #fff7cc, #ffd24d);
+  border-radius: 50%;
+  transition: opacity 0.5s ease;
+}
+.frame {
+  position: absolute;
+  top: 16%; right: 16%;
+  width: 12%; height: 18%;
+  background: #c0392b;
+  border: 5px solid #d4af37;
+  border-radius: 2px;
+  transition: background-color 0.6s ease;
+}
+
+/* Lighting overlay */
+.room-light {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  transition: background 0.6s ease;
+  background: rgba(255, 245, 200, 0.0);
+}
+.room[data-light="night"] .room-light { background: rgba(20, 24, 60, 0.42); }
+.room[data-light="night"] .sun { opacity: 0.15; }
+.room[data-light="night"] .window { background: #1a2b50; }
+
+.studio-hint { text-align: center; margin-top: 12px; font-size: 0.9rem; color: var(--text-light); }
+
+/* --- Controls panel --- */
+.studio-controls {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+.control-group { margin-bottom: 22px; }
+.control-group h3 { font-size: 1.05rem; margin-bottom: 12px; }
+
+.wall-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.wall-tab {
+  border: 1px solid var(--border);
+  background: var(--surface-hover);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+.wall-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.swatch {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+.swatch:hover { transform: scale(1.1); }
+.swatch.active::after {
+  content: "✓";
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  font-weight: 700;
+}
+
+.custom-colour {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 14px;
+}
+.custom-colour label { font-size: 0.9rem; color: var(--text-light); }
+#customColor { width: 44px; height: 44px; border: none; border-radius: 10px; cursor: pointer; background: none; }
+#customColor::-webkit-color-swatch-wrapper { padding: 0; }
+#customColor::-webkit-color-swatch { border: 2px solid var(--border); border-radius: 10px; }
+.custom-hex { font-family: monospace; font-size: 0.95rem; }
+
+.light-toggle { display: flex; gap: 8px; }
+.light-btn {
+  border: 1px solid var(--border);
+  background: var(--surface-hover);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+.light-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.saved-scheme {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.saved-scheme .scheme-wall {
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+  border: 1px solid var(--border);
+  background: var(--surface-hover);
+}
+.saved-scheme .scheme-wall span { display: block; font-size: 0.75rem; color: var(--text-light); }
+.saved-scheme .scheme-wall strong { font-size: 0.8rem; font-family: monospace; }
+
+.studio-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.studio-actions .btn-secondary {
+  border: 1px solid var(--border);
+  background: var(--surface-hover);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 10px 18px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: background 0.3s;
+}
+.studio-actions .btn-secondary:hover { background: var(--border); }
+
+@media (max-width: 860px) {
+  .studio { grid-template-columns: 1fr; }
+  .palette { grid-template-columns: repeat(8, 1fr); }
+}
+@media (max-width: 560px) {
+  .palette { grid-template-columns: repeat(6, 1fr); }
+  .room { height: 280px; }
+  .studio-actions .btn-secondary, .studio-actions .btn-primary { width: 100%; text-align: center; }
+}
 @media (max-width: 900px) {
   .about-grid, .contact-card { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: repeat(2, 1fr); }
@@ -706,5 +655,4 @@ textarea.form-control { resize: vertical; }
   .hero h1 { font-size: 2.8rem; }
   .section-title { font-size: 2.1rem; }
   .footer-grid { grid-template-columns: 1fr; }
->>>>>>> 6e6b646c42f798484e7208b221540adad4ec9f46
 }

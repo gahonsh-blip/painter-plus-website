@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Color Studio | Painter Plus</title>
+    <meta name="description" content="Try paint colours live on a virtual room. Choose wall and accent colours, preview day and night lighting, and request a free quote for your favourites." />
+    <meta name="theme-color" content="#2563EB" />
+    <meta property="og:title" content="Color Studio | Painter Plus" />
+    <meta property="og:description" content="Try paint colours live on a virtual room. Choose wall and accent colours, preview day and night lighting, and request a free quote for your favourites." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://gahonsh-blip.github.io/painter-plus-website/color-studio.html" />
+    <meta property="og:image" content="https://gahonsh-blip.github.io/painter-plus-website/images/og-image.svg" />
+    <meta property="og:image:alt" content="Painter Plus Color Studio" />
+    <meta property="og:site_name" content="Painter Plus" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://gahonsh-blip.github.io/painter-plus-website/color-studio.html" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="stylesheet" href="./css/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="container flex-header">
+        <a href="./index.html" class="logo">🎨 <span>Painter Plus</span></a>
+        <button class="mobile-toggle" aria-label="Toggle navigation">☰</button>
+        <nav class="nav-links">
+          <a href="./index.html">Home</a>
+          <a href="./about.html">About</a>
+          <a href="./services.html">Services</a>
+          <a href="./portfolio.html">Portfolio</a>
+          <a href="./color-studio.html">Color Studio</a>
+          <a href="./contact.html">Contact</a>
+          <button class="theme-toggle" id="theme-toggle" type="button">🌙 Dark</button>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="section">
+        <div class="container">
+          <h2 class="section-title">Color <span>Studio</span></h2>
+          <p class="studio-intro">Pick colours and watch them come to life on a virtual room wall. Switch between day and night light, save your favourites, and share them when you request a quote.</p>
+
+          <div class="studio">
+            <!-- Live room preview -->
+            <div class="studio-preview">
+              <div class="room" id="room" data-light="day">
+                <div class="room-wall room-wall--left" id="wallLeft"></div>
+                <div class="room-wall room-wall--right" id="wallRight"></div>
+                <div class="room-wall room-wall--back" id="wallBack"></div>
+                <div class="room-floor" id="floor"></div>
+                <div class="room-furniture">
+                  <div class="sofa"></div>
+                  <div class="window">
+                    <span class="sun"></span>
+                  </div>
+                  <div class="frame" id="accentFrame"></div>
+                </div>
+                <div class="room-light" id="roomLight"></div>
+              </div>
+              <p class="studio-hint" id="studioHint">Tip: tap a wall, then choose a colour to paint it.</p>
+            </div>
+
+            <!-- Controls -->
+            <div class="studio-controls">
+              <div class="control-group">
+                <h3>1. Choose a wall</h3>
+                <div class="wall-tabs" role="tablist">
+                  <button class="wall-tab active" data-wall="back" type="button" role="tab" aria-selected="true">Back wall</button>
+                  <button class="wall-tab" data-wall="left" type="button" role="tab" aria-selected="false">Left wall</button>
+                  <button class="wall-tab" data-wall="right" type="button" role="tab" aria-selected="false">Right wall</button>
+                </div>
+              </div>
+
+              <div class="control-group">
+                <h3>2. Pick a colour</h3>
+                <div class="palette" id="palette" role="group" aria-label="Colour palette"></div>
+
+                <div class="custom-colour">
+                  <label for="customColor">Custom colour</label>
+                  <input type="color" id="customColor" value="#e8e3d8" aria-label="Custom wall colour" />
+                  <span class="custom-hex" id="customHex">#E8E3D8</span>
+                </div>
+              </div>
+
+              <div class="control-group">
+                <h3>3. Lighting</h3>
+                <div class="light-toggle" role="group" aria-label="Room lighting">
+                  <button class="light-btn active" data-light="day" type="button">☀️ Day</button>
+                  <button class="light-btn" data-light="night" type="button">🌙 Night</button>
+                </div>
+              </div>
+
+              <div class="control-group">
+                <h3>4. Your scheme</h3>
+                <div class="saved-scheme" id="savedScheme" aria-live="polite"></div>
+                <div class="studio-actions">
+                  <button class="btn-secondary" id="saveScheme" type="button">💾 Save scheme</button>
+                  <button class="btn-secondary" id="resetScheme" type="button">↺ Reset</button>
+                  <a class="btn-primary" id="quoteScheme" href="./contact.html">Request quote →</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <h4>Company</h4>
+            <ul>
+              <li><a href="./about.html">About Us</a></li>
+              <li><a href="./contact.html">Contact</a></li>
+              <li><a href="./privacy.html">Privacy Policy</a></li>
+              <li><a href="./terms.html">Terms of Service</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Services</h4>
+            <ul>
+              <li><a href="./services.html#interior">Interior Painting</a></li>
+              <li><a href="./services.html#exterior">Exterior Painting</a></li>
+              <li><a href="./services.html#putty">Wall Putty</a></li>
+              <li><a href="./services.html#texture">Texture Finishes</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Resources</h4>
+            <ul>
+              <li><a href="./portfolio.html">Portfolio</a></li>
+              <li><a href="./color-studio.html">Color Studio</a></li>
+              <li><a href="./contact.html">Free Quote</a></li>
+              <li><a href="./about.html">Our Story</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Get in Touch</h4>
+            <ul>
+              <li>📞 <a href="tel:+918825183628">+91 8825183628</a></li>
+              <li>✉️ <a href="mailto:gahonsh@gmail.com">gahonsh@gmail.com</a></li>
+              <li>📍 Upar Balalong, Arki, Khunti, Jharkhand, India - 835225</li>
+              <li><a href="https://wa.me/918825183628" target="_blank" rel="noreferrer">💬 WhatsApp</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>© 2026 Painter Plus. All rights reserved. <a href="./privacy.html">Privacy</a> | <a href="./terms.html">Terms</a></p>
+        </div>
+      </div>
+    </footer>
+
+    <a href="https://wa.me/918825183628" class="whatsapp-float" target="_blank" rel="noreferrer">💬 WhatsApp</a>
+    <script src="./js/color-studio.js" defer></script>
+    <script src="./js/script.js" defer></script>
+  </body>
+</html>
