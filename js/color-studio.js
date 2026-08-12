@@ -37,6 +37,8 @@
     bedroom:  { back: "#efe7dd", left: "#ddd4c6", right: "#ddd4c6", ceiling: "#f4f1ea", floor: "#6b4f2a", accent: "#5b8fb0" },
     kitchen:  { back: "#eef2f5", left: "#e2e8ef", right: "#e2e8ef", ceiling: "#f7f9fb", floor: "#3a3a3a", cabinet: "#cfd8e3", accent: "#d4af37" },
     bathroom: { back: "#eaf2f5", left: "#dbe9ef", right: "#dbe9ef", ceiling: "#f6fbfd", floor: "#cfe0e6", tile: "#b8d6df", accent: "#5b8fb0" },
+    dining:   { back: "#efe7dd", left: "#e2d8c8", right: "#e2d8c8", ceiling: "#f4f1ea", floor: "#6b4f2a", accent: "#c06c61" },
+    office:   { back: "#eef2f5", left: "#e2e8ef", right: "#e2e8ef", ceiling: "#f7f9fb", floor: "#3a3a3a", cab: "#cfd8e3", accent: "#34495e" },
     kids:     { back: "#fde9ef", left: "#fbe3ea", right: "#fbe3ea", ceiling: "#fff5f8", floor: "#c98a4a", accent: "#5b8fb0" },
     exterior: { sky: "#bfe3ff", main: "#e8e3d8", roof: "#5a3a1a", ground: "#5a7c3a", trim: "#f4f1ea", door: "#8d5524" }
   };
@@ -44,7 +46,7 @@
   // Friendly labels for each surface key.
   const SURFACE_LABELS = {
     back: "Back wall", left: "Left wall", right: "Right wall", ceiling: "Ceiling",
-    floor: "Floor", accent: "Accent", cabinet: "Cabinets", tile: "Tile wall",
+    floor: "Floor", accent: "Accent", cabinet: "Cabinets", tile: "Tile wall", cab: "Cabinets",
     sky: "Sky", main: "Main wall", roof: "Roof", ground: "Ground", trim: "Trim", door: "Door"
   };
 
@@ -71,6 +73,18 @@
       { name: "Coastal Blue", colors: { back: "#bcd4e6", left: "#c9d6d1", right: "#c9d6d1", tile: "#5b8fb0", accent: "#d4af37" } },
       { name: "Warm Sand", colors: { back: "#e8e3d8", left: "#d9d3c6", right: "#d9d3c6", tile: "#c9d6d1", accent: "#c06c61" } },
       { name: "Deep Stone", colors: { back: "#34495e", left: "#2f4858", right: "#2f4858", tile: "#1e2a38", accent: "#d4af37" } }
+    ],
+    dining: [
+      { name: "Warm Amber", colors: { back: "#e8e3d8", left: "#d9d3c6", right: "#d9d3c6", accent: "#c06c61" } },
+      { name: "Evening Plum", colors: { back: "#9b6a6a", left: "#c0a0a0", right: "#c0a0a0", accent: "#d4af37" } },
+      { name: "Forest Feast", colors: { back: "#a7c4a0", left: "#c9d6d1", right: "#c9d6d1", accent: "#8d5524" } },
+      { name: "Soft Ivory", colors: { back: "#f4f1ea", left: "#e8e3d8", right: "#e8e3d8", accent: "#5b8fb0" } }
+    ],
+    office: [
+      { name: "Focus Grey", colors: { back: "#d9d3c6", left: "#c9d6d1", right: "#c9d6d1", cab: "#34495e", accent: "#5b8fb0" } },
+      { name: "Deep Navy", colors: { back: "#2f4858", left: "#34495e", right: "#34495e", cab: "#1e2a38", accent: "#d4af37" } },
+      { name: "Sage Work", colors: { back: "#c9d6d1", left: "#d9d3c6", right: "#d9d3c6", cab: "#8d5524", accent: "#a7c4a0" } },
+      { name: "Clean White", colors: { back: "#f4f1ea", left: "#eef2f5", right: "#eef2f5", cab: "#cfd8e3", accent: "#34495e" } }
     ],
     kids: [
       { name: "Sunny Sky", colors: { back: "#bcd4e6", left: "#c9d6d1", right: "#c9d6d1", accent: "#ffd24d" } },

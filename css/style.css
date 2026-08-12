@@ -618,6 +618,24 @@ textarea.form-control { resize: vertical; }
 .prop-balloon { width: 7%; aspect-ratio: 1/1.25; background: radial-gradient(circle at 35% 30%, #ff9aa2, #e74c6a); border-radius: 50% 50% 48% 48%; }
 .prop-balloon::after { content:""; position:absolute; bottom:-26%; left:48%; width:2px; height:30%; background:#6b4f2a; }
 
+/* Dining props */
+.prop-table { left: 30%; bottom: 20%; width: 40%; height: 12%; background: #6b4f2a; border-radius: 8px; box-shadow: 0 10px 16px rgba(0,0,0,0.22); }
+.prop-table::after { content:""; position:absolute; top:100%; left:8%; right:8%; height:42%; background: linear-gradient(#5a3a1a,#4a2a0a); border-radius: 0 0 6px 6px; }
+.prop-chair-l { left: 18%; bottom: 20%; width: 11%; height: 22%; background: #4a2a0a; border-radius: 6px 6px 2px 2px; }
+.prop-chair-l::after { content:""; position:absolute; top:-30%; left:0; right:0; height:30%; background:#3a1a00; border-radius: 8px 8px 2px 2px; }
+.prop-chair-r { right: 18%; bottom: 20%; width: 11%; height: 22%; background: #4a2a0a; border-radius: 6px 6px 2px 2px; }
+.prop-chair-r::after { content:""; position:absolute; top:-30%; left:0; right:0; height:30%; background:#3a1a00; border-radius: 8px 8px 2px 2px; }
+.prop-pendant { background: #d4af37; border-radius: 0 0 50% 50%; box-shadow: 0 0 18px rgba(212,175,55,0.5); }
+.prop-pendant::after { content:""; position:absolute; top:-30%; left:42%; width:16%; height:30%; background:#9aa0a6; }
+
+/* Office props */
+.prop-desk { left: 24%; bottom: 20%; width: 52%; height: 12%; background: #6b4f2a; border-radius: 6px; box-shadow: 0 8px 14px rgba(0,0,0,0.22); }
+.prop-desk::after { content:""; position:absolute; top:100%; left:8%; right:8%; height:38%; background: linear-gradient(#5a3a1a,#4a2a0a); border-radius: 0 0 6px 6px; }
+.prop-monitor { left: 38%; bottom: 32%; width: 24%; height: 22%; background: #1f2937; border: 4px solid #0f172a; border-radius: 4px; }
+.prop-monitor::after { content:""; position:absolute; top:100%; left:38%; width:24%; height:18%; background:#1f2937; }
+.prop-chair { left: 44%; bottom: 18%; width: 12%; height: 16%; background: #1f2937; border-radius: 8px 8px 4px 4px; }
+.prop-chair::after { content:""; position:absolute; top:-40%; left:0; right:0; height:40%; background:#111827; border-radius: 8px 8px 2px 2px; }
+
 /* Exterior props */
 .prop-sun {
   left: 70%; top: 8%; width: 12%; aspect-ratio: 1;
