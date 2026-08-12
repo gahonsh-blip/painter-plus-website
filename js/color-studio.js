@@ -1,13 +1,15 @@
 /* ============================================================
-   COLOR STUDIO — interactive live paint preview
-   Lets a client choose wall colours and instantly see them on a
-   virtual room. Day/night toggles lighting, and the chosen scheme
-   can be saved (localStorage) and sent along when requesting a quote.
+   COLOR STUDIO (advanced) — multi-scene live paint preview
+   State machine driven, so switching scenes/finishes/lighting never
+   breaks: every scene keeps its own surface colours; the coverage
+   slider interpolates each surface from its original colour toward
+   the chosen colour so clients literally watch paint cover the wall.
+   State is persisted to localStorage and carried into the quote form.
    ============================================================ */
 (function () {
   "use strict";
 
-  // Curated palette of common, appealing paint shades with friendly names.
+  // --- Curated palette ---
   const PALETTE = [
     { hex: "#e8e3d8", name: "Warm Linen" },
     { hex: "#f4f1ea", name: "Ivory White" },
@@ -29,34 +31,107 @@
     { hex: "#1e2a38", name: "Midnight" }
   ];
 
-  // Each wall keeps its own colour; the frame acts as an accent.
-  const walls = {
-    back:  { el: document.getElementById("wallBack"),  color: "#e8e3d8" },
-    left:  { el: document.getElementById("wallLeft"),  color: "#d9d3c6" },
-    right: { el: document.getElementById("wallRight"), color: "#d9d3c6" }
+  // --- Surface defaults per scene (the "before" colours) ---
+  const DEFAULTS = {
+    living:   { back: "#e8e3d8", left: "#d9d3c6", right: "#d9d3c6", ceiling: "#f2efe8", floor: "#6b4f2a", accent: "#c0392b" },
+    bedroom:  { back: "#efe7dd", left: "#ddd4c6", right: "#ddd4c6", ceiling: "#f4f1ea", floor: "#6b4f2a", accent: "#5b8fb0" },
+    kitchen:  { back: "#eef2f5", left: "#e2e8ef", right: "#e2e8ef", ceiling: "#f7f9fb", floor: "#3a3a3a", cabinet: "#cfd8e3", accent: "#d4af37" },
+    exterior: { sky: "#bfe3ff", main: "#e8e3d8", roof: "#5a3a1a", ground: "#5a7c3a", trim: "#f4f1ea", door: "#8d5524" }
   };
-  const accentFrame = document.getElementById("accentFrame");
-  const room = document.getElementById("room");
+
+  // Friendly labels for each surface key.
+  const SURFACE_LABELS = {
+    back: "Back wall", left: "Left wall", right: "Right wall", ceiling: "Ceiling",
+    floor: "Floor", accent: "Accent", cabinet: "Cabinets",
+    sky: "Sky", main: "Main wall", roof: "Roof", ground: "Ground", trim: "Trim", door: "Door"
+  };
+
+  // Preset schemes, keyed by scene. Each maps surface -> hex.
+  const PRESETS = {
+    living: [
+      { name: "Calm Neutrals", colors: { back: "#e8e3d8", left: "#d9d3c6", right: "#d9d3c6", accent: "#c9d6d1" } },
+      { name: "Coastal Cool", colors: { back: "#bcd4e6", left: "#c9d6d1", right: "#c9d6d1", accent: "#5b8fb0" } },
+      { name: "Warm Earth", colors: { back: "#e8c4b8", left: "#d9d3c6", right: "#d9d3c6", accent: "#c06c61" } },
+      { name: "Forest Calm", colors: { back: "#a7c4a0", left: "#c9d6d1", right: "#c9d6d1", accent: "#7d9b76" } }
+    ],
+    bedroom: [
+      { name: "Restful Grey", colors: { back: "#d9d3c6", left: "#c9d6d1", right: "#c9d6d1", accent: "#5b8fb0" } },
+      { name: "Soft Blush", colors: { back: "#e8c4b8", left: "#f4f1ea", right: "#f4f1ea", accent: "#9b6a6a" } },
+      { name: "Deep Night", colors: { back: "#2f4858", left: "#34495e", right: "#34495e", accent: "#d4af37" } }
+    ],
+    kitchen: [
+      { name: "Clean White", colors: { back: "#f4f1ea", left: "#eef2f5", right: "#eef2f5", cabinet: "#e8e3d8", accent: "#5b8fb0" } },
+      { name: "Sage & Oak", colors: { back: "#c9d6d1", left: "#d9d3c6", right: "#d9d3c6", cabinet: "#8d5524", accent: "#a7c4a0" } },
+      { name: "Modern Slate", colors: { back: "#eef2f5", left: "#e2e8ef", right: "#e2e8ef", cabinet: "#34495e", accent: "#d4af37" } }
+    ],
+    exterior: [
+      { name: "Classic White", colors: { main: "#f4f1ea", roof: "#5a3a1a", trim: "#ffffff", door: "#c0392b" } },
+      { name: "Terracotta Villa", colors: { main: "#e8c4b8", roof: "#8d5524", trim: "#f4f1ea", door: "#34495e" } },
+      { name: "Coastal Blue", colors: { main: "#bcd4e6", roof: "#2f4858", trim: "#ffffff", door: "#5b8fb0" } },
+      { name: "Garden Green", colors: { main: "#a7c4a0", roof: "#2f5223", trim: "#f4f1ea", door: "#8d5524" } }
+    ]
+  };
+
+  const FINISH_NOTES = {
+    matte: "Flat, no shine — hides wall imperfections. Great for ceilings and low-traffic walls.",
+    eggshell: "Soft, subtle sheen — easy to clean. The most popular wall finish.",
+    satin: "Soft glow — durable and washable. Ideal for kitchens, bathrooms and trims.",
+    semigloss: "Shiny and tough — moisture-resistant. Best for doors, trims and cabinets."
+  };
+
+  // --- Element refs ---
+  const stage = document.getElementById("stage");
   const paletteEl = document.getElementById("palette");
   const customColor = document.getElementById("customColor");
   const customHex = document.getElementById("customHex");
-  const hintEl = document.getElementById("studioHint");
-  const savedSchemeEl = document.getElementById("savedScheme");
+  const surfaceTabsEl = document.getElementById("surfaceTabs");
+  const presetTabsEl = document.getElementById("presetTabs");
+  const finishNote = document.getElementById("finishNote");
+  const harmonyEl = document.getElementById("harmony");
+  const schemeSummaryEl = document.getElementById("schemeSummary");
+  const coverageInput = document.getElementById("coverage");
+  const coverageVal = document.getElementById("coverageVal");
   const quoteLink = document.getElementById("quoteScheme");
 
-  let activeWall = "back";
+  // --- State ---
+  // colours[scene][surface] = chosen hex (the "after")
+  const colours = {};
+  Object.keys(DEFAULTS).forEach((s) => {
+    colours[s] = Object.assign({}, DEFAULTS[s]);
+  });
+  let scene = "living";
+  let surface = "back";
+  let finish = "matte";
+  let light = "day";
+  let coverage = 100; // 0 = original, 100 = fully chosen
 
-  // --- Apply a colour to a wall (and persist) ---
-  function paintWall(wallKey, hex) {
-    const wall = walls[wallKey];
-    if (!wall) return;
-    wall.color = hex;
-    wall.el.style.backgroundColor = hex;
-    persist();
-    renderSavedScheme();
+  // --- Colour helpers ---
+  function hexToRgb(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+    if (!m) return [230, 227, 216];
+    const v = parseInt(m[1], 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  }
+  function rgbToHex(r, g, b) {
+    return (
+      "#" +
+      [r, g, b]
+        .map((n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0"))
+        .join("")
+    );
+  }
+  // Interpolate from original -> chosen by coverage ratio.
+  function blend(originalHex, chosenHex, ratio) {
+    const a = hexToRgb(originalHex);
+    const b = hexToRgb(chosenHex);
+    return rgbToHex(
+      a[0] + (b[0] - a[0]) * ratio,
+      a[1] + (b[1] - a[1]) * ratio,
+      a[2] + (b[2] - a[2]) * ratio
+    );
   }
 
-  // --- Render the swatch palette ---
+  // --- Build palette swatches ---
   function buildPalette() {
     PALETTE.forEach((c) => {
       const sw = document.createElement("button");
@@ -72,180 +147,313 @@
       paletteEl.appendChild(sw);
     });
   }
-
   function markActiveSwatch(active) {
     paletteEl.querySelectorAll(".swatch").forEach((s) => s.classList.remove("active"));
     if (active) active.classList.add("active");
+    else {
+      // Highlight any swatch matching the current surface colour.
+      const cur = (colours[scene][surface] || "").toLowerCase();
+      const match = Array.from(paletteEl.querySelectorAll(".swatch")).find(
+        (s) => rgbToHex(...hexToRgb(s.style.backgroundColor)) === cur
+      );
+      if (match) match.classList.add("active");
+    }
   }
 
-  // --- Apply a chosen colour to the currently-selected wall ---
+  // --- Apply colour to current surface + repaint stage ---
   function applyColour(hex) {
-    paintWall(activeWall, hex);
+    colours[scene][surface] = hex;
     customColor.value = hex;
     customHex.textContent = hex.toUpperCase();
-    // Reset swatch highlight if it doesn't match
-    const match = Array.from(paletteEl.querySelectorAll(".swatch")).find(
-      (s) => rgbToHex(s.style.backgroundColor) === hex.toLowerCase()
-    );
-    markActiveSwatch(match || null);
-    flashHint("Painted " + labelFor(activeWall) + " → " + hex.toUpperCase());
+    paintStage();
+    markActiveSwatch(null);
+    updateHarmony();
+    persist();
+    renderSummary();
   }
 
-  // --- Select which wall is active ---
-  function selectWall(wallKey) {
-    activeWall = wallKey;
-    Object.keys(walls).forEach((k) => walls[k].el.classList.toggle("selected", k === wallKey));
-    document.querySelectorAll(".wall-tab").forEach((tab) => {
-      const on = tab.dataset.wall === wallKey;
-      tab.classList.toggle("active", on);
-      tab.setAttribute("aria-selected", on ? "true" : "false");
+  // --- Repaint every surface in the active scene using coverage blend ---
+  function paintStage() {
+    const sceneEl = stage.querySelector('.scene[data-scene="' + scene + '"]');
+    if (!sceneEl) return;
+    const ratio = coverage / 100;
+    sceneEl.querySelectorAll(".paint-surface").forEach((el) => {
+      const key = el.dataset.surface;
+      const orig = DEFAULTS[scene][key] || "#e8e3d8";
+      const chosen = colours[scene][key] || orig;
+      el.style.backgroundColor = blend(orig, chosen, ratio);
     });
-    const current = walls[wallKey].color;
-    customColor.value = current;
-    customHex.textContent = current.toUpperCase();
-    flashHint("Now painting the " + labelFor(wallKey) + ". Choose a colour.");
   }
 
-  function labelFor(key) {
-    return key === "back" ? "back wall" : key === "left" ? "left wall" : "right wall";
+  // --- Surface tabs for the active scene ---
+  function buildSurfaceTabs() {
+    surfaceTabsEl.innerHTML = "";
+    const keys = Object.keys(DEFAULTS[scene]);
+    keys.forEach((key) => {
+      const b = document.createElement("button");
+      b.className = "surface-tab" + (key === surface ? " active" : "");
+      b.type = "button";
+      b.textContent = SURFACE_LABELS[key] || key;
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", key === surface ? "true" : "false");
+      b.addEventListener("click", () => selectSurface(key));
+      surfaceTabsEl.appendChild(b);
+    });
+  }
+  function selectSurface(key) {
+    surface = key;
+    surfaceTabsEl.querySelectorAll(".surface-tab").forEach((t, i) => {
+      const on = Object.keys(DEFAULTS[scene])[i] === key;
+      t.classList.toggle("active", on);
+      t.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    // Highlight surfaces in the stage.
+    stage.querySelectorAll(".scene.active .paint-surface").forEach((el) => {
+      el.classList.toggle("selected", el.dataset.surface === key);
+    });
+    const cur = colours[scene][key] || DEFAULTS[scene][key];
+    customColor.value = cur;
+    customHex.textContent = cur.toUpperCase();
+    markActiveSwatch(null);
+    updateHarmony();
   }
 
-  // --- Lighting toggle ---
+  // --- Scene switching ---
+  function selectScene(s) {
+    scene = s;
+    // Validate surface exists in this scene; fall back to first key.
+    if (!DEFAULTS[scene][surface]) surface = Object.keys(DEFAULTS[scene])[0];
+    // Toggle scene visibility + finish + light.
+    stage.querySelectorAll(".scene").forEach((el) => {
+      const on = el.dataset.scene === s;
+      el.classList.toggle("active", on);
+      if (on) {
+        el.dataset.finish = finish;
+        el.dataset.light = light;
+      }
+    });
+    document.querySelectorAll(".scene-tab").forEach((t) => {
+      const on = t.dataset.scene === s;
+      t.classList.toggle("active", on);
+      t.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    buildSurfaceTabs();
+    buildPresetTabs();
+    selectSurface(surface);
+    paintStage();
+    persist();
+    renderSummary();
+  }
+
+  // --- Finish ---
+  function setFinish(f) {
+    finish = f;
+    const sceneEl = stage.querySelector(".scene.active");
+    if (sceneEl) sceneEl.dataset.finish = f;
+    document.querySelectorAll(".finish-tab").forEach((t) =>
+      t.classList.toggle("active", t.dataset.finish === f)
+    );
+    finishNote.textContent = FINISH_NOTES[f] || "";
+    persist();
+  }
+
+  // --- Lighting ---
   function setLight(mode) {
-    room.dataset.light = mode;
+    light = mode;
+    const sceneEl = stage.querySelector(".scene.active");
+    if (sceneEl) sceneEl.dataset.light = mode;
     document.querySelectorAll(".light-btn").forEach((b) =>
       b.classList.toggle("active", b.dataset.light === mode)
     );
+    persist();
   }
 
-  // --- Saved scheme display ---
-  function renderSavedScheme() {
-    savedSchemeEl.innerHTML = "";
-    Object.keys(walls).forEach((k) => {
-      const box = document.createElement("div");
-      box.className = "scheme-wall";
-      const swatch = document.createElement("div");
-      swatch.style.cssText =
-        "height:34px;border-radius:6px;margin-bottom:6px;background:" + walls[k].color + ";";
-      const lbl = document.createElement("span");
-      lbl.textContent = labelFor(k);
-      const hx = document.createElement("strong");
-      hx.textContent = walls[k].color.toUpperCase();
-      box.appendChild(swatch);
-      box.appendChild(lbl);
-      box.appendChild(hx);
-      savedSchemeEl.appendChild(box);
+  // --- Presets ---
+  function buildPresetTabs() {
+    presetTabsEl.innerHTML = "";
+    (PRESETS[scene] || []).forEach((p) => {
+      const b = document.createElement("button");
+      b.className = "preset-tab";
+      b.type = "button";
+      b.textContent = p.name;
+      b.addEventListener("click", () => applyPreset(p));
+      presetTabsEl.appendChild(b);
+    });
+  }
+  function applyPreset(p) {
+    Object.keys(p.colors).forEach((key) => {
+      if (DEFAULTS[scene][key] !== undefined) colours[scene][key] = p.colors[key];
+    });
+    // Mark the active preset visually.
+    presetTabsEl.querySelectorAll(".preset-tab").forEach((t) =>
+      t.classList.toggle("active", t.textContent === p.name)
+    );
+    paintStage();
+    const cur = colours[scene][surface] || DEFAULTS[scene][surface];
+    customColor.value = cur;
+    customHex.textContent = cur.toUpperCase();
+    markActiveSwatch(null);
+    updateHarmony();
+    persist();
+    renderSummary();
+  }
+
+  // --- Harmony hint (light/dark + warm/cool) ---
+  function updateHarmony() {
+    const hex = colours[scene][surface] || DEFAULTS[scene][surface];
+    const [r, g, b] = hexToRgb(hex);
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    const warm = r > b;
+    harmonyEl.textContent =
+      "This shade reads " + (lum > 0.6 ? "light" : lum > 0.35 ? "mid-tone" : "deep") +
+      " & " + (warm ? "warm" : "cool") + " — pair it with a " +
+      (warm ? "cool neutral" : "warm neutral") + " for balance.";
+  }
+
+  // --- Coverage slider ---
+  function setCoverage(v) {
+    coverage = v;
+    coverageVal.textContent = v + "%";
+    paintStage();
+  }
+
+  // --- Scheme summary + quote link ---
+  function renderSummary() {
+    schemeSummaryEl.innerHTML = "";
+    Object.keys(colours[scene]).forEach((key) => {
+      const row = document.createElement("div");
+      row.className = "ss-row";
+      const chip = document.createElement("div");
+      chip.className = "ss-chip";
+      chip.style.backgroundColor = colours[scene][key];
+      const name = document.createElement("span");
+      name.className = "ss-name";
+      name.textContent = SURFACE_LABELS[key] || key;
+      const hx = document.createElement("span");
+      hx.className = "ss-hex";
+      hx.textContent = colours[scene][key].toUpperCase();
+      row.appendChild(chip);
+      row.appendChild(name);
+      row.appendChild(hx);
+      schemeSummaryEl.appendChild(row);
     });
   }
 
-  // --- Persist scheme to localStorage so it survives reloads ---
+  // --- Persistence ---
   function persist() {
     try {
-      const scheme = { back: walls.back.color, left: walls.left.color, right: walls.right.color };
-      localStorage.setItem("pp_color_scheme", JSON.stringify(scheme));
-      // Carry the scheme into the quote form via the URL.
-      const params = new URLSearchParams({
-        back: scheme.back,
-        left: scheme.left,
-        right: scheme.right
-      });
-      quoteLink.href = "./contact.html?colors=" + encodeURIComponent(params.toString());
-    } catch (e) {
-      /* localStorage may be unavailable; ignore */
-    }
+      localStorage.setItem("pp_studio", JSON.stringify({
+        colours, scene, surface, finish, light
+      }));
+    } catch (e) {}
+    // Carry the scheme into the quote form via URL params.
+    const params = new URLSearchParams();
+    params.set("scene", scene);
+    params.set("finish", finish);
+    params.set("light", light);
+    Object.keys(colours[scene]).forEach((k) => params.set(k, colours[scene][k].replace("#", "")));
+    quoteLink.href = "./contact.html?colors=" + encodeURIComponent(params.toString());
   }
-
   function loadPersisted() {
     try {
-      const raw = localStorage.getItem("pp_color_scheme");
+      const raw = localStorage.getItem("pp_studio");
       if (!raw) return;
-      const scheme = JSON.parse(raw);
-      if (scheme.back) paintWall("back", scheme.back);
-      if (scheme.left) paintWall("left", scheme.left);
-      if (scheme.right) paintWall("right", scheme.right);
-    } catch (e) {
-      /* ignore */
-    }
+      const d = JSON.parse(raw);
+      if (d.colours) {
+        Object.keys(d.colours).forEach((s) => {
+          if (colours[s]) Object.assign(colours[s], d.colours[s]);
+        });
+      }
+    } catch (e) {}
   }
 
-  // --- Reset to defaults ---
-  function resetScheme() {
-    paintWall("back", "#e8e3d8");
-    paintWall("left", "#d9d3c6");
-    paintWall("right", "#d9d3c6");
-    accentFrame.style.backgroundColor = "#c0392b";
-    markActiveSwatch(null);
-    flashHint("Studio reset to the default scheme.");
-  }
-
-  // --- Save: copy scheme summary to clipboard (graceful fallback) ---
+  // --- Save / share / reset ---
   function saveScheme() {
-    const summary = [
-      "Painter Plus colour scheme:",
-      "Back wall: " + walls.back.color.toUpperCase(),
-      "Left wall: " + walls.left.color.toUpperCase(),
-      "Right wall: " + walls.right.color.toUpperCase()
-    ].join("\n");
     persist();
-    flashHint("Scheme saved! Use 'Request quote' to send these colours.");
+    flash("Scheme saved! Use 'Request quote' to send these colours.");
+    const summary = ["Painter Plus colour scheme (" + scene + "):"]
+      .concat(Object.keys(colours[scene]).map(
+        (k) => (SURFACE_LABELS[k] || k) + ": " + colours[scene][k].toUpperCase()
+      )).join("\n");
+    if (navigator.clipboard) navigator.clipboard.writeText(summary).catch(() => {});
+  }
+  function shareScheme() {
+    persist();
+    const url = quoteLink.href;
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(summary).catch(() => {});
+      navigator.clipboard.writeText(url).then(
+        () => flash("Shareable link copied to clipboard!"),
+        () => flash("Link: " + url)
+      );
+    } else {
+      flash("Link: " + url);
     }
+  }
+  function resetScheme() {
+    colours[scene] = Object.assign({}, DEFAULTS[scene]);
+    coverage = 100;
+    coverageInput.value = 100;
+    coverageVal.textContent = "100%";
+    presetTabsEl.querySelectorAll(".preset-tab").forEach((t) => t.classList.remove("active"));
+    paintStage();
+    const cur = colours[scene][surface] || DEFAULTS[scene][surface];
+    customColor.value = cur;
+    customHex.textContent = cur.toUpperCase();
+    markActiveSwatch(null);
+    updateHarmony();
+    persist();
+    renderSummary();
+    flash("Scene reset to defaults.");
   }
 
   // --- Hint messages ---
   let hintTimer;
-  function flashHint(msg) {
+  function flash(msg) {
     clearTimeout(hintTimer);
-    hintEl.textContent = msg;
-    hintEl.style.color = "var(--primary)";
+    harmonyEl.textContent = msg;
+    harmonyEl.style.color = "var(--primary)";
     hintTimer = setTimeout(() => {
-      hintEl.style.color = "";
-      hintEl.textContent = "Tip: tap a wall, then choose a colour to paint it.";
-    }, 2600);
+      harmonyEl.style.color = "";
+      updateHarmony();
+    }, 2800);
   }
 
-  // --- Helper: normalise rgb() -> #hex ---
-  function rgbToHex(rgb) {
-    if (!rgb) return "";
-    const m = rgb.match(/\d+/g);
-    if (!m) return rgb.toLowerCase();
-    return (
-      "#" +
-      m.slice(0, 3).map((n) => parseInt(n, 10).toString(16).padStart(2, "0")).join("")
-    );
-  }
-
-  // --- Wire up controls ---
+  // --- Wire up ---
   function init() {
     buildPalette();
+    loadPersisted();
 
-    document.querySelectorAll(".wall-tab").forEach((tab) => {
-      tab.addEventListener("click", () => selectWall(tab.dataset.wall));
-    });
-
-    // Click a wall directly to select it.
-    Object.keys(walls).forEach((k) => {
-      walls[k].el.addEventListener("click", () => selectWall(k));
-    });
+    document.querySelectorAll(".scene-tab").forEach((t) =>
+      t.addEventListener("click", () => selectScene(t.dataset.scene))
+    );
+    document.querySelectorAll(".finish-tab").forEach((t) =>
+      t.addEventListener("click", () => setFinish(t.dataset.finish))
+    );
+    document.querySelectorAll(".light-btn").forEach((b) =>
+      b.addEventListener("click", () => setLight(b.dataset.light))
+    );
 
     customColor.addEventListener("input", (e) => {
-      const hex = e.target.value;
-      customHex.textContent = hex.toUpperCase();
-      applyColour(hex);
+      customHex.textContent = e.target.value.toUpperCase();
+      applyColour(e.target.value);
     });
 
-    document.querySelectorAll(".light-btn").forEach((btn) => {
-      btn.addEventListener("click", () => setLight(btn.dataset.light));
-    });
+    coverageInput.addEventListener("input", (e) => setCoverage(parseInt(e.target.value, 10)));
 
     document.getElementById("saveScheme").addEventListener("click", saveScheme);
+    document.getElementById("shareScheme").addEventListener("click", shareScheme);
     document.getElementById("resetScheme").addEventListener("click", resetScheme);
 
-    loadPersisted();
-    selectWall("back");
-    renderSavedScheme();
+    // Click a surface in the stage to select it.
+    stage.addEventListener("click", (e) => {
+      const el = e.target.closest(".paint-surface");
+      if (el && el.dataset.surface) selectSurface(el.dataset.surface);
+    });
+
+    selectScene("living");
+    setFinish("matte");
     setLight("day");
+    finishNote.textContent = FINISH_NOTES.matte;
   }
 
   if (document.readyState === "loading") {
