@@ -184,6 +184,33 @@ header {
 @media (max-width: 700px) {
   .painter { opacity: 0.55; width: clamp(120px, 30vw, 180px); }
 }
+
+/* ------------------------------------------------------------
+   LINE-ART PAINTER MASCOT — small corner mascot on every page
+   (injected by js/script.js on non-home pages). Reuses the same
+   line-drawn SVG + keyframes as the hero painter.
+   ------------------------------------------------------------ */
+.painter-mascot {
+  position: fixed;
+  right: clamp(10px, 2.5vw, 30px);
+  bottom: clamp(10px, 2.5vw, 30px);
+  width: clamp(72px, 9vw, 116px);
+  z-index: 40;
+  pointer-events: none;
+  color: var(--text, #1f2937);
+  opacity: 0.85;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.12));
+  animation: painter-enter 1s ease 0.3s forwards, mascot-wave 5s ease-in-out 1s infinite;
+}
+.painter-mascot svg { width: 100%; height: auto; display: block; }
+/* gentle peek/hide wave so the mascot feels alive but stays unobtrusive */
+@keyframes mascot-wave {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50%      { transform: translateY(-4px) rotate(-1.5deg); }
+}
+@media (max-width: 700px) {
+  .painter-mascot { width: clamp(60px, 16vw, 84px); opacity: 0.7; }
+}
 .section { padding: 80px 0; }
 .surface-section { background: var(--surface); }
 .section-title {
