@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Color Studio | Painter Plus</title>
-    <meta name="description" content="Try paint colours live on a virtual room. Choose wall and accent colours, preview day and night lighting, and request a free quote for your favourites." />
+    <meta name="description" content="Try paint colours live on full room and exterior demos — living room, bedroom, kitchen and outside walls. Choose wall and accent colours, finishes, day and night lighting, and request a free quote for your scheme." />
     <meta name="theme-color" content="#2563EB" />
     <meta property="og:title" content="Color Studio | Painter Plus" />
-    <meta property="og:description" content="Try paint colours live on a virtual room. Choose wall and accent colours, preview day and night lighting, and request a free quote for your favourites." />
+    <meta property="og:description" content="Try paint colours live on full room and exterior demos. Choose colours, finishes and lighting, then request a quote." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://gahonsh-blip.github.io/painter-plus-website/color-studio.html" />
     <meta property="og:image" content="https://gahonsh-blip.github.io/painter-plus-website/images/og-image.svg" />
@@ -37,71 +37,171 @@
     </header>
 
     <main>
-      <section class="section">
+      <!-- Hero -->
+      <section class="cs-hero">
         <div class="container">
-          <h2 class="section-title">Color <span>Studio</span></h2>
-          <p class="studio-intro">Pick colours and watch them come to life on a virtual room wall. Switch between day and night light, save your favourites, and share them when you request a quote.</p>
+          <h1 class="cs-hero-title">Color <span>Studio</span></h1>
+          <p class="cs-hero-sub">Pick colours and watch them come to life on full room and exterior demos. Switch scenes, finishes and lighting — then save your scheme and request a quote.</p>
+        </div>
+      </section>
 
-          <div class="studio">
-            <!-- Live room preview -->
-            <div class="studio-preview">
-              <div class="room" id="room" data-light="day">
-                <div class="room-wall room-wall--left" id="wallLeft"></div>
-                <div class="room-wall room-wall--right" id="wallRight"></div>
-                <div class="room-wall room-wall--back" id="wallBack"></div>
-                <div class="room-floor" id="floor"></div>
-                <div class="room-furniture">
-                  <div class="sofa"></div>
-                  <div class="window">
-                    <span class="sun"></span>
-                  </div>
-                  <div class="frame" id="accentFrame"></div>
-                </div>
-                <div class="room-light" id="roomLight"></div>
+      <section class="section cs-section">
+        <div class="container">
+          <div class="studio-advanced" id="studio">
+
+            <!-- LEFT: Live stage -->
+            <div class="stage-wrap">
+              <!-- Scene selector -->
+              <div class="scene-bar" role="tablist" aria-label="Choose a scene">
+                <button class="scene-tab active" data-scene="living" type="button" role="tab" aria-selected="true">🛋️ Living Room</button>
+                <button class="scene-tab" data-scene="bedroom" type="button" role="tab" aria-selected="false">🛏️ Bedroom</button>
+                <button class="scene-tab" data-scene="kitchen" type="button" role="tab" aria-selected="false">🍳 Kitchen</button>
+                <button class="scene-tab" data-scene="exterior" type="button" role="tab" aria-selected="false">🏡 Exterior</button>
               </div>
-              <p class="studio-hint" id="studioHint">Tip: tap a wall, then choose a colour to paint it.</p>
+
+              <!-- The stage holds all scenes; only the active one is shown -->
+              <div class="stage" id="stage">
+
+                <!-- LIVING ROOM -->
+                <div class="scene active" data-scene="living" data-finish="matte">
+                  <div class="surface paint-surface" data-surface="back" style="left:20%;top:6%;width:60%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="left" style="left:0;top:6%;width:20%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="right" style="right:0;top:6%;width:20%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="ceiling" style="left:0;top:0;width:100%;height:6%"></div>
+                  <div class="surface paint-surface" data-surface="floor" style="left:0;bottom:0;width:100%;height:32%"></div>
+                  <!-- props -->
+                  <div class="prop prop-window" style="left:42%;top:14%;width:16%;height:24%"><span class="sun"></span></div>
+                  <div class="prop prop-sofa"></div>
+                  <div class="prop prop-rug"></div>
+                  <div class="prop prop-frame paint-surface" data-surface="accent" style="left:74%;top:14%;width:12%;height:18%"></div>
+                  <div class="prop prop-plant" style="right:8%;bottom:32%"></div>
+                  <div class="scene-light"></div>
+                </div>
+
+                <!-- BEDROOM -->
+                <div class="scene" data-scene="bedroom" data-finish="matte">
+                  <div class="surface paint-surface" data-surface="back" style="left:20%;top:6%;width:60%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="left" style="left:0;top:6%;width:20%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="right" style="right:0;top:6%;width:20%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="ceiling" style="left:0;top:0;width:100%;height:6%"></div>
+                  <div class="surface paint-surface" data-surface="floor" style="left:0;bottom:0;width:100%;height:32%"></div>
+                  <div class="prop prop-bed"></div>
+                  <div class="prop prop-headboard"></div>
+                  <div class="prop prop-lamp" style="left:22%;bottom:34%"></div>
+                  <div class="prop prop-lamp" style="right:22%;bottom:34%"></div>
+                  <div class="prop prop-frame paint-surface" data-surface="accent" style="left:46%;top:16%;width:8%;height:14%"></div>
+                  <div class="prop prop-window" style="left:8%;top:18%;width:12%;height:22%"><span class="sun"></span></div>
+                  <div class="scene-light"></div>
+                </div>
+
+                <!-- KITCHEN -->
+                <div class="scene" data-scene="kitchen" data-finish="satin">
+                  <div class="surface paint-surface" data-surface="back" style="left:20%;top:6%;width:60%;height:64%"></div>
+                  <div class="surface paint-surface" data-surface="left" style="left:0;top:6%;width:20%;height:64%"></div>
+                  <div class="surface paint-surface" data-surface="right" style="right:0;top:6%;width:20%;height:64%"></div>
+                  <div class="surface paint-surface" data-surface="ceiling" style="left:0;top:0;width:100%;height:6%"></div>
+                  <div class="surface paint-surface" data-surface="floor" style="left:0;bottom:0;width:100%;height:30%"></div>
+                  <div class="surface paint-surface" data-surface="cabinet" style="left:22%;bottom:30%;width:56%;height:14%"></div>
+                  <div class="prop prop-counter"></div>
+                  <div class="prop prop-hood"></div>
+                  <div class="prop prop-stove"></div>
+                  <div class="prop prop-frame paint-surface" data-surface="accent" style="right:24%;top:18%;width:10%;height:16%"></div>
+                  <div class="prop prop-window" style="left:8%;top:20%;width:12%;height:20%"><span class="sun"></span></div>
+                  <div class="scene-light"></div>
+                </div>
+
+                <!-- EXTERIOR -->
+                <div class="scene" data-scene="exterior" data-finish="satin">
+                  <div class="surface paint-surface" data-surface="sky" style="left:0;top:0;width:100%;height:40%"></div>
+                  <div class="surface paint-surface" data-surface="main" style="left:22%;top:18%;width:56%;height:50%"></div>
+                  <div class="surface paint-surface" data-surface="roof" style="left:18%;top:12%;width:64%;height:8%"></div>
+                  <div class="surface paint-surface" data-surface="ground" style="left:0;bottom:0;width:100%;height:32%"></div>
+                  <div class="surface paint-surface" data-surface="trim" style="left:44%;top:48%;width:12%;height:20%"></div>
+                  <div class="surface paint-surface" data-surface="door" style="left:46%;top:50%;width:8%;height:18%"></div>
+                  <div class="prop prop-sun"></div>
+                  <div class="prop prop-tree" style="left:8%;bottom:30%"></div>
+                  <div class="prop prop-tree-sm" style="right:10%;bottom:30%"></div>
+                  <div class="prop prop-window-ext" style="left:30%;top:34%;width:10%;height:14%"><span class="sun"></span></div>
+                  <div class="prop prop-window-ext" style="right:30%;top:34%;width:10%;height:14%"><span class="sun"></span></div>
+                  <div class="scene-light"></div>
+                </div>
+
+              </div>
+
+              <!-- Paint coverage slider (watch paint cover the wall) -->
+              <div class="coverage">
+                <label for="coverage">Paint coverage</label>
+                <input type="range" id="coverage" min="0" max="100" value="100" aria-label="Paint coverage" />
+                <span id="coverageVal">100%</span>
+              </div>
             </div>
 
-            <!-- Controls -->
-            <div class="studio-controls">
-              <div class="control-group">
-                <h3>1. Choose a wall</h3>
-                <div class="wall-tabs" role="tablist">
-                  <button class="wall-tab active" data-wall="back" type="button" role="tab" aria-selected="true">Back wall</button>
-                  <button class="wall-tab" data-wall="left" type="button" role="tab" aria-selected="false">Left wall</button>
-                  <button class="wall-tab" data-wall="right" type="button" role="tab" aria-selected="false">Right wall</button>
-                </div>
+            <!-- RIGHT: Controls -->
+            <div class="controls">
+              <div class="ctrl-group">
+                <h3>1. Paint surface</h3>
+                <div class="surface-tabs" id="surfaceTabs" role="tablist" aria-label="Choose a surface to paint"></div>
               </div>
 
-              <div class="control-group">
-                <h3>2. Pick a colour</h3>
+              <div class="ctrl-group">
+                <h3>2. Colour</h3>
                 <div class="palette" id="palette" role="group" aria-label="Colour palette"></div>
-
                 <div class="custom-colour">
-                  <label for="customColor">Custom colour</label>
-                  <input type="color" id="customColor" value="#e8e3d8" aria-label="Custom wall colour" />
+                  <label for="customColor">Custom</label>
+                  <input type="color" id="customColor" value="#e8e3d8" aria-label="Custom colour" />
                   <span class="custom-hex" id="customHex">#E8E3D8</span>
                 </div>
+                <p class="harmony" id="harmony" aria-live="polite"></p>
               </div>
 
-              <div class="control-group">
-                <h3>3. Lighting</h3>
-                <div class="light-toggle" role="group" aria-label="Room lighting">
+              <div class="ctrl-group">
+                <h3>3. Finish</h3>
+                <div class="finish-tabs" role="group" aria-label="Paint finish">
+                  <button class="finish-tab active" data-finish="matte" type="button">Matte</button>
+                  <button class="finish-tab" data-finish="eggshell" type="button">Eggshell</button>
+                  <button class="finish-tab" data-finish="satin" type="button">Satin</button>
+                  <button class="finish-tab" data-finish="semigloss" type="button">Semi-gloss</button>
+                </div>
+                <p class="finish-note" id="finishNote"></p>
+              </div>
+
+              <div class="ctrl-group">
+                <h3>4. Preset schemes</h3>
+                <div class="preset-tabs" id="presetTabs" role="group" aria-label="Preset colour schemes"></div>
+              </div>
+
+              <div class="ctrl-group">
+                <h3>5. Lighting</h3>
+                <div class="light-toggle" role="group" aria-label="Lighting">
                   <button class="light-btn active" data-light="day" type="button">☀️ Day</button>
                   <button class="light-btn" data-light="night" type="button">🌙 Night</button>
                 </div>
               </div>
 
-              <div class="control-group">
-                <h3>4. Your scheme</h3>
-                <div class="saved-scheme" id="savedScheme" aria-live="polite"></div>
-                <div class="studio-actions">
-                  <button class="btn-secondary" id="saveScheme" type="button">💾 Save scheme</button>
+              <div class="ctrl-group">
+                <h3>6. Your scheme</h3>
+                <div class="scheme-summary" id="schemeSummary" aria-live="polite"></div>
+                <div class="ctrl-actions">
+                  <button class="btn-secondary" id="saveScheme" type="button">💾 Save</button>
+                  <button class="btn-secondary" id="shareScheme" type="button">🔗 Share</button>
                   <button class="btn-secondary" id="resetScheme" type="button">↺ Reset</button>
                   <a class="btn-primary" id="quoteScheme" href="./contact.html">Request quote →</a>
                 </div>
               </div>
             </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <h2 class="section-title">How the <span>Studio</span> works</h2>
+          <div class="cs-how-grid">
+            <div class="cs-how-card"><div class="cs-how-ic">🎨</div><h3>Choose a scene</h3><p>Living room, bedroom, kitchen or exterior — each is a full demo built so nothing breaks when you switch.</p></div>
+            <div class="cs-how-card"><div class="cs-how-ic">🖌️</div><h3>Pick a surface</h3><p>Select which wall or element to paint, then choose a colour. The room updates live as paint fills the wall.</p></div>
+            <div class="cs-how-card"><div class="cs-how-ic">✨</div><h3>Try finishes</h3><p>Matte, eggshell, satin or semi-gloss — see how the sheen changes the look under different light.</p></div>
+            <div class="cs-how-card"><div class="cs-how-ic">📐</div><h3>Save &amp; share</h3><p>Save your scheme, copy a shareable link, and send it with your quote request. We match it on site.</p></div>
           </div>
         </div>
       </section>
