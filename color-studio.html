@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Color Studio | Painter Plus</title>
-    <meta name="description" content="Try paint colours live on full room and exterior demos — living room, bedroom, kitchen and outside walls. Choose wall and accent colours, finishes, day and night lighting, and request a free quote for your scheme." />
+    <meta name="description" content="Try paint colours live on full room and exterior demos — living room, bedroom, kitchen, bathroom, dining, office, kids' room and outside walls. Choose wall and accent colours, finishes, day and night lighting, and request a free quote for your scheme." />
     <meta name="theme-color" content="#2563EB" />
     <meta property="og:title" content="Color Studio | Painter Plus" />
     <meta property="og:description" content="Try paint colours live on full room and exterior demos. Choose colours, finishes and lighting, then request a quote." />
@@ -56,6 +56,10 @@
                 <button class="scene-tab active" data-scene="living" type="button" role="tab" aria-selected="true">🛋️ Living Room</button>
                 <button class="scene-tab" data-scene="bedroom" type="button" role="tab" aria-selected="false">🛏️ Bedroom</button>
                 <button class="scene-tab" data-scene="kitchen" type="button" role="tab" aria-selected="false">🍳 Kitchen</button>
+                <button class="scene-tab" data-scene="bathroom" type="button" role="tab" aria-selected="false">🛁 Bathroom</button>
+                <button class="scene-tab" data-scene="dining" type="button" role="tab" aria-selected="false">🍽️ Dining</button>
+                <button class="scene-tab" data-scene="office" type="button" role="tab" aria-selected="false">💼 Office</button>
+                <button class="scene-tab" data-scene="kids" type="button" role="tab" aria-selected="false">🧒 Kids' Room</button>
                 <button class="scene-tab" data-scene="exterior" type="button" role="tab" aria-selected="false">🏡 Exterior</button>
               </div>
 
@@ -107,6 +111,71 @@
                   <div class="prop prop-stove"></div>
                   <div class="prop prop-frame paint-surface" data-surface="accent" style="right:24%;top:18%;width:10%;height:16%"></div>
                   <div class="prop prop-window" style="left:8%;top:20%;width:12%;height:20%"><span class="sun"></span></div>
+                  <div class="scene-light"></div>
+                </div>
+
+                <!-- BATHROOM -->
+                <div class="scene" data-scene="bathroom" data-finish="satin">
+                  <div class="surface paint-surface" data-surface="back" style="left:20%;top:6%;width:60%;height:64%"></div>
+                  <div class="surface paint-surface" data-surface="left" style="left:0;top:6%;width:20%;height:64%"></div>
+                  <div class="surface paint-surface" data-surface="right" style="right:0;top:6%;width:20%;height:64%"></div>
+                  <div class="surface paint-surface" data-surface="ceiling" style="left:0;top:0;width:100%;height:6%"></div>
+                  <div class="surface paint-surface" data-surface="floor" style="left:0;bottom:0;width:100%;height:30%"></div>
+                  <div class="surface paint-surface" data-surface="tile" style="left:24%;bottom:30%;width:52%;height:30%"></div>
+                  <div class="prop prop-tub"></div>
+                  <div class="prop prop-sink"></div>
+                  <div class="prop prop-mirror" style="left:44%;top:16%;width:12%;height:16%"></div>
+                  <div class="prop prop-frame paint-surface" data-surface="accent" style="right:22%;top:20%;width:10%;height:14%"></div>
+                  <div class="prop prop-window" style="left:8%;top:20%;width:12%;height:20%"><span class="sun"></span></div>
+                  <div class="scene-light"></div>
+                </div>
+
+                <!-- DINING -->
+                <div class="scene" data-scene="dining" data-finish="eggshell">
+                  <div class="surface paint-surface" data-surface="back" style="left:20%;top:6%;width:60%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="left" style="left:0;top:6%;width:20%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="right" style="right:0;top:6%;width:20%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="ceiling" style="left:0;top:0;width:100%;height:6%"></div>
+                  <div class="surface paint-surface" data-surface="floor" style="left:0;bottom:0;width:100%;height:32%"></div>
+                  <div class="prop prop-table"></div>
+                  <div class="prop prop-chair-l"></div>
+                  <div class="prop prop-chair-r"></div>
+                  <div class="prop prop-pendant" style="left:46%;top:8%;width:8%;height:16%"></div>
+                  <div class="prop prop-frame paint-surface" data-surface="accent" style="left:46%;top:18%;width:8%;height:14%"></div>
+                  <div class="prop prop-window" style="right:8%;top:18%;width:12%;height:22%"><span class="sun"></span></div>
+                  <div class="scene-light"></div>
+                </div>
+
+                <!-- OFFICE -->
+                <div class="scene" data-scene="office" data-finish="eggshell">
+                  <div class="surface paint-surface" data-surface="back" style="left:20%;top:6%;width:60%;height:64%"></div>
+                  <div class="surface paint-surface" data-surface="left" style="left:0;top:6%;width:20%;height:64%"></div>
+                  <div class="surface paint-surface" data-surface="right" style="right:0;top:6%;width:20%;height:64%"></div>
+                  <div class="surface paint-surface" data-surface="ceiling" style="left:0;top:0;width:100%;height:6%"></div>
+                  <div class="surface paint-surface" data-surface="floor" style="left:0;bottom:0;width:100%;height:30%"></div>
+                  <div class="surface paint-surface" data-surface="cab" style="left:22%;bottom:30%;width:56%;height:14%"></div>
+                  <div class="prop prop-desk"></div>
+                  <div class="prop prop-monitor"></div>
+                  <div class="prop prop-chair"></div>
+                  <div class="prop prop-plant" style="right:10%;bottom:32%"></div>
+                  <div class="prop prop-frame paint-surface" data-surface="accent" style="right:24%;top:18%;width:10%;height:14%"></div>
+                  <div class="prop prop-window" style="left:8%;top:18%;width:12%;height:22%"><span class="sun"></span></div>
+                  <div class="scene-light"></div>
+                </div>
+
+                <!-- KIDS' ROOM -->
+                <div class="scene" data-scene="kids" data-finish="eggshell">
+                  <div class="surface paint-surface" data-surface="back" style="left:20%;top:6%;width:60%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="left" style="left:0;top:6%;width:20%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="right" style="right:0;top:6%;width:20%;height:62%"></div>
+                  <div class="surface paint-surface" data-surface="ceiling" style="left:0;top:0;width:100%;height:6%"></div>
+                  <div class="surface paint-surface" data-surface="floor" style="left:0;bottom:0;width:100%;height:32%"></div>
+                  <div class="prop prop-crib"></div>
+                  <div class="prop prop-toy"></div>
+                  <div class="prop prop-balloon" style="left:30%;top:14%"></div>
+                  <div class="prop prop-balloon" style="left:62%;top:18%"></div>
+                  <div class="prop prop-frame paint-surface" data-surface="accent" style="left:46%;top:16%;width:8%;height:14%"></div>
+                  <div class="prop prop-window" style="right:8%;top:18%;width:12%;height:22%"><span class="sun"></span></div>
                   <div class="scene-light"></div>
                 </div>
 
@@ -198,7 +267,7 @@
         <div class="container">
           <h2 class="section-title">How the <span>Studio</span> works</h2>
           <div class="cs-how-grid">
-            <div class="cs-how-card"><div class="cs-how-ic">🎨</div><h3>Choose a scene</h3><p>Living room, bedroom, kitchen or exterior — each is a full demo built so nothing breaks when you switch.</p></div>
+            <div class="cs-how-card"><div class="cs-how-ic">🎨</div><h3>Choose a scene</h3><p>Living room, bedroom, kitchen, bathroom, dining, office, kids' room or exterior — each is a full demo built so nothing breaks when you switch.</p></div>
             <div class="cs-how-card"><div class="cs-how-ic">🖌️</div><h3>Pick a surface</h3><p>Select which wall or element to paint, then choose a colour. The room updates live as paint fills the wall.</p></div>
             <div class="cs-how-card"><div class="cs-how-ic">✨</div><h3>Try finishes</h3><p>Matte, eggshell, satin or semi-gloss — see how the sheen changes the look under different light.</p></div>
             <div class="cs-how-card"><div class="cs-how-ic">📐</div><h3>Save &amp; share</h3><p>Save your scheme, copy a shareable link, and send it with your quote request. We match it on site.</p></div>

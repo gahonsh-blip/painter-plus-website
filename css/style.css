@@ -123,6 +123,67 @@ header {
 }
 .hero .highlight { color: #ffd700; }
 .hero p { font-size: 1.2rem; opacity: 0.9; margin: 0 auto 30px; max-width: 600px; }
+
+/* ============================================================
+   CARTOON PAINTER (hero) — pure SVG + CSS animation
+   The painter gently bobs while his roller sweeps up and down a
+   wall, leaving a growing band of paint and a small drip. A
+   "living" touch that reinforces the brand is run by a real,
+   friendly painter — not a stock sticker.
+   ============================================================ */
+.painter {
+  position: absolute;
+  right: clamp(8px, 4vw, 70px);
+  bottom: 0;
+  width: clamp(150px, 22vw, 300px);
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  animation: painter-enter 1s ease 0.4s forwards;
+}
+.painter svg { width: 100%; height: auto; display: block; }
+@keyframes painter-enter { to { opacity: 1; } }
+
+/* Body bobs gently, like he's working */
+.painter-body { transform-origin: 103px 272px; animation: painter-bob 2.6s ease-in-out infinite; }
+@keyframes painter-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+/* Painted band grows from top, then resets, looping like a fresh coat */
+.paint-band {
+  transform-origin: 150px 40px;
+  transform-box: fill-box;
+  animation: band-fill 2.8s ease-in-out infinite;
+}
+@keyframes band-fill {
+  0%   { transform: scaleY(0.08); opacity: 0.5; }
+  45%  { transform: scaleY(1); opacity: 1; }
+  90%  { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(1); opacity: 0; }
+}
+
+/* Roller sweeps up and down the wall */
+.roller-arm { transform-origin: 138px 40px; animation: roller-sweep 2.8s ease-in-out infinite; }
+@keyframes roller-sweep {
+  0%   { transform: translateY(0); }
+  45%  { transform: translateY(150px); }
+  50%  { transform: translateY(150px); }
+  55%  { transform: translateY(150px); }
+  100% { transform: translateY(0); }
+}
+
+/* Drip falls a little each cycle */
+.drip { animation: drip-fall 2.8s ease-in infinite; }
+@keyframes drip-fall {
+  0%   { opacity: 0; transform: translateY(0); }
+  30%  { opacity: 1; }
+  60%  { opacity: 1; transform: translateY(120px); }
+  61%  { opacity: 0; }
+  100% { opacity: 0; transform: translateY(0); }
+}
+
+@media (max-width: 700px) {
+  .painter { opacity: 0.55; width: clamp(120px, 30vw, 180px); }
+}
 .section { padding: 80px 0; }
 .surface-section { background: var(--surface); }
 .section-title {
@@ -543,6 +604,37 @@ textarea.form-control { resize: vertical; }
 .prop-counter { left: 20%; bottom: 16%; width: 60%; height: 10%; background: #3a3a3a; border-radius: 4px; box-shadow: 0 8px 14px rgba(0,0,0,0.25); }
 .prop-hood { left: 44%; bottom: 44%; width: 12%; height: 8%; background: #9aa0a6; border-radius: 6px 6px 0 0; }
 .prop-stove { left: 40%; bottom: 16%; width: 20%; height: 10%; background: #1f1f1f; border-radius: 4px; }
+
+/* Bathroom props */
+.prop-tub { left: 22%; bottom: 16%; width: 56%; height: 14%; background: #f4f8fb; border: 4px solid #d6e6ed; border-radius: 20px; box-shadow: 0 8px 14px rgba(0,0,0,0.2); }
+.prop-sink { right: 10%; bottom: 30%; width: 16%; height: 10%; background: #f4f8fb; border: 3px solid #d6e6ed; border-radius: 6px 6px 4px 4px; }
+.prop-mirror { background: #d6e6ed; border: 4px solid #9aa0a6; border-radius: 4px; box-shadow: inset 0 2px 6px rgba(0,0,0,0.15); }
+
+/* Kids' room props */
+.prop-crib { left: 26%; bottom: 18%; width: 46%; height: 22%; background: #f4f1ea; border: 4px solid #d4af37; border-radius: 8px 8px 4px 4px; box-shadow: 0 10px 16px rgba(0,0,0,0.18); }
+.prop-crib::after { content:""; position:absolute; top:30%; left:6%; right:6%; height:36%; background:repeating-linear-gradient(90deg, #d4af37 0 3px, transparent 3px 14px); opacity:0.6; }
+.prop-toy { right: 12%; bottom: 18%; width: 12%; aspect-ratio: 1; background: radial-gradient(circle at 35% 30%, #ffd24d, #f59e0b); border-radius: 50%; }
+.prop-toy::after { content:""; position:absolute; top:0; right:-30%; width:70%; height:70%; background:radial-gradient(circle at 35% 30%, #f87171, #c0392b); border-radius:50%; }
+.prop-balloon { width: 7%; aspect-ratio: 1/1.25; background: radial-gradient(circle at 35% 30%, #ff9aa2, #e74c6a); border-radius: 50% 50% 48% 48%; }
+.prop-balloon::after { content:""; position:absolute; bottom:-26%; left:48%; width:2px; height:30%; background:#6b4f2a; }
+
+/* Dining props */
+.prop-table { left: 30%; bottom: 20%; width: 40%; height: 12%; background: #6b4f2a; border-radius: 8px; box-shadow: 0 10px 16px rgba(0,0,0,0.22); }
+.prop-table::after { content:""; position:absolute; top:100%; left:8%; right:8%; height:42%; background: linear-gradient(#5a3a1a,#4a2a0a); border-radius: 0 0 6px 6px; }
+.prop-chair-l { left: 18%; bottom: 20%; width: 11%; height: 22%; background: #4a2a0a; border-radius: 6px 6px 2px 2px; }
+.prop-chair-l::after { content:""; position:absolute; top:-30%; left:0; right:0; height:30%; background:#3a1a00; border-radius: 8px 8px 2px 2px; }
+.prop-chair-r { right: 18%; bottom: 20%; width: 11%; height: 22%; background: #4a2a0a; border-radius: 6px 6px 2px 2px; }
+.prop-chair-r::after { content:""; position:absolute; top:-30%; left:0; right:0; height:30%; background:#3a1a00; border-radius: 8px 8px 2px 2px; }
+.prop-pendant { background: #d4af37; border-radius: 0 0 50% 50%; box-shadow: 0 0 18px rgba(212,175,55,0.5); }
+.prop-pendant::after { content:""; position:absolute; top:-30%; left:42%; width:16%; height:30%; background:#9aa0a6; }
+
+/* Office props */
+.prop-desk { left: 24%; bottom: 20%; width: 52%; height: 12%; background: #6b4f2a; border-radius: 6px; box-shadow: 0 8px 14px rgba(0,0,0,0.22); }
+.prop-desk::after { content:""; position:absolute; top:100%; left:8%; right:8%; height:38%; background: linear-gradient(#5a3a1a,#4a2a0a); border-radius: 0 0 6px 6px; }
+.prop-monitor { left: 38%; bottom: 32%; width: 24%; height: 22%; background: #1f2937; border: 4px solid #0f172a; border-radius: 4px; }
+.prop-monitor::after { content:""; position:absolute; top:100%; left:38%; width:24%; height:18%; background:#1f2937; }
+.prop-chair { left: 44%; bottom: 18%; width: 12%; height: 16%; background: #1f2937; border-radius: 8px 8px 4px 4px; }
+.prop-chair::after { content:""; position:absolute; top:-40%; left:0; right:0; height:40%; background:#111827; border-radius: 8px 8px 2px 2px; }
 
 /* Exterior props */
 .prop-sun {
