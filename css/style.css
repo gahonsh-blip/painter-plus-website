@@ -791,10 +791,22 @@ textarea.form-control { resize: vertical; }
   pointer-events: none;
   transition: background 0.4s ease;
 }
+.scene[data-finish="flatmatte"] .paint-surface::after { background: rgba(0,0,0,0.0); }
 .scene[data-finish="matte"] .paint-surface::after { background: rgba(0,0,0,0.0); }
 .scene[data-finish="eggshell"] .paint-surface::after { background: linear-gradient(120deg, rgba(255,255,255,0.06), rgba(0,0,0,0.05)); }
+.scene[data-finish="pearl"] .paint-surface::after { background: linear-gradient(125deg, rgba(255,255,255,0.12), rgba(0,0,0,0.04) 55%); }
 .scene[data-finish="satin"] .paint-surface::after { background: linear-gradient(120deg, rgba(255,255,255,0.16), rgba(0,0,0,0.04) 60%); }
 .scene[data-finish="semigloss"] .paint-surface::after { background: linear-gradient(115deg, rgba(255,255,255,0.34), rgba(255,255,255,0.04) 45%, rgba(0,0,0,0.08)); }
+.scene[data-finish="highgloss"] .paint-surface::after { background: linear-gradient(110deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 40%, rgba(0,0,0,0.1)); }
+.scene[data-finish="metallic"] .paint-surface::after { background: linear-gradient(105deg, rgba(255,255,255,0.45), rgba(212,175,55,0.18) 35%, rgba(0,0,0,0.12) 70%, rgba(255,255,255,0.3)); }
+.scene[data-finish="textured"] .paint-surface::after {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(0,0,0,0.06) 1px, transparent 1.5px),
+    radial-gradient(circle at 70% 60%, rgba(255,255,255,0.08) 1px, transparent 1.5px),
+    radial-gradient(circle at 45% 80%, rgba(0,0,0,0.05) 1px, transparent 1.5px);
+  background-size: 12px 12px, 14px 14px, 16px 16px;
+}
+.scene[data-finish="distemper"] .paint-surface::after { background: radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.04), rgba(0,0,0,0.08)); }
 
 /* Decorative props (non-paintable furniture/scenery) */
 .prop { position: absolute; pointer-events: none; }

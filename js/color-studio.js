@@ -51,60 +51,135 @@
   };
 
   // Preset schemes, keyed by scene. Each maps surface -> hex.
+  // ~12 curated looks per scene so clients have plenty of demo options.
   const PRESETS = {
     living: [
       { name: "Calm Neutrals", colors: { back: "#e8e3d8", left: "#d9d3c6", right: "#d9d3c6", accent: "#c9d6d1" } },
       { name: "Coastal Cool", colors: { back: "#bcd4e6", left: "#c9d6d1", right: "#c9d6d1", accent: "#5b8fb0" } },
       { name: "Warm Earth", colors: { back: "#e8c4b8", left: "#d9d3c6", right: "#d9d3c6", accent: "#c06c61" } },
-      { name: "Forest Calm", colors: { back: "#a7c4a0", left: "#c9d6d1", right: "#c9d6d1", accent: "#7d9b76" } }
+      { name: "Forest Calm", colors: { back: "#a7c4a0", left: "#c9d6d1", right: "#c9d6d1", accent: "#7d9b76" } },
+      { name: "Ivory & Gold", colors: { back: "#f4f1ea", left: "#e8e3d8", right: "#e8e3d8", accent: "#d4af37" } },
+      { name: "Slate Modern", colors: { back: "#34495e", left: "#2f4858", right: "#2f4858", accent: "#d4af37" } },
+      { name: "Soft Blush", colors: { back: "#fde9ef", left: "#f4d3e0", right: "#f4d3e0", accent: "#9b6a6a" } },
+      { name: "Midnight Mood", colors: { back: "#1e2a38", left: "#2f4858", right: "#2f4858", accent: "#d4af37" } },
+      { name: "Sunny Honey", colors: { back: "#f2d399", left: "#e8e3d8", right: "#e8e3d8", accent: "#c06c61" } },
+      { name: "Terracotta Warm", colors: { back: "#c06c61", left: "#e8c4b8", right: "#e8c4b8", accent: "#8d5524" } },
+      { name: "Sage & Linen", colors: { back: "#c9d6d1", left: "#e8e3d8", right: "#e8e3d8", accent: "#7d9b76" } },
+      { name: "Royal Plum", colors: { back: "#9b6a6a", left: "#c0a0a0", right: "#c0a0a0", accent: "#d4af37" } }
     ],
     bedroom: [
       { name: "Restful Grey", colors: { back: "#d9d3c6", left: "#c9d6d1", right: "#c9d6d1", accent: "#5b8fb0" } },
       { name: "Soft Blush", colors: { back: "#e8c4b8", left: "#f4f1ea", right: "#f4f1ea", accent: "#9b6a6a" } },
-      { name: "Deep Night", colors: { back: "#2f4858", left: "#34495e", right: "#34495e", accent: "#d4af37" } }
+      { name: "Deep Night", colors: { back: "#2f4858", left: "#34495e", right: "#34495e", accent: "#d4af37" } },
+      { name: "Lavender Dream", colors: { back: "#d8cfe6", left: "#e8e0f0", right: "#e8e0f0", accent: "#9b6a6a" } },
+      { name: "Ivory Calm", colors: { back: "#f4f1ea", left: "#e8e3d8", right: "#e8e3d8", accent: "#5b8fb0" } },
+      { name: "Sage Sleep", colors: { back: "#c9d6d1", left: "#d9d3c6", right: "#d9d3c6", accent: "#7d9b76" } },
+      { name: "Honey Warmth", colors: { back: "#f2d399", left: "#e8e3d8", right: "#e8e3d8", accent: "#c06c61" } },
+      { name: "Coastal Breeze", colors: { back: "#bcd4e6", left: "#c9d6d1", right: "#c9d6d1", accent: "#5b8fb0" } },
+      { name: "Muted Plum", colors: { back: "#9b6a6a", left: "#c0a0a0", right: "#c0a0a0", accent: "#d4af37" } },
+      { name: "Charcoal Luxury", colors: { back: "#34495e", left: "#2f4858", right: "#2f4858", accent: "#d4af37" } },
+      { name: "Terracotta Dusk", colors: { back: "#e8c4b8", left: "#d9d3c6", right: "#d9d3c6", accent: "#8d5524" } },
+      { name: "Forest Rest", colors: { back: "#a7c4a0", left: "#c9d6d1", right: "#c9d6d1", accent: "#7d9b76" } }
     ],
     kitchen: [
       { name: "Clean White", colors: { back: "#f4f1ea", left: "#eef2f5", right: "#eef2f5", cabinet: "#e8e3d8", accent: "#5b8fb0" } },
       { name: "Sage & Oak", colors: { back: "#c9d6d1", left: "#d9d3c6", right: "#d9d3c6", cabinet: "#8d5524", accent: "#a7c4a0" } },
-      { name: "Modern Slate", colors: { back: "#eef2f5", left: "#e2e8ef", right: "#e2e8ef", cabinet: "#34495e", accent: "#d4af37" } }
+      { name: "Modern Slate", colors: { back: "#eef2f5", left: "#e2e8ef", right: "#e2e8ef", cabinet: "#34495e", accent: "#d4af37" } },
+      { name: "Coastal Bright", colors: { back: "#bcd4e6", left: "#c9d6d1", right: "#c9d6d1", cabinet: "#f4f1ea", accent: "#5b8fb0" } },
+      { name: "Warm Honey", colors: { back: "#f2d399", left: "#e8e3d8", right: "#e8e3d8", cabinet: "#8d5524", accent: "#c06c61" } },
+      { name: "Crisp Ivory", colors: { back: "#f4f1ea", left: "#e8e3d8", right: "#e8e3d8", cabinet: "#f4f1ea", accent: "#d4af37" } },
+      { name: "Forest Fresh", colors: { back: "#a7c4a0", left: "#c9d6d1", right: "#c9d6d1", cabinet: "#8d5524", accent: "#7d9b76" } },
+      { name: "Navy Chef", colors: { back: "#2f4858", left: "#34495e", right: "#34495e", cabinet: "#e8e3d8", accent: "#d4af37" } },
+      { name: "Terracotta Tuscan", colors: { back: "#e8c4b8", left: "#d9d3c6", right: "#d9d3c6", cabinet: "#8d5524", accent: "#c06c61" } },
+      { name: "Slate & Gold", colors: { back: "#34495e", left: "#2f4858", right: "#2f4858", cabinet: "#d4af37", accent: "#f4f1ea" } },
+      { name: "Mint Clean", colors: { back: "#c9d6d1", left: "#d9d3c6", right: "#d9d3c6", cabinet: "#f4f1ea", accent: "#a7c4a0" } },
+      { name: "Soft Blush", colors: { back: "#fde9ef", left: "#f4d3e0", right: "#f4d3e0", cabinet: "#f4f1ea", accent: "#9b6a6a" } }
     ],
     bathroom: [
       { name: "Spa Calm", colors: { back: "#eaf2f5", left: "#dbe9ef", right: "#dbe9ef", tile: "#bcd4e6", accent: "#a7c4a0" } },
       { name: "Coastal Blue", colors: { back: "#bcd4e6", left: "#c9d6d1", right: "#c9d6d1", tile: "#5b8fb0", accent: "#d4af37" } },
       { name: "Warm Sand", colors: { back: "#e8e3d8", left: "#d9d3c6", right: "#d9d3c6", tile: "#c9d6d1", accent: "#c06c61" } },
-      { name: "Deep Stone", colors: { back: "#34495e", left: "#2f4858", right: "#2f4858", tile: "#1e2a38", accent: "#d4af37" } }
+      { name: "Deep Stone", colors: { back: "#34495e", left: "#2f4858", right: "#2f4858", tile: "#1e2a38", accent: "#d4af37" } },
+      { name: "Spa Green", colors: { back: "#a7c4a0", left: "#c9d6d1", right: "#c9d6d1", tile: "#7d9b76", accent: "#5b8fb0" } },
+      { name: "Pearl White", colors: { back: "#f4f1ea", left: "#eef2f5", right: "#eef2f5", tile: "#e8e3d8", accent: "#5b8fb0" } },
+      { name: "Lavender Bath", colors: { back: "#d8cfe6", left: "#e8e0f0", right: "#e8e0f0", tile: "#9b6a6a", accent: "#d4af37" } },
+      { name: "Sunny Honey", colors: { back: "#f2d399", left: "#e8e3d8", right: "#e8e3d8", tile: "#c9d6d1", accent: "#c06c61" } },
+      { name: "Charcoal Luxe", colors: { back: "#2f4858", left: "#34495e", right: "#34495e", tile: "#1e2a38", accent: "#d4af37" } },
+      { name: "Soft Blush Spa", colors: { back: "#fde9ef", left: "#f4d3e0", right: "#f4d3e0", tile: "#e8c4b8", accent: "#9b6a6a" } },
+      { name: "Sage Clean", colors: { back: "#c9d6d1", left: "#d9d3c6", right: "#d9d3c6", tile: "#a7c4a0", accent: "#5b8fb0" } },
+      { name: "Ivory Calm", colors: { back: "#f4f1ea", left: "#e8e3d8", right: "#e8e3d8", tile: "#d9d3c6", accent: "#5b8fb0" } }
     ],
     dining: [
       { name: "Warm Amber", colors: { back: "#e8e3d8", left: "#d9d3c6", right: "#d9d3c6", accent: "#c06c61" } },
       { name: "Evening Plum", colors: { back: "#9b6a6a", left: "#c0a0a0", right: "#c0a0a0", accent: "#d4af37" } },
       { name: "Forest Feast", colors: { back: "#a7c4a0", left: "#c9d6d1", right: "#c9d6d1", accent: "#8d5524" } },
-      { name: "Soft Ivory", colors: { back: "#f4f1ea", left: "#e8e3d8", right: "#e8e3d8", accent: "#5b8fb0" } }
+      { name: "Soft Ivory", colors: { back: "#f4f1ea", left: "#e8e3d8", right: "#e8e3d8", accent: "#5b8fb0" } },
+      { name: "Tuscan Terracotta", colors: { back: "#e8c4b8", left: "#d9d3c6", right: "#d9d3c6", accent: "#c06c61" } },
+      { name: "Navy Dinner", colors: { back: "#2f4858", left: "#34495e", right: "#34495e", accent: "#d4af37" } },
+      { name: "Honey Glow", colors: { back: "#f2d399", left: "#e8e3d8", right: "#e8e3d8", accent: "#8d5524" } },
+      { name: "Sage Dining", colors: { back: "#c9d6d1", left: "#d9d3c6", right: "#d9d3c6", accent: "#7d9b76" } },
+      { name: "Coastal Brunch", colors: { back: "#bcd4e6", left: "#c9d6d1", right: "#c9d6d1", accent: "#5b8fb0" } },
+      { name: "Charcoal Elegance", colors: { back: "#34495e", left: "#2f4858", right: "#2f4858", accent: "#d4af37" } },
+      { name: "Royal Gold", colors: { back: "#8d5524", left: "#e8c4b8", right: "#e8c4b8", accent: "#d4af37" } },
+      { name: "Soft Blush", colors: { back: "#fde9ef", left: "#f4d3e0", right: "#f4d3e0", accent: "#9b6a6a" } }
     ],
     office: [
       { name: "Focus Grey", colors: { back: "#d9d3c6", left: "#c9d6d1", right: "#c9d6d1", cab: "#34495e", accent: "#5b8fb0" } },
       { name: "Deep Navy", colors: { back: "#2f4858", left: "#34495e", right: "#34495e", cab: "#1e2a38", accent: "#d4af37" } },
       { name: "Sage Work", colors: { back: "#c9d6d1", left: "#d9d3c6", right: "#d9d3c6", cab: "#8d5524", accent: "#a7c4a0" } },
-      { name: "Clean White", colors: { back: "#f4f1ea", left: "#eef2f5", right: "#eef2f5", cab: "#cfd8e3", accent: "#34495e" } }
+      { name: "Clean White", colors: { back: "#f4f1ea", left: "#eef2f5", right: "#eef2f5", cab: "#cfd8e3", accent: "#34495e" } },
+      { name: "Warm Oak", colors: { back: "#e8e3d8", left: "#d9d3c6", right: "#d9d3c6", cab: "#8d5524", accent: "#c06c61" } },
+      { name: "Forest Focus", colors: { back: "#a7c4a0", left: "#c9d6d1", right: "#c9d6d1", cab: "#8d5524", accent: "#7d9b76" } },
+      { name: "Slate Pro", colors: { back: "#34495e", left: "#2f4858", right: "#2f4858", cab: "#1e2a38", accent: "#5b8fb0" } },
+      { name: "Ivory Bright", colors: { back: "#f4f1ea", left: "#e8e3d8", right: "#e8e3d8", cab: "#cfd8e3", accent: "#d4af37" } },
+      { name: "Honey Warmth", colors: { back: "#f2d399", left: "#e8e3d8", right: "#e8e3d8", cab: "#8d5524", accent: "#c06c61" } },
+      { name: "Coastal Calm", colors: { back: "#bcd4e6", left: "#c9d6d1", right: "#c9d6d1", cab: "#5b8fb0", accent: "#f4f1ea" } },
+      { name: "Charcoal Focus", colors: { back: "#2f4858", left: "#34495e", right: "#34495e", cab: "#1e2a38", accent: "#d4af37" } },
+      { name: "Muted Plum", colors: { back: "#9b6a6a", left: "#c0a0a0", right: "#c0a0a0", cab: "#8d5524", accent: "#d4af37" } }
     ],
     kids: [
       { name: "Sunny Sky", colors: { back: "#bcd4e6", left: "#c9d6d1", right: "#c9d6d1", accent: "#ffd24d" } },
       { name: "Bubblegum", colors: { back: "#fde9ef", left: "#f4d3e0", right: "#f4d3e0", accent: "#c06c61" } },
       { name: "Mint Play", colors: { back: "#a7c4a0", left: "#c9d6d1", right: "#c9d6d1", accent: "#5b8fb0" } },
-      { name: "Soft Cream", colors: { back: "#f4f1ea", left: "#e8e3d8", right: "#e8e3d8", accent: "#d4af37" } }
+      { name: "Soft Cream", colors: { back: "#f4f1ea", left: "#e8e3d8", right: "#e8e3d8", accent: "#d4af37" } },
+      { name: "Sunny Yellow", colors: { back: "#f2d399", left: "#e8e3d8", right: "#e8e3d8", accent: "#c06c61" } },
+      { name: "Ocean Blue", colors: { back: "#5b8fb0", left: "#bcd4e6", right: "#bcd4e6", accent: "#ffd24d" } },
+      { name: "Forest Fun", colors: { back: "#a7c4a0", left: "#c9d6d1", right: "#c9d6d1", accent: "#8d5524" } },
+      { name: "Lavender Magic", colors: { back: "#d8cfe6", left: "#e8e0f0", right: "#e8e0f0", accent: "#9b6a6a" } },
+      { name: "Peach Party", colors: { back: "#e8c4b8", left: "#f4d3e0", right: "#f4d3e0", accent: "#ffd24d" } },
+      { name: "Ivory Clouds", colors: { back: "#f4f1ea", left: "#eef2f5", right: "#eef2f5", accent: "#5b8fb0" } },
+      { name: "Mint Fresh", colors: { back: "#c9d6d1", left: "#d9d3c6", right: "#d9d3c6", accent: "#a7c4a0" } },
+      { name: "Bubblegum Pop", colors: { back: "#f4d3e0", left: "#fde9ef", right: "#fde9ef", accent: "#5b8fb0" } }
     ],
     exterior: [
       { name: "Classic White", colors: { main: "#f4f1ea", roof: "#5a3a1a", trim: "#ffffff", door: "#c0392b" } },
       { name: "Terracotta Villa", colors: { main: "#e8c4b8", roof: "#8d5524", trim: "#f4f1ea", door: "#34495e" } },
       { name: "Coastal Blue", colors: { main: "#bcd4e6", roof: "#2f4858", trim: "#ffffff", door: "#5b8fb0" } },
-      { name: "Garden Green", colors: { main: "#a7c4a0", roof: "#2f5223", trim: "#f4f1ea", door: "#8d5524" } }
+      { name: "Garden Green", colors: { main: "#a7c4a0", roof: "#2f5223", trim: "#f4f1ea", door: "#8d5524" } },
+      { name: "Warm Sand", colors: { main: "#e8e3d8", roof: "#8d5524", trim: "#ffffff", door: "#c0392b" } },
+      { name: "Charcoal Modern", colors: { main: "#34495e", roof: "#1e2a38", trim: "#d4af37", door: "#c0392b" } },
+      { name: "Sunny Honey", colors: { main: "#f2d399", roof: "#8d5524", trim: "#ffffff", door: "#34495e" } },
+      { name: "Royal Blue", colors: { main: "#2f4858", roof: "#1e2a38", trim: "#d4af37", door: "#c0392b" } },
+      { name: "Forest Retreat", colors: { main: "#7d9b76", roof: "#2f5223", trim: "#f4f1ea", door: "#8d5524" } },
+      { name: "Ivory Estate", colors: { main: "#f4f1ea", roof: "#5a3a1a", trim: "#8d5524", door: "#2f4858" } },
+      { name: "Terracotta Earth", colors: { main: "#c06c61", roof: "#8d5524", trim: "#f4f1ea", door: "#34495e" } },
+      { name: "Slate & Gold", colors: { main: "#34495e", roof: "#5a3a1a", trim: "#d4af37", door: "#8d5524" } }
     ]
   };
 
+  // 10 paint finishes — real sheen grades from flat to high-gloss,
+  // plus specialty finishes. Each adds a distinct sheen overlay.
   const FINISH_NOTES = {
-    matte: "Flat, no shine — hides wall imperfections. Great for ceilings and low-traffic walls.",
-    eggshell: "Soft, subtle sheen — easy to clean. The most popular wall finish.",
-    satin: "Soft glow — durable and washable. Ideal for kitchens, bathrooms and trims.",
-    semigloss: "Shiny and tough — moisture-resistant. Best for doors, trims and cabinets."
+    flatmatte: "Truly flat, zero shine — the most forgiving finish. Best at hiding wall flaws; great for ceilings and low-traffic living areas.",
+    matte: "Flat with a soft hint of body — hides imperfections while looking richer than flat. Popular for living rooms and bedrooms.",
+    eggshell: "Subtle low sheen, like an egg's shell — easy to wipe and the most common wall finish for family homes.",
+    pearl: "Smooth, low-to-medium glow — elegant and washable. A premium step up from eggshell for dining and offices.",
+    satin: "Soft, silky sheen — durable and washable. Ideal for kitchens, bathrooms, kids' rooms and trims.",
+    semigloss: "Noticeable shine, tough and moisture-resistant — the go-to for doors, windows, cabinets and skirting.",
+    highgloss: "Mirror-like, maximum shine — dramatic and ultra-durable. Best for statement doors, trims and accent details.",
+    metallic: "Shimmering reflective flecks — a luxe accent finish for feature walls and decorative details.",
+    textured: "Tactile grain that adds depth and hides flaws — great for exterior walls and feature surfaces.",
+    distemper: "Soft matte economy finish — traditional lime/distemper look, breathable and budget-friendly."
   };
 
   // --- Element refs ---
@@ -129,7 +204,7 @@
   });
   let scene = "living";
   let surface = "back";
-  let finish = "matte";
+  let finish = "flatmatte";
   let light = "day";
   let coverage = 100; // 0 = original, 100 = fully chosen
 
@@ -479,9 +554,9 @@
     });
 
     selectScene("living");
-    setFinish("matte");
+    setFinish("flatmatte");
     setLight("day");
-    finishNote.textContent = FINISH_NOTES.matte;
+    finishNote.textContent = FINISH_NOTES.flatmatte;
   }
 
   if (document.readyState === "loading") {
