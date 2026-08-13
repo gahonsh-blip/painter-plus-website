@@ -387,6 +387,206 @@ textarea.form-control { resize: vertical; }
 .hero .content p    { animation-delay: 0.4s; }
 .hero .content a, .hero .content .btn-primary { animation-delay: 0.6s; }
 
+/* ============================================================
+   PAINTER SCENE — a cartoon painter transforms a home
+   Real, timed acting: the painter walks in with paint, brushes the
+   wall (arm swings + paint strokes appear), steps out, the whole
+   house becomes freshly painted, the owner comes out to shake hands,
+   payment is handed over, and the painter leaves. The whole story is
+   driven by a CSS animation timeline + a JS replay control.
+   ============================================================ */
+.hero-split { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: center; }
+.hero-split__text { max-width: 100%; }
+
+.painter-scene {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+}
+.ps-stage {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 4 / 3;
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #bfe3ff 0%, #d8f0ff 38%, #d8f0ff 38%);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.5);
+}
+.ps-sky { position: absolute; inset: 0 0 38% 0; background: linear-gradient(180deg, #9fd0ff, #d8f0ff); }
+.ps-ground { position: absolute; left: 0; right: 0; bottom: 0; height: 38%; background: linear-gradient(180deg, #8bc34a, #689f38); }
+.ps-cloud {
+  position: absolute; background: #fff; border-radius: 50%;
+  width: 50px; height: 18px; opacity: 0.9;
+  box-shadow: 18px -10px 0 -2px #fff, 36px 0 0 -4px #fff;
+  animation: ps-cloud-drift 18s linear infinite;
+}
+.ps-cloud--1 { top: 12%; left: -10%; }
+.ps-cloud--2 { top: 22%; left: -30%; animation-duration: 26s; animation-delay: -8s; width: 38px; }
+@keyframes ps-cloud-drift { from { transform: translateX(0); } to { transform: translateX(550px); } }
+
+/* The house */
+.ps-house {
+  position: absolute;
+  left: 50%; bottom: 30%;
+  transform: translateX(-50%);
+  width: 46%; aspect-ratio: 1 / 1.05;
+}
+.ps-roof {
+  position: absolute; top: -22%; left: -8%; right: -8%; height: 30%;
+  background: #8d5524;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.ps-wall {
+  position: absolute; inset: 0;
+  background: #d9cbb0; /* unpainted, dull */
+  border-radius: 4px;
+  transition: background 1.2s ease;
+  box-shadow: inset 0 0 0 2px rgba(0,0,0,0.05);
+}
+/* When painted, the wall turns a fresh, clean colour */
+.ps-wall.painted { background: #f4f1ea; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.03), inset 0 8px 24px rgba(255,255,255,0.6); }
+.ps-door {
+  position: absolute; left: 42%; bottom: 0; width: 16%; height: 44%;
+  background: #6b4f2a; border-radius: 4px 4px 0 0;
+}
+.ps-window { position: absolute; width: 22%; height: 26%; background: #bfe3ff; border: 3px solid #f4f1ea; border-radius: 3px; }
+.ps-window--l { left: 8%; top: 18%; }
+.ps-window--r { right: 8%; top: 18%; }
+
+/* Paint strokes that appear while painting */
+.ps-stroke {
+  position: absolute; width: 80%; height: 14%;
+  background: linear-gradient(90deg, rgba(244,241,234,0.0), rgba(244,241,234,0.95), rgba(244,241,234,0.0));
+  border-radius: 8px;
+  opacity: 0; transform: scaleX(0); transform-origin: left center;
+  left: 10%;
+}
+.ps-stroke--1 { top: 22%; }
+.ps-stroke--2 { top: 50%; }
+.ps-stroke--3 { top: 76%; }
+
+/* Cartoon painter */
+.ps-painter {
+  position: absolute;
+  bottom: 28%;
+  left: -25%;
+  width: 22%;
+  z-index: 6;
+  animation: ps-walk-in 2.2s ease forwards;
+}
+.ps-painter svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 6px 6px rgba(0,0,0,0.2)); }
+@keyframes ps-walk-in {
+  0%   { left: -25%; }
+  100% { left: 22%; }
+}
+/* gentle walk bob */
+.ps-painter svg { animation: ps-bob 0.5s ease-in-out infinite; }
+@keyframes ps-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+/* Painting phase: painter pauses, arm swings, strokes appear */
+.ps-painter.painting svg { animation: none; }
+.ps-painter.painting { animation: ps-walk-in 2.2s ease forwards, ps-arm-work 0.45s ease-in-out 2.3s 6; }
+@keyframes ps-arm-work {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-2px) rotate(2deg); }
+}
+.ps-stroke.show { opacity: 1; transform: scaleX(1); transition: opacity 0.25s, transform 0.5s ease; }
+
+/* Painter walks out (to the right) after painting */
+.ps-painter.leaving {
+  animation: ps-walk-out 2s ease forwards;
+}
+@keyframes ps-walk-out {
+  0% { left: 22%; }
+  100% { left: 105%; }
+}
+.ps-painter.leaving svg { animation: ps-bob 0.5s ease-in-out infinite; }
+
+/* Owner walks in from the house door */
+.ps-owner {
+  position: absolute;
+  bottom: 28%;
+  left: 44%;
+  width: 18%;
+  z-index: 6;
+  opacity: 0;
+  transform: translateX(0);
+}
+.ps-owner svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 6px 6px rgba(0,0,0,0.2)); }
+.ps-owner.show { opacity: 1; animation: ps-owner-walk 1.6s ease forwards; }
+@keyframes ps-owner-walk {
+  0% { opacity: 0; transform: translateX(0); }
+  20% { opacity: 1; }
+  100% { opacity: 1; transform: translateX(-40%); }
+}
+.ps-owner.show svg { animation: ps-bob 0.45s ease-in-out infinite; }
+
+/* Painter comes back a little for handshake */
+.ps-painter.handshake {
+  animation: ps-handshake-approach 1s ease forwards;
+}
+@keyframes ps-handshake-approach {
+  0% { left: 105%; }
+  100% { left: 70%; }
+}
+.ps-painter.handshake svg { animation: none; }
+
+/* Money that flies between them */
+.ps-money {
+  position: absolute;
+  bottom: 46%;
+  left: 60%;
+  width: 8%;
+  opacity: 0;
+  z-index: 7;
+}
+.ps-money svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.25)); }
+.ps-money.show { opacity: 1; animation: ps-money-fly 1.2s ease forwards; }
+@keyframes ps-money-fly {
+  0% { opacity: 0; transform: translateX(0) scale(0.6); }
+  30% { opacity: 1; transform: translateX(-30%) scale(1); }
+  100% { opacity: 0; transform: translateX(-60%) scale(0.8); }
+}
+
+/* Painter leaves for good */
+.ps-painter.farewell {
+  animation: ps-farewell 2s ease forwards;
+}
+@keyframes ps-farewell {
+  0% { left: 70%; }
+  100% { left: 105%; }
+}
+.ps-painter.farewell svg { animation: ps-bob 0.5s ease-in-out infinite; }
+.ps-owner.farewell { opacity: 1; animation: ps-owner-back 1.4s ease forwards; }
+@keyframes ps-owner-back {
+  0% { transform: translateX(-40%); opacity: 1; }
+  100% { transform: translateX(0); opacity: 0; }
+}
+
+.ps-caption { margin-top: 14px; font-size: 0.9rem; color: var(--text-light); min-height: 1.2em; text-align: center; }
+.ps-replay {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-hover);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 16px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.25s, transform 0.25s;
+}
+.ps-replay:hover { background: var(--border); transform: translateY(-1px); }
+
+@media (max-width: 768px) {
+  .hero-split { grid-template-columns: 1fr; gap: 18px; }
+  .hero-split__text { text-align: center; }
+  .ps-stage { max-width: 340px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ps-cloud, .ps-painter svg, .ps-owner.show svg, .ps-painter.leaving svg, .ps-painter.farewell svg { animation: none !important; }
+}
+
 /* --- 2. HERO highlight: colour sweeps into the word ------------
    Meaning: the highlighted word literally "fills with paint",
    reinforcing that this is a painting business. */

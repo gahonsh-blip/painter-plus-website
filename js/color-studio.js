@@ -490,3 +490,104 @@
     init();
   }
 })();
+
+/* ============================================================
+   PAINTER SCENE — orchestration timeline
+   Drives the cartoon painter story: walk in → paint → walk out →
+   house becomes freshly painted → owner comes out → handshake →
+   payment → painter leaves. Captions narrate each step so it is
+   clear and "real" to the viewer. Replay restarts the whole scene.
+   ============================================================ */
+(function () {
+  "use strict";
+
+  let timers = [];
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  function $(id) { return document.getElementById(id); }
+  function playScene() {
+    const painter = $("psPainter");
+    const owner = $("psOwner");
+    const money = $("psMoney");
+    const wall = $("psWall");
+    const caption = $("psCaption");
+    const strokes = document.querySelectorAll(".ps-stroke");
+
+    // Reset to the start of the scene.
+    clearTimers();
+    [painter, owner, money].forEach((el) => {
+      if (!el) return;
+      el.className = el.className.split(" ").filter((c) =>
+        !["painting", "leaving", "show", "handshake", "farewell"].includes(c)
+      ).join(" ");
+    });
+    wall.classList.remove("painted");
+    strokes.forEach((s) => s.classList.remove("show"));
+    void painter.offsetWidth; // force reflow so CSS animation restarts
+    painter.classList.add("ps-painter");
+    painter.style.animation = "none";
+    void painter.offsetWidth;
+    painter.style.animation = "";
+
+    const setCaption = (t) => { if (caption) caption.textContent = t; };
+
+    // 1. Painter walks in (2.2s)
+    setCaption("Our painter arrives with his brush and paint…");
+    // 2. Painting phase: arm swings, strokes appear (from ~2.3s)
+    timers.push(setTimeout(() => {
+      painter.classList.add("painting");
+      setCaption("He paints the wall, stroke by stroke…");
+    }, 2200));
+    timers.push(setTimeout(() => strokes[0] && strokes[0].classList.add("show"), 2500));
+    timers.push(setTimeout(() => strokes[1] && strokes[1].classList.add("show"), 2900));
+    timers.push(setTimeout(() => strokes[2] && strokes[2].classList.add("show"), 3300));
+    // 3. Whole house becomes freshly painted as he finishes (~4.6s)
+    timers.push(setTimeout(() => {
+      wall.classList.add("painted");
+      setCaption("The whole house is freshly painted!");
+    }, 4200));
+    // 4. Painter steps out (walks right) (~5.2s)
+    timers.push(setTimeout(() => {
+      painter.className = "ps-painter leaving";
+      setCaption("The painter steps out, job done.");
+    }, 5200));
+    // 5. Owner comes out to shake hands (~6.8s)
+    timers.push(setTimeout(() => {
+      owner.classList.add("show");
+      setCaption("The happy owner comes out to say thank you…");
+    }, 6800));
+    // 6. Painter returns for handshake (~8.2s)
+    timers.push(setTimeout(() => {
+      painter.className = "ps-painter handshake";
+      setCaption("…they shake hands.");
+    }, 8200));
+    // 7. Payment handed over (~9.4s)
+    timers.push(setTimeout(() => {
+      money.classList.add("show");
+      setCaption("Payment received with a smile.");
+    }, 9400));
+    // 8. Painter leaves for good (~10.6s)
+    timers.push(setTimeout(() => {
+      painter.className = "ps-painter farewell";
+      setCaption("The painter heads home — another happy home.");
+    }, 10600));
+    // 9. Owner goes back inside (~12.4s)
+    timers.push(setTimeout(() => {
+      owner.className = "ps-owner farewell";
+      setCaption("Watch our painter transform a home…");
+    }, 12400));
+  }
+
+  function init() {
+    const replay = $("psReplay");
+    if (replay) replay.addEventListener("click", playScene);
+    // Start automatically once the hero is visible.
+    if ($("psStage")) playScene();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
