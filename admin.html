@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin | Painter Plus</title>
+    <meta name="description" content="Painter Plus admin — add and manage portfolio projects." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#2563EB" />
+    <link rel="canonical" href="https://gahonsh-blip.github.io/painter-plus-website/admin.html" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="stylesheet" href="./css/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="container flex-header">
+        <a href="./index.html" class="logo">🎨 <span>Painter Plus</span></a>
+        <button class="mobile-toggle" aria-label="Toggle navigation">☰</button>
+        <nav class="nav-links">
+          <a href="./index.html">Home</a>
+          <a href="./about.html">About</a>
+          <a href="./services.html">Services</a>
+          <a href="./portfolio.html">Portfolio</a>
+          <a href="./color-studio.html">Color Studio</a>
+          <a href="./painter-profile.html">Painter</a>
+          <a href="./contact.html">Contact</a>
+          <a href="./admin.html">Admin</a>
+          <button class="theme-toggle" id="theme-toggle" type="button">🌙 Dark</button>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="section">
+        <div class="container">
+          <h2 class="section-title">Project <span>Admin</span></h2>
+          <p class="adm-sub">Add portfolio projects here. Saved projects appear on the <a href="./portfolio.html">Portfolio</a> page (in this browser) and can be exported as JSON to add permanently.</p>
+
+          <!-- Lightweight passcode gate (client-side only, not real security) -->
+          <div class="adm-gate" id="admGate">
+            <div class="adm-gate-card">
+              <h3>🔒 Enter passcode</h3>
+              <p class="adm-gate-note">This is a simple client-side gate to keep casual visitors out — it is <strong>not</strong> real security. Default passcode: <code>painter123</code> (change it in <code>js/script.js</code>).</p>
+              <div class="adm-gate-form">
+                <input type="password" id="admPass" class="form-control" placeholder="Passcode" autocomplete="current-password" />
+                <button class="btn-primary" id="admUnlock">Unlock →</button>
+              </div>
+              <p class="adm-gate-error" id="admGateErr" hidden>Wrong passcode. Try again.</p>
+            </div>
+          </div>
+
+          <!-- Admin panel (shown after unlock) -->
+          <div class="adm-panel" id="admPanel" hidden>
+            <div class="adm-grid">
+              <!-- Add / edit form -->
+              <form class="adm-form card" id="admForm" novalidate>
+                <h3 id="admFormTitle">➕ Add a new project</h3>
+                <input type="hidden" id="admId" />
+                <label class="adm-field">
+                  <span>Project title *</span>
+                  <input type="text" id="admTitle" class="form-control" placeholder="e.g. Modern Living Room" required />
+                </label>
+                <div class="adm-row">
+                  <label class="adm-field">
+                    <span>Category *</span>
+                    <select id="admCategory" class="form-control">
+                      <option value="interior">Interior</option>
+                      <option value="exterior">Exterior</option>
+                      <option value="texture">Texture</option>
+                      <option value="commercial">Commercial</option>
+                    </select>
+                  </label>
+                  <label class="adm-field">
+                    <span>Room / type tag</span>
+                    <input type="text" id="admTag" class="form-control" placeholder="e.g. Living Room" />
+                  </label>
+                </div>
+                <div class="adm-row">
+                  <label class="adm-field">
+                    <span>Location</span>
+                    <input type="text" id="admLocation" class="form-control" placeholder="e.g. Ranchi" />
+                  </label>
+                  <label class="adm-field">
+                    <span>Year</span>
+                    <input type="text" id="admYear" class="form-control" placeholder="e.g. 2024" />
+                  </label>
+                  <label class="adm-field">
+                    <span>Finish / coating</span>
+                    <input type="text" id="admFinish" class="form-control" placeholder="e.g. Matte finish" />
+                  </label>
+                </div>
+                <label class="adm-field">
+                  <span>Image URL *</span>
+                  <input type="url" id="admImage" class="form-control" placeholder="https://images.unsplash.com/..." required />
+                  <small>Use a direct image link (https://…). The same image is used for the before/after effect.</small>
+                </label>
+                <label class="adm-field">
+                  <span>Challenge</span>
+                  <textarea id="admChallenge" class="form-control" rows="2" placeholder="What was the problem?"></textarea>
+                </label>
+                <label class="adm-field">
+                  <span>Solution</span>
+                  <textarea id="admSolution" class="form-control" rows="2" placeholder="How was it solved?"></textarea>
+                </label>
+                <label class="adm-field">
+                  <span>Result</span>
+                  <textarea id="admResult" class="form-control" rows="2" placeholder="The outcome…"></textarea>
+                </label>
+                <div class="adm-form-actions">
+                  <button type="submit" class="btn-primary" id="admSave">Save project</button>
+                  <button type="button" class="btn-ghost" id="admReset">Clear form</button>
+                </div>
+              </form>
+
+              <!-- Project list -->
+              <div class="adm-list card">
+                <div class="adm-list-head">
+                  <h3>Saved projects</h3>
+                  <div class="adm-list-tools">
+                    <button class="btn-ghost btn-sm" id="admExport" title="Copy all projects as JSON">📋 Export JSON</button>
+                    <button class="btn-ghost btn-sm adm-danger" id="admClearAll" title="Delete all saved projects">🗑 Clear all</button>
+                  </div>
+                </div>
+                <p class="adm-empty" id="admEmpty">No projects added yet. Use the form to add your first project.</p>
+                <ul class="adm-items" id="admItems"></ul>
+              </div>
+            </div>
+
+            <div class="adm-export-box" id="admExportBox" hidden>
+              <p>Copied! Paste this JSON into a developer issue or save it. To make projects permanent, the site owner can add them to <code>portfolio.html</code>.</p>
+              <textarea class="form-control" id="admExportText" rows="8" readonly></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <h4>Company</h4>
+            <ul>
+              <li><a href="./about.html">About Us</a></li>
+              <li><a href="./contact.html">Contact</a></li>
+              <li><a href="./privacy.html">Privacy Policy</a></li>
+              <li><a href="./terms.html">Terms of Service</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Services</h4>
+            <ul>
+              <li><a href="./services.html#interior">Interior Painting</a></li>
+              <li><a href="./services.html#exterior">Exterior Painting</a></li>
+              <li><a href="./services.html#putty">Wall Putty</a></li>
+              <li><a href="./services.html#texture">Texture Finishes</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Resources</h4>
+            <ul>
+              <li><a href="./portfolio.html">Portfolio</a></li>
+              <li><a href="./painter-profile.html">Painter Profile</a></li>
+              <li><a href="./admin.html">Admin</a></li>
+              <li><a href="./contact.html">Free Quote</a></li>
+              <li><a href="./about.html">Our Story</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Get in Touch</h4>
+            <ul>
+              <li>📞 <a href="tel:+918825183628">+91 8825183628</a></li>
+              <li>✉️ <a href="mailto:gahonsh@gmail.com">gahonsh@gmail.com</a></li>
+              <li>📍 Upar Balalong, Arki, Khunti, Jharkhand, India - 835225</li>
+              <li><a href="https://wa.me/918825183628" target="_blank" rel="noreferrer">💬 WhatsApp</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>© 2026 Painter Plus. All rights reserved. <a href="./privacy.html">Privacy</a> | <a href="./terms.html">Terms</a></p>
+        </div>
+      </div>
+    </footer>
+
+    <a href="https://wa.me/918825183628" class="whatsapp-float" target="_blank" rel="noreferrer">💬 WhatsApp</a>
+    <script src="./js/script.js"></script>
+  </body>
+</html>

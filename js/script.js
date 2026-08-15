@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }, { threshold: 0.15 });
     revealElements.forEach(el => observer.observe(el));
+    window.__ppRevealObserver = observer;
 
     // ----- PROCESS LINE: fills as the process section enters view -----
     // Visualises the project journeying from step 1 to step 3 (CSS handles the fill).
@@ -104,6 +105,182 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
+    // ----- PORTFOLIO: merge admin-added projects (localStorage) -----
+    // Projects added via admin.html are stored locally and shown here so
+    // the painter can preview additions instantly. (Static site, no backend.)
+    const PP_KEY = 'painterPlusProjects';
+    function ppRead() { try { return JSON.parse(localStorage.getItem(PP_KEY)) || []; } catch { return []; } }
+    const pfGridMerge = document.getElementById('pfGrid');
+    if (pfGridMerge) {
+        const added = ppRead();
+        if (Array.isArray(added) && added.length) {
+            added.forEach(p => {
+                const card = document.createElement('article');
+                card.className = 'card pf-card reveal';
+                card.dataset.category = p.category || 'interior';
+                card.dataset.user = '1';
+                const img = p.image || '';
+                const meta = [p.location && '📍 ' + p.location, p.year, p.finish].filter(Boolean).join(' · ');
+                const desc = [p.challenge && '<strong>Challenge:</strong> ' + p.challenge,
+                              p.solution && '<strong>Solution:</strong> ' + p.solution,
+                              p.result && '<strong>Result:</strong> ' + p.result].filter(Boolean).join('<br>');
+                card.innerHTML =
+                    '<div class="pf-media"' + (img ? ' style="--pf-img:url(\'' + img.replace(/'/g, "\\'") + '\')"' : '') + '>' +
+                      '<img class="pf-img" loading="lazy" src="' + (img || '') + '" alt="' + esc(p.title) + '" />' +
+                      '<span class="pf-badge user">' + esc(capital(p.category || 'interior')) + '</span>' +
+                      (p.tag ? '<span class="pf-tag">' + esc(p.tag) + '</span>' : '') +
+                    '</div>' +
+                    '<div class="pf-body">' +
+                      '<h3>' + esc(p.title) + '</h3>' +
+                      (meta ? '<p class="pf-meta">' + esc(meta) + '</p>' : '') +
+                      (desc ? '<p>' + desc + '</p>' : '<p>Added via admin.</p>') +
+                    '</div>';
+                pfGridMerge.appendChild(card);
+            });
+            // observe the new cards so the reveal observer picks them up
+            const obs = window.__ppRevealObserver;
+            if (obs) { pfGridMerge.querySelectorAll('.pf-card.reveal:not(.visible)').forEach(c => obs.observe(c)); }
+        }
+    }
+
+    // ----- ADMIN PAGE: project manager (localStorage) -----
+    const ADMIN_PASSCODE = 'painter123'; // client-side only, not real security
+    const admPanel = document.getElementById('admPanel');
+    const admGate = document.getElementById('admGate');
+    if (admPanel && admGate) {
+        const unlockBtn = document.getElementById('admUnlock');
+        const passInput = document.getElementById('admPass');
+        const gateErr = document.getElementById('admGateErr');
+        const SESSION_KEY = 'ppAdminUnlocked';
+        const openPanel = () => { admGate.hidden = true; admPanel.hidden = false; renderList(); };
+
+        if (sessionStorage.getItem(SESSION_KEY) === '1') { openPanel(); }
+
+        const tryUnlock = () => {
+            if (passInput.value === ADMIN_PASSCODE) {
+                sessionStorage.setItem(SESSION_KEY, '1');
+                openPanel();
+            } else {
+                gateErr.hidden = false;
+                passInput.value = '';
+            }
+        };
+        unlockBtn.addEventListener('click', tryUnlock);
+        passInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryUnlock(); } });
+
+        const form = document.getElementById('admForm');
+        const fields = ['admId','admTitle','admCategory','admTag','admLocation','admYear','admFinish','admImage','admChallenge','admSolution','admResult'];
+        const get = id => document.getElementById(id);
+        const val = id => (get(id).value || '').trim();
+
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            if (!val('admTitle') || !val('admImage')) { alert('Please fill in at least the title and image URL.'); return; }
+            const project = {
+                id: val('admId') || ('p' + Date.now()),
+                title: val('admTitle'),
+                category: val('admCategory'),
+                tag: val('admTag'),
+                location: val('admLocation'),
+                year: val('admYear'),
+                finish: val('admFinish'),
+                image: val('admImage'),
+                challenge: val('admChallenge'),
+                solution: val('admSolution'),
+                result: val('admResult')
+            };
+            const list = ppRead();
+            const idx = list.findIndex(x => x.id === project.id);
+            if (idx >= 0) { list[idx] = project; } else { list.push(project); }
+            localStorage.setItem(PP_KEY, JSON.stringify(list));
+            resetForm();
+            renderList();
+        });
+
+        document.getElementById('admReset').addEventListener('click', resetForm);
+
+        document.getElementById('admExport').addEventListener('click', () => {
+            const list = ppRead();
+            const txt = JSON.stringify(list, null, 2);
+            const box = document.getElementById('admExportBox');
+            const ta = document.getElementById('admExportText');
+            box.hidden = false; ta.value = txt;
+            ta.select();
+            try { document.execCommand('copy'); } catch {}
+        });
+
+        document.getElementById('admClearAll').addEventListener('click', () => {
+            if (ppRead().length === 0) return;
+            if (confirm('Delete ALL saved projects? This cannot be undone.')) {
+                localStorage.removeItem(PP_KEY);
+                renderList(); resetForm();
+            }
+        });
+
+        function renderList() {
+            const list = ppRead();
+            const ul = document.getElementById('admItems');
+            const empty = document.getElementById('admEmpty');
+            ul.innerHTML = '';
+            if (!list.length) { empty.hidden = false; return; }
+            empty.hidden = true;
+            list.forEach(p => {
+                const li = document.createElement('li');
+                li.className = 'adm-item';
+                li.innerHTML =
+                    '<img src="' + esc(p.image || '') + '" alt="" onerror="this.style.opacity=0.3" />' +
+                    '<div class="adm-item-body">' +
+                      '<div class="adm-item-title">' + esc(p.title) +
+                        '<span class="adm-item-cat">' + esc(capital(p.category)) + '</span>' +
+                      '</div>' +
+                      '<div class="adm-item-meta">' + esc([p.location, p.year, p.finish].filter(Boolean).join(' · ')) + '</div>' +
+                    '</div>' +
+                    '<div class="adm-item-actions">' +
+                      '<button class="edit" data-id="' + esc(p.id) + '">✏️ Edit</button>' +
+                      '<button class="del" data-id="' + esc(p.id) + '">🗑 Delete</button>' +
+                    '</div>';
+                ul.appendChild(li);
+            });
+            ul.querySelectorAll('.edit').forEach(b => b.addEventListener('click', () => editProject(b.dataset.id)));
+            ul.querySelectorAll('.del').forEach(b => b.addEventListener('click', () => delProject(b.dataset.id)));
+        }
+
+        function editProject(id) {
+            const p = ppRead().find(x => x.id === id);
+            if (!p) return;
+            get('admId').value = p.id;
+            get('admTitle').value = p.title || '';
+            get('admCategory').value = p.category || 'interior';
+            get('admTag').value = p.tag || '';
+            get('admLocation').value = p.location || '';
+            get('admYear').value = p.year || '';
+            get('admFinish').value = p.finish || '';
+            get('admImage').value = p.image || '';
+            get('admChallenge').value = p.challenge || '';
+            get('admSolution').value = p.solution || '';
+            get('admResult').value = p.result || '';
+            document.getElementById('admFormTitle').textContent = '✏️ Editing: ' + p.title;
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function delProject(id) {
+            if (!confirm('Delete this project?')) return;
+            const list = ppRead().filter(x => x.id !== id);
+            localStorage.setItem(PP_KEY, JSON.stringify(list));
+            if (get('admId').value === id) resetForm();
+            renderList();
+        }
+
+        function resetForm() {
+            fields.forEach(id => { const el = get(id); if (el) el.value = ''; });
+            get('admCategory').value = 'interior';
+            document.getElementById('admFormTitle').textContent = '➕ Add a new project';
+        }
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+    function capital(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
 
     // ----- LINE-ART PAINTER MASCOT (on every page) -----
     // Injects a small Google-doodle style line-drawn painter in the corner
