@@ -37,41 +37,153 @@
     </header>
 
     <main>
-      <section class="section">
+      <!-- Portfolio hero -->
+      <section class="section pf-hero">
         <div class="container">
           <h2 class="section-title">Our <span>portfolio</span></h2>
-          <div class="grid-3">
-            <article class="card">
-              <img class="roller-reveal" src="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=900&q=80" alt="Luxury living room interior" />
-              <h3>Modern Living Room</h3>
-              <p><strong>Challenge:</strong> Faded walls and an outdated look.<br><strong>Solution:</strong> Soft matte tones with a feature wall.<br><strong>Result:</strong> A calm and polished space.</p>
+          <p class="pf-intro">A selection of recent projects — interiors, exteriors, textures, and commercial spaces. Hover any project to watch the transformation come to life, like a fresh coat of paint being rolled on.</p>
+
+          <!-- Category filter -->
+          <div class="pf-filter" role="tablist" aria-label="Filter projects by category">
+            <button class="pf-filter-btn active" data-filter="all" role="tab" aria-selected="true">All</button>
+            <button class="pf-filter-btn" data-filter="interior" role="tab" aria-selected="false">Interior</button>
+            <button class="pf-filter-btn" data-filter="exterior" role="tab" aria-selected="false">Exterior</button>
+            <button class="pf-filter-btn" data-filter="texture" role="tab" aria-selected="false">Texture</button>
+            <button class="pf-filter-btn" data-filter="commercial" role="tab" aria-selected="false">Commercial</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section pf-grid-section">
+        <div class="container">
+          <div class="grid-3 pf-grid" id="pfGrid">
+            <article class="card pf-card reveal" data-category="interior">
+              <div class="pf-media" style="--pf-img:url('https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=900&q=80')">
+                <img class="pf-img" loading="lazy" src="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=900&q=80" alt="Modern living room with soft matte walls" />
+                <span class="pf-badge">Interior</span>
+                <span class="pf-tag">Living Room</span>
+              </div>
+              <div class="pf-body">
+                <h3>Modern Living Room</h3>
+                <p class="pf-meta">📍 Ranchi &middot; 2024 &middot; Matte finish</p>
+                <p><strong>Challenge:</strong> Faded walls and an outdated look.<br><strong>Solution:</strong> Soft matte tones with a feature wall.<br><strong>Result:</strong> A calm and polished space.</p>
+              </div>
             </article>
-            <article class="card">
-              <img class="roller-reveal" src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80" alt="Exterior wall repaint" />
-              <h3>Exterior Facade</h3>
-              <p><strong>Challenge:</strong> Weather damage and poor curb appeal.<br><strong>Solution:</strong> Premium exterior coating with UV protection.<br><strong>Result:</strong> Fresh, lasting beauty.</p>
+
+            <article class="card pf-card reveal" data-category="exterior">
+              <div class="pf-media" style="--pf-img:url('https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80')">
+                <img class="pf-img" loading="lazy" src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80" alt="Freshly painted exterior facade" />
+                <span class="pf-badge">Exterior</span>
+                <span class="pf-tag">Facade</span>
+              </div>
+              <div class="pf-body">
+                <h3>Exterior Facade</h3>
+                <p class="pf-meta">📍 Khunti &middot; 2023 &middot; UV exterior coating</p>
+                <p><strong>Challenge:</strong> Weather damage and poor curb appeal.<br><strong>Solution:</strong> Premium exterior coating with UV protection.<br><strong>Result:</strong> Fresh, lasting beauty.</p>
+              </div>
             </article>
-            <article class="card">
-              <img class="roller-reveal" src="https://images.unsplash.com/photo-1566891439633-e7a6c248a66c?auto=format&fit=crop&w=900&q=80" alt="Textured feature wall" />
-              <h3>Designer Texture Wall</h3>
-              <p><strong>Challenge:</strong> A plain interior in need of character.<br><strong>Solution:</strong> Designer texture and accent color.<br><strong>Result:</strong> A striking focal point.</p>
+
+            <article class="card pf-card reveal" data-category="texture">
+              <div class="pf-media" style="--pf-img:url('https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=900&q=80')">
+                <img class="pf-img" loading="lazy" src="https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=900&q=80" alt="Designer textured feature wall" />
+                <span class="pf-badge">Texture</span>
+                <span class="pf-tag">Accent Wall</span>
+              </div>
+              <div class="pf-body">
+                <h3>Designer Texture Wall</h3>
+                <p class="pf-meta">📍 Jamshedpur &middot; 2024 &middot; Hand-troweled texture</p>
+                <p><strong>Challenge:</strong> A plain interior in need of character.<br><strong>Solution:</strong> Designer texture and accent color.<br><strong>Result:</strong> A striking focal point.</p>
+              </div>
             </article>
-            <article class="card">
-              <img class="roller-reveal" src="https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=900&q=80" alt="Bedroom makeover" />
-              <h3>Bedroom Makeover</h3>
-              <p><strong>Challenge:</strong> Dull tones and cramped feeling.<br><strong>Solution:</strong> Light pastel palette and smooth finish.<br><strong>Result:</strong> Bright, airy comfort.</p>
+
+            <article class="card pf-card reveal" data-category="interior">
+              <div class="pf-media" style="--pf-img:url('https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=900&q=80')">
+                <img class="pf-img" loading="lazy" src="https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=900&q=80" alt="Bedroom makeover with pastel palette" />
+                <span class="pf-badge">Interior</span>
+                <span class="pf-tag">Bedroom</span>
+              </div>
+              <div class="pf-body">
+                <h3>Bedroom Makeover</h3>
+                <p class="pf-meta">📍 Ranchi &middot; 2024 &middot; Eggshell finish</p>
+                <p><strong>Challenge:</strong> Dull tones and a cramped feeling.<br><strong>Solution:</strong> Light pastel palette and smooth finish.<br><strong>Result:</strong> Bright, airy comfort.</p>
+              </div>
             </article>
-            <article class="card">
-              <img class="roller-reveal" src="https://images.unsplash.com/photo-1616137466211-f939a420be84?auto=format&fit=crop&w=900&q=80" alt="Office interior paint" />
-              <h3>Office Interior</h3>
-              <p><strong>Challenge:</strong> A corporate space needing a stronger identity.<br><strong>Solution:</strong> Crisp neutral tones with accent color.<br><strong>Result:</strong> Professional and inviting.</p>
+
+            <article class="card pf-card reveal" data-category="commercial">
+              <div class="pf-media" style="--pf-img:url('https://images.unsplash.com/photo-1616137466211-f939a420be84?auto=format&fit=crop&w=900&q=80')">
+                <img class="pf-img" loading="lazy" src="https://images.unsplash.com/photo-1616137466211-f939a420be84?auto=format&fit=crop&w=900&q=80" alt="Office interior with crisp neutral tones" />
+                <span class="pf-badge">Commercial</span>
+                <span class="pf-tag">Office</span>
+              </div>
+              <div class="pf-body">
+                <h3>Office Interior</h3>
+                <p class="pf-meta">📍 Bokaro &middot; 2023 &middot; Satin finish</p>
+                <p><strong>Challenge:</strong> A corporate space needing a stronger identity.<br><strong>Solution:</strong> Crisp neutral tones with accent color.<br><strong>Result:</strong> Professional and inviting.</p>
+              </div>
             </article>
-            <article class="card">
-              <img class="roller-reveal" src="https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=80" alt="Kitchen refresh" />
-              <h3>Kitchen Refresh</h3>
-              <p><strong>Challenge:</strong> Old paint affected by everyday wear.<br><strong>Solution:</strong> Washable, premium finish with bright tones.<br><strong>Result:</strong> Clean and modern.</p>
+
+            <article class="card pf-card reveal" data-category="interior">
+              <div class="pf-media" style="--pf-img:url('https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=80')">
+                <img class="pf-img" loading="lazy" src="https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=80" alt="Kitchen refresh with washable bright finish" />
+                <span class="pf-badge">Interior</span>
+                <span class="pf-tag">Kitchen</span>
+              </div>
+              <div class="pf-body">
+                <h3>Kitchen Refresh</h3>
+                <p class="pf-meta">📍 Dhanbad &middot; 2024 &middot; Semi-gloss finish</p>
+                <p><strong>Challenge:</strong> Old paint affected by everyday wear.<br><strong>Solution:</strong> Washable, premium finish with bright tones.<br><strong>Result:</strong> Clean and modern.</p>
+              </div>
+            </article>
+
+            <article class="card pf-card reveal" data-category="exterior">
+              <div class="pf-media" style="--pf-img:url('https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=900&q=80')">
+                <img class="pf-img" loading="lazy" src="https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=900&q=80" alt="Home exterior with warm earthy tones" />
+                <span class="pf-badge">Exterior</span>
+                <span class="pf-tag">Villa</span>
+              </div>
+              <div class="pf-body">
+                <h3>Warm Earth Villa</h3>
+                <p class="pf-meta">📍 Hazaribagh &middot; 2023 &middot; Elastomeric coating</p>
+                <p><strong>Challenge:</strong> Cracking exterior and fading color.<br><strong>Solution:</strong> Elastomeric coating in warm earth tones.<br><strong>Result:</strong> Protected, vibrant, and inviting.</p>
+              </div>
+            </article>
+
+            <article class="card pf-card reveal" data-category="texture">
+              <div class="pf-media" style="--pf-img:url('https://images.unsplash.com/photo-1615873968403-89e068629265?auto=format&fit=crop&w=900&q=80')">
+                <img class="pf-img" loading="lazy" src="https://images.unsplash.com/photo-1615873968403-89e068629265?auto=format&fit=crop&w=900&q=80" alt="Stairwell with decorative texture finish" />
+                <span class="pf-badge">Texture</span>
+                <span class="pf-tag">Stairwell</span>
+              </div>
+              <div class="pf-body">
+                <h3>Decorative Stairwell</h3>
+                <p class="pf-meta">📍 Ranchi &middot; 2024 &middot; Stucco texture</p>
+                <p><strong>Challenge:</strong> A dull, narrow passage.<br><strong>Solution:</strong> Light-reflecting stucco texture and accent trim.<br><strong>Result:</strong> Depth, light, and elegance.</p>
+              </div>
+            </article>
+
+            <article class="card pf-card reveal" data-category="commercial">
+              <div class="pf-media" style="--pf-img:url('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=80')">
+                <img class="pf-img" loading="lazy" src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=80" alt="Retail space painted with brand colors" />
+                <span class="pf-badge">Commercial</span>
+                <span class="pf-tag">Retail</span>
+              </div>
+              <div class="pf-body">
+                <h3>Retail Brand Space</h3>
+                <p class="pf-meta">📍 Jamshedpur &middot; 2024 &middot; Brand palette</p>
+                <p><strong>Challenge:</strong> A blank shell needing brand identity.<br><strong>Solution:</strong> Custom brand palette with feature signage wall.<br><strong>Result:</strong> A memorable customer experience.</p>
+              </div>
             </article>
           </div>
+        </div>
+      </section>
+
+      <section class="section pf-cta">
+        <div class="container pf-cta-inner">
+          <div class="pf-cta-copy">
+            <h2>Like what you see?</h2>
+            <p>Get a free site inspection and a 5-year warranty quote for your space.</p>
+          </div>
+          <a href="./contact.html" class="btn-primary">Get Free Quote →</a>
         </div>
       </section>
     </main>

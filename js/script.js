@@ -82,6 +82,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ----- PORTFOLIO FILTER -----
+    // Filters project cards by category with a soft fade transition.
+    const pfGrid = document.getElementById('pfGrid');
+    const pfFilterBtns = document.querySelectorAll('.pf-filter-btn');
+    if (pfGrid && pfFilterBtns.length) {
+        pfFilterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                pfFilterBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+                btn.classList.add('active');
+                btn.setAttribute('aria-selected', 'true');
+                const filter = btn.dataset.filter;
+                pfGrid.classList.add('filtering');
+                setTimeout(() => {
+                    pfGrid.querySelectorAll('.pf-card').forEach(card => {
+                        const show = filter === 'all' || card.dataset.category === filter;
+                        card.style.display = show ? '' : 'none';
+                    });
+                    pfGrid.classList.remove('filtering');
+                }, 250);
+            });
+        });
+    }
+
     // ----- LINE-ART PAINTER MASCOT (on every page) -----
     // Injects a small Google-doodle style line-drawn painter in the corner
     // so the brand mascot shows on all pages, not just the homepage hero.
