@@ -106,6 +106,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ----- PAINTER PROFILE PAGE: render saved profile (from admin) -----
+    const PROFILE_KEY = 'painterPlusProfile';
+    const PROFILE_DEFAULTS = {
+        photo: '', name: 'Painter Plus', role: 'Lead Painter & Founder',
+        tagline: 'Master painter crafting premium finishes across Jharkhand since 2015.',
+        bio: 'A hands-on painting specialist with a decade of on-site experience. From precise surface preparation to the final flawless coat, every project is treated as a signature piece. The belief is simple: great paint is 70% preparation and 100% care.',
+        stat1: '10+', stat2: '500+', stat3: '5-yr', stat4: '100%',
+        stat1label: 'Years experience', stat2label: 'Projects done', stat3label: 'Warranty', stat4label: 'Free inspection',
+        quote: '“Paint is the first thing a room says about itself. I make sure it always says quality.”',
+        phone: '+91 8825183628', email: 'gahonsh@gmail.com',
+        address: 'Upar Balalong, Arki, Khunti, Jharkhand – 835225',
+        note: 'Active since 2015 · 5-year warranty on every project · Free site inspection'
+    };
+    function ppProfileRead() { try { return Object.assign({}, PROFILE_DEFAULTS, JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}); } catch { return Object.assign({}, PROFILE_DEFAULTS); } }
+    const ppNameEl = document.getElementById('ppName');
+    if (ppNameEl) {
+        const p = ppProfileRead();
+        const set = (id, text) => { const el = document.getElementById(id); if (el && text) el.textContent = text; };
+        set('ppName', p.name); set('ppRole', p.role); set('ppTagline', p.tagline);
+        set('ppBio', p.bio); set('ppQuoteText', p.quote);
+        set('ppPhoneText', p.phone); set('ppEmailText', p.email);
+        set('ppAddress', p.address); set('ppNote', p.note);
+        // phone / email / whatsapp links
+        const phoneLink = document.getElementById('ppPhone'); if (phoneLink && p.phone) phoneLink.href = 'tel:' + p.phone.replace(/[^+\d]/g, '');
+        const emailLink = document.getElementById('ppEmail'); if (emailLink && p.email) emailLink.href = 'mailto:' + p.email;
+        const waLink = document.getElementById('ppWhatsapp'); if (waLink && p.phone) waLink.href = 'https://wa.me/' + p.phone.replace(/[^\d]/g, '');
+        // stats
+        const statsWrap = document.getElementById('ppStats');
+        if (statsWrap) {
+            const pairs = [[p.stat1, p.stat1label], [p.stat2, p.stat2label], [p.stat3, p.stat3label], [p.stat4, p.stat4label]];
+            statsWrap.innerHTML = pairs.map(([num, label]) =>
+                '<div class="stat reveal"><span class="stat-num">' + esc(num) + '</span><span class="stat-label">' + esc(label) + '</span></div>').join('');
+            const obs = window.__ppRevealObserver;
+            if (obs) statsWrap.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+        }
+        // photo: replace SVG with <img> if a photo URL is set
+        const avatar = document.getElementById('ppAvatar');
+        if (avatar && p.photo) {
+            avatar.innerHTML = '<img class="pp-photo" src="' + esc(p.photo) + '" alt="Painter photo" onerror="this.remove()" />';
+        }
+    }
+
     // ----- PORTFOLIO: merge admin-added projects (localStorage) -----
     // Projects added via admin.html are stored locally and shown here so
     // the painter can preview additions instantly. (Static site, no backend.)
@@ -153,9 +195,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const passInput = document.getElementById('admPass');
         const gateErr = document.getElementById('admGateErr');
         const SESSION_KEY = 'ppAdminUnlocked';
-        const openPanel = () => { admGate.hidden = true; admPanel.hidden = false; renderList(); };
-
-        if (sessionStorage.getItem(SESSION_KEY) === '1') { openPanel(); }
+        const openPanel = () => {
+            admGate.hidden = true; admPanel.hidden = false;
+            initProfileEditor(); renderList();
+        };
 
         const tryUnlock = () => {
             if (passInput.value === ADMIN_PASSCODE) {
@@ -169,6 +212,95 @@ document.addEventListener('DOMContentLoaded', () => {
         unlockBtn.addEventListener('click', tryUnlock);
         passInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryUnlock(); } });
 
+        // ----- Admin tab switching -----
+        const tabProfile = document.getElementById('tabProfile');
+        const tabProjects = document.getElementById('tabProjects');
+        const paneProfile = document.getElementById('paneProfile');
+        const paneProjects = document.getElementById('paneProjects');
+        const showTab = (which) => {
+            const prof = which === 'profile';
+            tabProfile.classList.toggle('active', prof); tabProfile.setAttribute('aria-selected', prof);
+            tabProjects.classList.toggle('active', !prof); tabProjects.setAttribute('aria-selected', !prof);
+            paneProfile.hidden = !prof; paneProjects.hidden = prof;
+        };
+        tabProfile.addEventListener('click', () => showTab('profile'));
+        tabProjects.addEventListener('click', () => showTab('projects'));
+
+        // ===== PAINTER PROFILE EDITOR =====
+        function profileRead() { try { return Object.assign({}, profileDefaults(), JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}); } catch { return Object.assign({}, profileDefaults()); } }
+        function profileSave(p) { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); }
+        function profileDefaults() {
+            return {
+                photo: '', name: 'Painter Plus', role: 'Lead Painter & Founder',
+                tagline: 'Master painter crafting premium finishes across Jharkhand since 2015.',
+                bio: 'A hands-on painting specialist with a decade of on-site experience. From precise surface preparation to the final flawless coat, every project is treated as a signature piece. The belief is simple: great paint is 70% preparation and 100% care.',
+                stat1: '10+', stat2: '500+', stat3: '5-yr', stat4: '100%',
+                stat1label: 'Years experience', stat2label: 'Projects done', stat3label: 'Warranty', stat4label: 'Free inspection',
+                quote: '“Paint is the first thing a room says about itself. I make sure it always says quality.”',
+                phone: '+91 8825183628', email: 'gahonsh@gmail.com',
+                address: 'Upar Balalong, Arki, Khunti, Jharkhand – 835225',
+                note: 'Active since 2015 · 5-year warranty on every project · Free site inspection'
+            };
+        }
+        function pfGet(id) { return document.getElementById(id); }
+        function pfVal(id) { return (pfGet(id).value || '').trim(); }
+
+        function initProfileEditor() {
+            const p = profileRead();
+            pfGet('pfPhoto').value = p.photo || '';
+            pfGet('pfName').value = p.name || '';
+            pfGet('pfRole').value = p.role || '';
+            pfGet('pfTagline').value = p.tagline || '';
+            pfGet('pfBio').value = p.bio || '';
+            pfGet('pfStat1').value = p.stat1 || '';
+            pfGet('pfStat2').value = p.stat2 || '';
+            pfGet('pfStat3').value = p.stat3 || '';
+            pfGet('pfStat4').value = p.stat4 || '';
+            pfGet('pfQuote').value = p.quote || '';
+            pfGet('pfPhone').value = p.phone || '';
+            pfGet('pfEmail').value = p.email || '';
+            pfGet('pfAddress').value = p.address || '';
+            pfGet('pfNote').value = p.note || '';
+            updatePhotoPreview();
+        }
+        function updatePhotoPreview() {
+            const url = pfVal('pfPhoto');
+            const box = document.getElementById('pfPhotoPreview');
+            const img = document.getElementById('pfPhotoPreviewImg');
+            if (url) { img.src = url; img.onerror = () => { box.hidden = true; }; box.hidden = false; }
+            else { box.hidden = true; }
+        }
+        document.getElementById('pfPhoto').addEventListener('input', updatePhotoPreview);
+
+        document.getElementById('profileForm').addEventListener('submit', e => {
+            e.preventDefault();
+            if (!pfVal('pfName')) { alert('Please enter the painter\'s name.'); return; }
+            const p = profileRead();
+            p.photo = pfVal('pfPhoto');
+            p.name = pfVal('pfName');
+            p.role = pfVal('pfRole');
+            p.tagline = pfVal('pfTagline');
+            p.bio = pfVal('pfBio');
+            p.stat1 = pfVal('pfStat1'); p.stat2 = pfVal('pfStat2');
+            p.stat3 = pfVal('pfStat3'); p.stat4 = pfVal('pfStat4');
+            p.quote = pfVal('pfQuote');
+            p.phone = pfVal('pfPhone'); p.email = pfVal('pfEmail');
+            p.address = pfVal('pfAddress'); p.note = pfVal('pfNote');
+            profileSave(p);
+            const btn = document.getElementById('pfSave');
+            const orig = btn.textContent; btn.textContent = '✅ Saved!';
+            setTimeout(() => { btn.textContent = orig; }, 1600);
+        });
+        document.getElementById('pfReset').addEventListener('click', () => {
+            if (!confirm('Reset the profile to the default values? Your saved changes will be cleared.')) return;
+            localStorage.removeItem(PROFILE_KEY);
+            initProfileEditor();
+        });
+        document.getElementById('pfClearPhoto').addEventListener('click', () => {
+            pfGet('pfPhoto').value = ''; updatePhotoPreview();
+        });
+
+        // ===== PORTFOLIO PROJECT MANAGER (existing) =====
         const form = document.getElementById('admForm');
         const fields = ['admId','admTitle','admCategory','admTag','admLocation','admYear','admFinish','admImage','admChallenge','admSolution','admResult'];
         const get = id => document.getElementById(id);
@@ -277,6 +409,10 @@ document.addEventListener('DOMContentLoaded', () => {
             get('admCategory').value = 'interior';
             document.getElementById('admFormTitle').textContent = '➕ Add a new project';
         }
+
+        // Auto-unlock if already unlocked in this session (placed last so all
+        // consts/functions above are initialized before openPanel runs).
+        if (sessionStorage.getItem(SESSION_KEY) === '1') { openPanel(); }
     }
 
     function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
