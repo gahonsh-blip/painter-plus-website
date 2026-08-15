@@ -703,6 +703,161 @@ textarea.form-control { resize: vertical; }
 .form-control:focus { animation: paint-fill 0.4s ease forwards; }
 
 /* ============================================================
+   PORTFOLIO — richer project grid with paint-transform animation
+   Each card's image starts as a grayscale "before"; on hover a
+   colourful "after" wipes in from the left like a roller laying
+   a fresh coat, with a moving seam line. Cards stagger in as
+   they scroll into view, zoom gently, and lift on hover.
+   ============================================================ */
+.pf-hero { text-align: center; padding-bottom: 0; }
+.pf-intro {
+  max-width: 640px; margin: 0 auto 28px;
+  color: var(--text-light); font-size: 1.05rem; line-height: 1.7;
+}
+
+/* Filter bar */
+.pf-filter {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 10px; margin-top: 8px;
+}
+.pf-filter-btn {
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-light);
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: .92rem; font-weight: 600;
+  cursor: pointer;
+  transition: color .25s ease, border-color .25s ease, background .25s ease;
+  position: relative; overflow: hidden;
+}
+.pf-filter-btn::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transform: scaleX(0); transform-origin: left;
+  transition: transform .35s ease; z-index: -1;
+}
+.pf-filter-btn:hover { color: #fff; border-color: transparent; }
+.pf-filter-btn:hover::after { transform: scaleX(1); }
+.pf-filter-btn.active {
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  color: #fff; border-color: transparent;
+}
+
+.pf-grid-section { padding-top: 32px; }
+.pf-grid { transition: opacity .3s ease; }
+.pf-grid.filtering { opacity: .45; }
+
+/* Card */
+.pf-card { display: flex; flex-direction: column; padding: 0; overflow: hidden; text-align: left; }
+.pf-card:hover { transform: translateY(-10px); box-shadow: var(--shadow-lg); border-color: var(--primary); }
+
+/* Media with before/after paint reveal.
+   The "before" is the SAME image desaturated (grayscale) shown via a
+   ::before layer; the real colour image sits beneath as the "after".
+   On hover the desaturated layer wipes away right→left (transform-origin:
+   right, scaleX→0), so colour reveals left→right like a roller laying a
+   fresh coat, with a glowing seam line travelling along the boundary. */
+.pf-media {
+  position: relative; overflow: hidden; aspect-ratio: 4 / 3;
+  background: var(--border);
+}
+.pf-img {
+  display: block; width: 100%; height: 100%; object-fit: cover;
+  transition: transform .6s ease;
+}
+.pf-card:hover .pf-img { transform: scale(1.08); }
+
+.pf-media::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image: var(--pf-img);
+  background-size: cover; background-position: center;
+  filter: grayscale(1) brightness(.92) contrast(.95);
+  transform: scaleX(1);
+  transform-origin: right;
+  transition: transform .85s cubic-bezier(.65,.05,.36,1);
+  z-index: 2;
+}
+/* Moving "roller seam" line that travels along the colour boundary */
+.pf-media::after {
+  content: "";
+  position: absolute; top: 0; bottom: 0; left: 0;
+  width: 5px;
+  background: linear-gradient(180deg, var(--primary), var(--accent));
+  box-shadow: 0 0 14px rgba(37,99,235,.55);
+  z-index: 3;
+  opacity: 0;
+  transition: left .85s cubic-bezier(.65,.05,.36,1), opacity .25s ease;
+}
+.pf-card:hover .pf-media::before { transform: scaleX(0); }
+.pf-card:hover .pf-media::after { left: 100%; opacity: 1; }
+
+/* Badges & tags */
+.pf-badge {
+  position: absolute; top: 12px; left: 12px; z-index: 4;
+  background: rgba(0,0,0,.55); color: #fff;
+  padding: 4px 11px; border-radius: 999px;
+  font-size: .72rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  backdrop-filter: blur(4px);
+}
+.pf-tag {
+  position: absolute; bottom: 12px; left: 12px; z-index: 4;
+  background: var(--primary); color: #fff;
+  padding: 5px 12px; border-radius: 8px;
+  font-size: .82rem; font-weight: 600;
+  transform: translateY(6px); opacity: 0;
+  transition: transform .35s ease .05s, opacity .35s ease .05s;
+}
+.pf-card:hover .pf-tag { transform: translateY(0); opacity: 1; }
+
+/* Body */
+.pf-body { padding: 22px 22px 26px; }
+.pf-body h3 { font-size: 1.25rem; margin-bottom: 4px; }
+.pf-meta {
+  font-size: .82rem; color: var(--primary); font-weight: 600;
+  margin-bottom: 12px; opacity: .85;
+}
+.pf-body p { color: var(--text-light); font-size: .94rem; line-height: 1.6; }
+
+/* Staggered scroll-in entrance for every card */
+.pf-card.reveal {
+  opacity: 0; transform: translateY(34px);
+  transition: opacity .7s ease, transform .7s cubic-bezier(.22,1,.36,1);
+}
+.pf-card.reveal.visible { opacity: 1; transform: translateY(0); }
+.pf-card.reveal:nth-child(3n+2).visible { transition-delay: .08s; }
+.pf-card.reveal:nth-child(3n+3).visible { transition-delay: .16s; }
+
+/* CTA band */
+.pf-cta {
+  background: linear-gradient(135deg, var(--primary), #1e40af);
+  color: #fff;
+  border-radius: 22px;
+  margin: 20px auto;
+  max-width: 1000px;
+}
+.pf-cta-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap;
+}
+.pf-cta-copy h2 { color: #fff; font-family: var(--font-display); margin-bottom: 6px; }
+.pf-cta-copy p { color: rgba(255,255,255,.9); margin: 0; }
+
+@media (max-width: 560px) {
+  .pf-cta { padding: 36px 22px; text-align: center; }
+  .pf-cta-inner { justify-content: center; flex-direction: column; }
+}
+
+/* Reduced motion + print: keep before/after & zoom calm */
+@media (prefers-reduced-motion: reduce) {
+  .pf-media::before, .pf-media::after,
+  .pf-img, .pf-card.reveal { transition: none !important; animation: none !important; }
+  .pf-media::before { transform: scaleX(.0); }
+  .pf-card.reveal { opacity: 1; transform: none; }
+}
+
+/* ============================================================
    COLOR STUDIO (advanced) — full-scene live paint preview
    Four scenes (living, bedroom, kitchen, exterior) are stacked in
    one stage; only the active scene is shown, so switching never
