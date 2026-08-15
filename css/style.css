@@ -858,6 +858,149 @@ textarea.form-control { resize: vertical; }
 }
 
 /* ============================================================
+   PAINTER PROFILE PAGE
+   ============================================================ */
+.pp-hero { padding-top: 64px; }
+.pp-hero-grid {
+  display: grid; grid-template-columns: 0.85fr 1.15fr;
+  gap: 48px; align-items: center;
+}
+.pp-avatar { max-width: 320px; }
+.pp-avatar svg { width: 100%; height: auto; filter: drop-shadow(0 18px 40px rgba(0,0,0,.12)); animation: float-soft 4s ease-in-out infinite; }
+.pp-eyebrow {
+  display: inline-block; font-size: .8rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent);
+  padding: 6px 14px; border-radius: 999px; margin-bottom: 14px;
+}
+.pp-name { font-family: var(--font-display); font-size: clamp(2.4rem, 6vw, 3.6rem); line-height: 1.05; margin-bottom: 10px; }
+.pp-tagline { font-size: 1.2rem; color: var(--primary); font-weight: 600; margin-bottom: 16px; }
+.pp-bio { color: var(--text-light); font-size: 1.05rem; line-height: 1.75; margin-bottom: 24px; }
+.pp-cta { display: flex; gap: 14px; flex-wrap: wrap; }
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 24px; }
+.stat {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  padding: 28px 18px; text-align: center; box-shadow: var(--shadow-sm, 0 6px 18px rgba(0,0,0,.06));
+  transition: transform .3s ease, box-shadow .3s ease;
+}
+.stat:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
+.stat-num { display: block; font-family: var(--font-display); font-size: 2.4rem; font-weight: 800; color: var(--primary); }
+.stat-label { display: block; margin-top: 4px; color: var(--text-light); font-size: .9rem; }
+
+.pp-philosophy { background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 6%, transparent), transparent); }
+.pp-quote { max-width: 760px; margin: 0 auto 40px; text-align: center; }
+.pp-quote blockquote {
+  font-family: var(--font-display); font-size: clamp(1.3rem, 3vw, 1.8rem);
+  line-height: 1.5; color: var(--text); font-style: italic; position: relative; padding: 0 24px;
+}
+.pp-quote blockquote::before { content: "“"; position: absolute; left: -8px; top: -20px; font-size: 4rem; color: var(--primary); opacity: .25; }
+.pp-process { max-width: 760px; margin: 0 auto; list-style: none; counter-reset: step; padding: 0; }
+.pp-process li {
+  counter-increment: step; position: relative; padding: 16px 0 16px 64px; border-bottom: 1px solid var(--border);
+  color: var(--text-light); font-size: 1.02rem; line-height: 1.6;
+}
+.pp-process li:last-child { border-bottom: none; }
+.pp-process li::before {
+  content: counter(step); position: absolute; left: 0; top: 12px;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: #fff; font-family: var(--font-display); font-weight: 700;
+  display: grid; place-items: center;
+}
+.pp-process li strong { color: var(--text); }
+
+.pp-contact { text-align: center; max-width: 760px; }
+.pp-contact h2 { font-family: var(--font-display); margin-bottom: 24px; }
+.pp-contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 22px; }
+.pp-contact-item {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px 14px; text-decoration: none; color: var(--text); font-weight: 600;
+  transition: transform .25s ease, border-color .25s ease;
+}
+a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--primary); color: var(--primary); }
+.pp-contact-item span:first-child { font-size: 1.3rem; }
+.pp-note { color: var(--text-light); font-size: .92rem; }
+
+@media (max-width: 760px) {
+  .pp-hero-grid { grid-template-columns: 1fr; text-align: center; gap: 28px; }
+  .pp-avatar { margin: 0 auto; }
+  .pp-cta { justify-content: center; }
+}
+
+/* ============================================================
+   ADMIN PAGE — project manager (localStorage based)
+   ============================================================ */
+.adm-sub { color: var(--text-light); margin-bottom: 30px; max-width: 640px; }
+.adm-sub a { color: var(--primary); }
+.adm-gate { display: flex; justify-content: center; }
+.adm-gate-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+  padding: 36px 30px; max-width: 460px; width: 100%; box-shadow: var(--shadow-lg); text-align: center;
+}
+.adm-gate-card h3 { font-family: var(--font-display); margin-bottom: 10px; }
+.adm-gate-note { color: var(--text-light); font-size: .85rem; line-height: 1.6; margin-bottom: 18px; }
+.adm-gate-note code { background: var(--surface-hover); padding: 1px 6px; border-radius: 5px; font-size: .82rem; }
+.adm-gate-form { display: flex; gap: 10px; }
+.adm-gate-form .form-control { flex: 1; }
+.adm-gate-error { color: #dc2626; font-size: .9rem; margin-top: 12px; }
+
+.adm-panel { animation: fade-in .4s ease; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.adm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+.adm-form { display: flex; flex-direction: column; gap: 14px; }
+.adm-form h3 { font-family: var(--font-display); margin-bottom: 4px; }
+.adm-field { display: flex; flex-direction: column; gap: 5px; }
+.adm-field > span { font-size: .85rem; font-weight: 600; color: var(--text); }
+.adm-field small { color: var(--text-light); font-size: .78rem; }
+.adm-field .form-control { width: 100%; }
+.adm-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
+.adm-form-actions { display: flex; gap: 12px; margin-top: 6px; }
+.adm-form-actions .btn-ghost { border: 1.5px solid var(--border); }
+
+.btn-ghost {
+  display: inline-block; text-decoration: none; background: transparent;
+  color: var(--text); border: 1.5px solid var(--border);
+  padding: 10px 22px; border-radius: 999px; font-weight: 600; cursor: pointer;
+  transition: transform .25s ease, border-color .25s ease, color .25s ease;
+}
+.btn-ghost:hover { transform: translateY(-2px); border-color: var(--primary); color: var(--primary); }
+.btn-sm { padding: 7px 14px; font-size: .85rem; }
+.adm-danger:hover { border-color: #dc2626; color: #dc2626; }
+
+.adm-list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.adm-list-head h3 { font-family: var(--font-display); }
+.adm-list-tools { display: flex; gap: 8px; }
+.adm-empty { color: var(--text-light); font-style: italic; }
+.adm-items { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.adm-item {
+  border: 1px solid var(--border); border-radius: 14px; padding: 14px;
+  display: flex; gap: 12px; align-items: flex-start; background: var(--surface-hover);
+}
+.adm-item img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; flex-shrink: 0; background: var(--border); }
+.adm-item-body { flex: 1; min-width: 0; }
+.adm-item-title { font-weight: 700; color: var(--text); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.adm-item-cat { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 999px; }
+.adm-item-meta { font-size: .8rem; color: var(--text-light); margin-top: 2px; }
+.adm-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.adm-item-actions button { background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: .8rem; color: var(--text); transition: border-color .2s, color .2s; }
+.adm-item-actions .edit:hover { border-color: var(--primary); color: var(--primary); }
+.adm-item-actions .del:hover { border-color: #dc2626; color: #dc2626; }
+
+.adm-export-box { margin-top: 28px; }
+.adm-export-box p { color: var(--text-light); font-size: .88rem; margin-bottom: 8px; }
+.adm-export-box code { background: var(--surface-hover); padding: 1px 5px; border-radius: 4px; }
+
+/* Badge for user-added projects on the portfolio grid */
+.pf-badge.user { background: var(--accent, #16a34a); }
+
+@media (max-width: 860px) {
+  .adm-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-avatar svg, .adm-panel { animation: none; }
+}
+
+/* ============================================================
    COLOR STUDIO (advanced) — full-scene live paint preview
    Four scenes (living, bedroom, kitchen, exterior) are stacked in
    one stage; only the active scene is shown, so switching never
