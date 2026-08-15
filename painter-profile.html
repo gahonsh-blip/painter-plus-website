@@ -42,7 +42,7 @@
       <!-- Profile hero -->
       <section class="section pp-hero">
         <div class="container pp-hero-grid">
-          <div class="pp-avatar reveal-left" aria-hidden="true">
+          <div class="pp-avatar reveal-left" id="ppAvatar" aria-hidden="true">
             <svg viewBox="0 0 220 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Line-drawn painter">
               <g fill="none" stroke="#1f2937" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="110" cy="62" r="34" />
@@ -65,10 +65,10 @@
             </svg>
           </div>
           <div class="pp-intro reveal-right">
-            <span class="pp-eyebrow">Lead Painter &amp; Founder</span>
-            <h1 class="pp-name">Painter Plus</h1>
-            <p class="pp-tagline">Master painter crafting premium finishes across Jharkhand since 2015.</p>
-            <p class="pp-bio">A hands-on painting specialist with a decade of on-site experience. From precise surface preparation to the final flawless coat, every project is treated as a signature piece. The belief is simple: great paint is 70% preparation and 100% care.</p>
+            <span class="pp-eyebrow" id="ppRole">Lead Painter &amp; Founder</span>
+            <h1 class="pp-name" id="ppName">Painter Plus</h1>
+            <p class="pp-tagline" id="ppTagline">Master painter crafting premium finishes across Jharkhand since 2015.</p>
+            <p class="pp-bio" id="ppBio">A hands-on painting specialist with a decade of on-site experience. From precise surface preparation to the final flawless coat, every project is treated as a signature piece. The belief is simple: great paint is 70% preparation and 100% care.</p>
             <div class="pp-cta">
               <a href="./contact.html" class="btn-primary">Get a Free Quote →</a>
               <a href="https://wa.me/918825183628" class="btn-ghost" target="_blank" rel="noreferrer">💬 WhatsApp</a>
@@ -80,7 +80,7 @@
       <!-- Stats -->
       <section class="section">
         <div class="container">
-          <div class="grid-4 pp-stats">
+          <div class="grid-4 pp-stats" id="ppStats">
             <div class="stat reveal"><span class="stat-num">10+</span><span class="stat-label">Years experience</span></div>
             <div class="stat reveal"><span class="stat-num">500+</span><span class="stat-label">Projects done</span></div>
             <div class="stat reveal"><span class="stat-num">5-yr</span><span class="stat-label">Warranty</span></div>
@@ -132,8 +132,8 @@
       <section class="section pp-philosophy">
         <div class="container">
           <h2 class="section-title">The <span>philosophy</span></h2>
-          <div class="pp-quote reveal">
-            <blockquote>“Paint is the first thing a room says about itself. I make sure it always says <em>quality</em>.”</blockquote>
+          <div class="pp-quote reveal" id="ppQuote">
+            <blockquote id="ppQuoteText">“Paint is the first thing a room says about itself. I make sure it always says <em>quality</em>.”</blockquote>
           </div>
           <ol class="pp-process">
             <li class="reveal"><strong>Inspect</strong> — free on-site assessment of surfaces, dampness, and existing condition.</li>
@@ -148,13 +148,13 @@
       <section class="section">
         <div class="container pp-contact">
           <h2>Work with the painter directly</h2>
-          <div class="pp-contact-grid">
-            <a href="tel:+918825183628" class="pp-contact-item"><span>📞</span><span>+91 8825183628</span></a>
-            <a href="mailto:gahonsh@gmail.com" class="pp-contact-item"><span>✉️</span><span>gahonsh@gmail.com</span></a>
-            <a href="https://wa.me/918825183628" class="pp-contact-item" target="_blank" rel="noreferrer"><span>💬</span><span>WhatsApp</span></a>
-            <span class="pp-contact-item"><span>📍</span><span>Upar Balalong, Arki, Khunti, Jharkhand – 835225</span></span>
+          <div class="pp-contact-grid" id="ppContact">
+            <a href="tel:+918825183628" class="pp-contact-item" id="ppPhone"><span>📞</span><span id="ppPhoneText">+91 8825183628</span></a>
+            <a href="mailto:gahonsh@gmail.com" class="pp-contact-item" id="ppEmail"><span>✉️</span><span id="ppEmailText">gahonsh@gmail.com</span></a>
+            <a href="https://wa.me/918825183628" class="pp-contact-item" target="_blank" rel="noreferrer" id="ppWhatsapp"><span>💬</span><span>WhatsApp</span></a>
+            <span class="pp-contact-item" id="ppAddressItem"><span>📍</span><span id="ppAddress">Upar Balalong, Arki, Khunti, Jharkhand – 835225</span></span>
           </div>
-          <p class="pp-note">Active since 2015 · 5-year warranty on every project · Free site inspection</p>
+          <p class="pp-note" id="ppNote">Active since 2015 · 5-year warranty on every project · Free site inspection</p>
         </div>
       </section>
     </main>

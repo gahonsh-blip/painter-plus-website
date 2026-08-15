@@ -40,7 +40,7 @@
           <!-- Lightweight passcode gate (client-side only, not real security) -->
           <div class="adm-gate" id="admGate">
             <div class="adm-gate-card">
-              <h3>🔒 Enter passcode</h3>
+              <h3>🔒 Enter Passcode</h3>
               <p class="adm-gate-note">This is a simple client-side gate to keep casual visitors out — it is <strong>not</strong> real security. Default passcode: <code>painter123</code> (change it in <code>js/script.js</code>).</p>
               <div class="adm-gate-form">
                 <input type="password" id="admPass" class="form-control" placeholder="Passcode" autocomplete="current-password" />
@@ -52,6 +52,71 @@
 
           <!-- Admin panel (shown after unlock) -->
           <div class="adm-panel" id="admPanel" hidden>
+            <!-- Tabs: Painter Profile / Portfolio Projects -->
+            <div class="adm-tabs" role="tablist">
+              <button class="adm-tab active" id="tabProfile" role="tab" aria-selected="true">🧑‍🎨 Painter Profile</button>
+              <button class="adm-tab" id="tabProjects" role="tab" aria-selected="false">🖼️ Portfolio Projects</button>
+            </div>
+
+            <!-- TAB 1: Painter profile editor -->
+            <section class="adm-tabpane" id="paneProfile" role="tabpanel">
+              <p class="adm-sub">Edit the painter's profile shown on the <a href="./painter-profile.html">Painter Profile</a> page — add the painter's real photo and all details.</p>
+              <form class="adm-form card" id="profileForm" novalidate>
+                <h3>🧑‍🎨 Painter profile details</h3>
+                <label class="adm-field">
+                  <span>Painter's photo (URL) *</span>
+                  <input type="url" id="pfPhoto" class="form-control" placeholder="https://…/painter-photo.jpg" />
+                  <small>Direct image link. Falls back to the line-art painter if blank/removed.</small>
+                  <div class="adm-preview" id="pfPhotoPreview" hidden><img id="pfPhotoPreviewImg" alt="Preview" /></div>
+                </label>
+                <label class="adm-field">
+                  <span>Full name *</span>
+                  <input type="text" id="pfName" class="form-control" placeholder="e.g. Painter Plus" required />
+                </label>
+                <label class="adm-field">
+                  <span>Role / title</span>
+                  <input type="text" id="pfRole" class="form-control" placeholder="e.g. Lead Painter & Founder" />
+                </label>
+                <label class="adm-field">
+                  <span>Tagline</span>
+                  <input type="text" id="pfTagline" class="form-control" placeholder="Short one-line summary" />
+                </label>
+                <label class="adm-field">
+                  <span>Bio / about</span>
+                  <textarea id="pfBio" class="form-control" rows="4" placeholder="A few sentences about the painter's experience and approach."></textarea>
+                </label>
+                <div class="adm-row">
+                  <label class="adm-field"><span>Years experience</span><input type="text" id="pfStat1" class="form-control" placeholder="10+" /></label>
+                  <label class="adm-field"><span>Projects done</span><input type="text" id="pfStat2" class="form-control" placeholder="500+" /></label>
+                  <label class="adm-field"><span>Warranty</span><input type="text" id="pfStat3" class="form-control" placeholder="5-yr" /></label>
+                  <label class="adm-field"><span>Inspection</span><input type="text" id="pfStat4" class="form-control" placeholder="100%" /></label>
+                </div>
+                <label class="adm-field">
+                  <span>Favourite quote</span>
+                  <textarea id="pfQuote" class="form-control" rows="2" placeholder="A motto or philosophy line"></textarea>
+                </label>
+                <div class="adm-row">
+                  <label class="adm-field"><span>Phone</span><input type="text" id="pfPhone" class="form-control" placeholder="+91 8825183628" /></label>
+                  <label class="adm-field"><span>Email</span><input type="email" id="pfEmail" class="form-control" placeholder="gahonsh@gmail.com" /></label>
+                </div>
+                <label class="adm-field">
+                  <span>Address</span>
+                  <input type="text" id="pfAddress" class="form-control" placeholder="Upar Balalong, Arki, Khunti, Jharkhand – 835225" />
+                </label>
+                <label class="adm-field">
+                  <span>Footer note</span>
+                  <input type="text" id="pfNote" class="form-control" placeholder="Active since 2015 · 5-year warranty · Free site inspection" />
+                </label>
+                <div class="adm-form-actions">
+                  <button type="submit" class="btn-primary" id="pfSave">💾 Save profile</button>
+                  <button type="button" class="btn-ghost" id="pfReset">↺ Reset to defaults</button>
+                  <button type="button" class="btn-ghost adm-danger" id="pfClearPhoto">🗑 Remove photo</button>
+                </div>
+              </form>
+            </section>
+
+            <!-- TAB 2: Portfolio project manager -->
+            <section class="adm-tabpane" id="paneProjects" role="tabpanel" hidden>
             <div class="adm-grid">
               <!-- Add / edit form -->
               <form class="adm-form card" id="admForm" novalidate>
@@ -131,6 +196,7 @@
               <p>Copied! Paste this JSON into a developer issue or save it. To make projects permanent, the site owner can add them to <code>portfolio.html</code>.</p>
               <textarea class="form-control" id="admExportText" rows="8" readonly></textarea>
             </div>
+            </section>
           </div>
         </div>
       </section>
