@@ -143,3 +143,18 @@ node --check js/script.js
 # Local preview
 python3 -m http.server 8000
 ```
+
+## Deploy
+
+Deploys run via `.github/workflows/static.yml` on every push to `main`, which
+uploads the repo root to GitHub Pages (`build_type: workflow`).
+
+**Known blocker (as of 2026-10-16):** the `gahonsh-blip` account is **locked due
+to a billing issue**, so no Actions runner will start — every deploy run since
+2026-09-18 fails in ~4s with 0 steps and the annotation *"The job was not started
+because your account is locked due to a billing issue."* The live site is
+therefore frozen at its 2026-08-15 build. This is an account-level setting, not a
+code problem: fix the billing issue at <https://github.com/settings/billing>, then
+re-run the workflow (Actions → *Deploy static content to Pages* → *Re-run*).
+Until then, merging to `main` is enough — the site updates on the next successful
+deploy.
