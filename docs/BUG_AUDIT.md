@@ -5,7 +5,12 @@ the symptom, the root cause, the fix, and how the fix was verified.
 
 Date of audit: 2026-10-16
 Scope: all 12 HTML pages, 5 JS files, `css/style.css`, `manifest.json`, `sw.js`,
-`robots.txt`, `sitemap.xml`.
+`robots.txt`, `sitemap.xml`, `_headers`.
+
+Two passes. The first fixed 9 bugs; the second targeted bug *types* the first did
+not (storage failures, CSP, data consistency, HTML validity, links, a11y) and
+found 5 more — including a second instance of the same "one unguarded call kills
+the whole file" failure shape.
 
 ## Summary
 
@@ -20,8 +25,15 @@ Scope: all 12 HTML pages, 5 JS files, `css/style.css`, `manifest.json`, `sw.js`,
 | 7 | Low | Un-typed `<button>` elements | Fixed |
 | 8 | Low | Duplicated heading in `docs/NEXT_STEPS.md` | Fixed |
 | 9 | Low | Service-worker cache never invalidated | Fixed |
+| 10 | **High** | Blocked storage aborts the whole `script.js` handler | Fixed |
+| 11 | Medium | CSP would block the contact form's POST to Formspree | Fixed |
+| 12 | Low | `color-studio.html` meta description too long | Fixed |
+| 13 | Low | `painter-profile.html` missing from the sitemap | Fixed |
+| 14 | Low | Honeypot input not hidden from assistive tech | Fixed |
 
 ---
+
+
 
 ## 1. Critical — `color-studio.js` crashed on the homepage
 
@@ -182,6 +194,116 @@ the stale cache alive.
 
 ---
 
+---
+
+## 10. High — blocked storage aborts the entire `script.js` handler
+
+**Symptom.** On a browser where `localStorage` throws — Safari/Firefox private
+mode, "block all cookies", or a hardened profile — the whole site went dead:
+theme toggle, mobile menu, scroll progress bar, reveal animations, FAQ accordion
+and service-worker registration all stopped. The page rendered but did nothing.
+
+**Root cause.** The very first statement inside `DOMContentLoaded` read
+`localStorage.getItem('theme')` with no guard. `localStorage` throws
+`SecurityError` when storage is unavailable, and because the call sits at the top
+of the handler, the throw aborted **everything below it** — the same
+failure shape as bug 1: one unguarded access killing unrelated features.
+
+**Fix.** Added a small `store` helper (`get`/`set`/`del`) that wraps every storage
+call in `try/catch`, and routed all `localStorage` reads/writes in `script.js`
+through it. Also wrapped the `matchMedia` call, which can be absent on old
+browsers.
+
+**Verification.** A probe runs `js/script.js` against a DOM and fires
+`DOMContentLoaded` twice — once with working storage, once with storage that
+throws:
+
+- Before: `storage BLOCKED -> THREW: SecurityError: storage blocked`.
+- After: `storage BLOCKED -> handler completed`.
+
+In the browser, the theme toggle still flips light↔dark and persists to
+`localStorage` under the key `theme`.
+
+---
+
+## 11. Medium — CSP would block the contact form
+
+**Symptom.** `contact.html` posts to `https://formspree.io/f/xeebvvko`. The
+Content-Security-Policy in `_headers` had no `form-action` directive, so form
+submissions fell back to `default-src 'self'` and the POST to Formspree would be
+**blocked**. Contact messages would silently fail.
+
+**Root cause.** The CSP was written for a fully self-contained site and never
+accounted for the one external endpoint the site actually uses.
+
+**Fix.** Added `form-action 'self' https://formspree.io` and
+`connect-src ... https://formspree.io`, plus `base-uri 'self'` and
+`frame-ancestors 'none'` for defence in depth.
+
+**Note.** GitHub Pages does not serve `_headers` (that is a Netlify/Cloudflare
+feature). The file is kept for platforms that do honour it and as documentation
+of intent. The fix matters the moment the site is hosted somewhere that reads it
+— and the current CSP, if ever honoured as written, would have broken the form.
+
+---
+
+## 12. Low — `color-studio.html` meta description too long
+
+**Symptom.** The description was 251 characters. Search engines truncate around
+160, so the tail was cut mid-sentence in results.
+
+**Fix.** Rewrote it to 137 characters, keeping the key terms (live colour
+preview, wall/accent colours, finishes, lighting, free quote).
+
+---
+
+## 13. Low — `painter-profile.html` missing from the sitemap
+
+**Symptom.** The per-member profile page was reachable and linked from the roster
+but absent from `sitemap.xml`, so it was not submitted for indexing.
+
+**Fix.** Added its `<loc>` entry. `admin.html` and `offline.html` stay out on
+purpose — they are `noindex` utility pages.
+
+---
+
+## 14. Low — honeypot input not hidden from assistive tech
+
+**Symptom.** The Formspree spam honeypot (`name="_gotcha"`) is hidden with
+`display:none`, but a screen reader could still announce it in some browsing
+modes.
+
+**Fix.** Added `aria-hidden="true"`. It is already `tabindex="-1"`, so it stays
+unreachable by keyboard.
+
+---
+
+## Second-pass audit — categories checked and clean
+
+The follow-up pass covered bug *types* the first pass did not:
+
+| Category | Result |
+|----------|--------|
+| Duplicate `id` within a page | clean |
+| Broken internal `href` (file targets) | all resolve |
+| Broken anchor links (`#id`) | all resolve |
+| XSS — dynamic `innerHTML` without `esc()` | clean (one static SVG literal, false positive) |
+| Accessibility — `<img>` alt, `aria-hidden` conflicts, unlabelled inputs | fixed the honeypot; rest clean |
+| Data consistency — phone, email, account name | consistent (the "variants" reported were the canonical number with/without `+91`) |
+| Forms — action/method | contact form OK; admin forms are JS-only and `preventDefault()` |
+| Meta/SEO — title & description length, duplicates | fixed the one long description |
+| Sitemap coverage | fixed the missing profile page |
+| Manifest ↔ real files | all 3 icons exist |
+| Service-worker asset list | all 24 cached files exist |
+| HTML tag balance | balanced on all pages |
+| Duplicate/nested meta tags | clean |
+| `<html lang>`, charset, viewport | present on every page |
+| `target="_blank"` without `rel` | none |
+| JSON-LD validity | valid `LocalBusiness` |
+| Local asset references | all resolve |
+| External origins vs CSP | fixed the form-action gap |
+
+
 ## Investigated and confirmed NOT bugs
 
 - **`#texture` anchor** — the link target exists in `services.html`; the audit's
@@ -202,7 +324,16 @@ the stale cache alive.
 
 1. `node --check` on every JS file — all parse.
 2. A runtime probe that runs each page's real script bundle against a DOM built
-   from that page's own element ids — 11/11 pages clean.
+   from that page's own element ids, then fires `DOMContentLoaded` — **12/12 pages
+   clean** (up from 11/12; `offline.html` is now covered too).
 3. A scene probe proving the homepage painter animation schedules and advances.
-4. Meta, heading, structure, JSON-LD and CSS custom-property audits.
-5. Every page and every referenced asset requested over HTTP — all return 200.
+4. A storage probe running `script.js` with `localStorage` that throws — the
+   handler now completes instead of aborting.
+5. A functional test of the `PPTeam` role API — 14/14 pass (defaults, promote,
+   demote, last-lead guard, lock).
+6. A studio probe proving `color-studio.html` still builds all 18 swatches and 6
+   surface tabs (the bug-1 guard does not trip there).
+7. Meta, heading, structure, JSON-LD, CSS custom-property, link, anchor,
+   duplicate-id, HTML-balance, manifest, sitemap and CSP audits.
+8. Every page and every referenced asset requested over HTTP — all return 200.
+9. Browser check: theme toggle flips light↔dark and persists to `localStorage`.

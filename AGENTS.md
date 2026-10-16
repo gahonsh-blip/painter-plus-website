@@ -29,6 +29,12 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 8. **Full-site audit — see `docs/BUG_AUDIT.md`.** It lists every bug found and fixed (missing `<h1>`s, undefined `--shadow-sm`, missing `apple-touch-icon`, `admin.html` OG tags, the `offline.html` head, un-typed buttons, the `NEXT_STEPS.md` duplicate heading, and the stale service-worker cache), plus the items investigated and confirmed *not* to be bugs.
 
+9. **Blocked-storage crash — FIXED.** `js/script.js` read `localStorage` unguarded at the very top of its `DOMContentLoaded` handler. Where storage throws (private mode, "block all cookies"), the throw aborted the whole handler — killing the theme toggle, mobile menu, reveal animations, FAQ and service-worker registration. All storage access now goes through a `try/catch` `store` helper. See `docs/BUG_AUDIT.md` §10.
+
+10. **CSP blocked the contact form — FIXED.** `_headers` had no `form-action`, so the `contact.html` POST to Formspree fell back to `default-src 'self'` and would be blocked. Added `form-action`/`connect-src` for `https://formspree.io`, plus `base-uri` and `frame-ancestors`. Note GitHub Pages ignores `_headers`; it matters on hosts that honour it. See §11.
+
+**Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present.
+
 ## Business details (source of truth)
 
 Use these exact values when fixing contact info across all pages:
