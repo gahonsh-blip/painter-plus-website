@@ -106,47 +106,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ----- PAINTER PROFILE PAGE: render saved profile (from admin) -----
-    const PROFILE_KEY = 'painterPlusProfile';
-    const PROFILE_DEFAULTS = {
-        photo: '', name: 'Painter Plus', role: 'Lead Painter & Founder',
-        tagline: 'Master painter crafting premium finishes across Jharkhand since 2015.',
-        bio: 'A hands-on painting specialist with a decade of on-site experience. From precise surface preparation to the final flawless coat, every project is treated as a signature piece. The belief is simple: great paint is 70% preparation and 100% care.',
-        stat1: '10+', stat2: '500+', stat3: '5-yr', stat4: '100%',
-        stat1label: 'Years experience', stat2label: 'Projects done', stat3label: 'Warranty', stat4label: 'Free inspection',
-        quote: '“Paint is the first thing a room says about itself. I make sure it always says quality.”',
-        phone: '+91 8825183628', email: 'gahonsh@gmail.com',
-        address: 'Upar Balalong, Arki, Khunti, Jharkhand – 835225',
-        note: 'Active since 2015 · 5-year warranty on every project · Free site inspection'
-    };
-    function ppProfileRead() { try { return Object.assign({}, PROFILE_DEFAULTS, JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}); } catch { return Object.assign({}, PROFILE_DEFAULTS); } }
-    const ppNameEl = document.getElementById('ppName');
-    if (ppNameEl) {
-        const p = ppProfileRead();
-        const set = (id, text) => { const el = document.getElementById(id); if (el && text) el.textContent = text; };
-        set('ppName', p.name); set('ppRole', p.role); set('ppTagline', p.tagline);
-        set('ppBio', p.bio); set('ppQuoteText', p.quote);
-        set('ppPhoneText', p.phone); set('ppEmailText', p.email);
-        set('ppAddress', p.address); set('ppNote', p.note);
-        // phone / email / whatsapp links
-        const phoneLink = document.getElementById('ppPhone'); if (phoneLink && p.phone) phoneLink.href = 'tel:' + p.phone.replace(/[^+\d]/g, '');
-        const emailLink = document.getElementById('ppEmail'); if (emailLink && p.email) emailLink.href = 'mailto:' + p.email;
-        const waLink = document.getElementById('ppWhatsapp'); if (waLink && p.phone) waLink.href = 'https://wa.me/' + p.phone.replace(/[^\d]/g, '');
-        // stats
-        const statsWrap = document.getElementById('ppStats');
-        if (statsWrap) {
-            const pairs = [[p.stat1, p.stat1label], [p.stat2, p.stat2label], [p.stat3, p.stat3label], [p.stat4, p.stat4label]];
-            statsWrap.innerHTML = pairs.map(([num, label]) =>
-                '<div class="stat reveal"><span class="stat-num">' + esc(num) + '</span><span class="stat-label">' + esc(label) + '</span></div>').join('');
-            const obs = window.__ppRevealObserver;
-            if (obs) statsWrap.querySelectorAll('.reveal').forEach(el => obs.observe(el));
-        }
-        // photo: replace SVG with <img> if a photo URL is set
-        const avatar = document.getElementById('ppAvatar');
-        if (avatar && p.photo) {
-            avatar.innerHTML = '<img class="pp-photo" src="' + esc(p.photo) + '" alt="Painter photo" onerror="this.remove()" />';
-        }
-    }
+    // ----- TEAM ROSTER -----
+    // The roster lives in js/team.js (window.PPTeam) so the admin page, the
+    // team page and every member profile share one source of truth.
+    const Team = window.PPTeam;
 
     // ----- PORTFOLIO: merge admin-added projects (localStorage) -----
     // Projects added via admin.html are stored locally and shown here so
@@ -186,23 +149,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ----- ADMIN PAGE: project manager (localStorage) -----
-    const ADMIN_PASSCODE = 'painter123'; // client-side only, not real security
+    // ----- ADMIN PAGE: team, roles, Head profile & portfolio projects -----
+    // Everything is localStorage-based (static site, no backend). The roster
+    // itself lives in js/team.js so admin, the team page and member profiles
+    // all read and write the same data.
     const admPanel = document.getElementById('admPanel');
     const admGate = document.getElementById('admGate');
-    if (admPanel && admGate) {
+    if (admPanel && admGate && Team) {
         const unlockBtn = document.getElementById('admUnlock');
         const passInput = document.getElementById('admPass');
         const gateErr = document.getElementById('admGateErr');
-        const SESSION_KEY = 'ppAdminUnlocked';
         const openPanel = () => {
             admGate.hidden = true; admPanel.hidden = false;
-            initProfileEditor(); renderList();
+            renderTeamList(); initProfileEditor(); renderList();
         };
 
         const tryUnlock = () => {
-            if (passInput.value === ADMIN_PASSCODE) {
-                sessionStorage.setItem(SESSION_KEY, '1');
+            if (Team.unlockHead(passInput.value)) {
                 openPanel();
             } else {
                 gateErr.hidden = false;
@@ -212,44 +175,184 @@ document.addEventListener('DOMContentLoaded', () => {
         unlockBtn.addEventListener('click', tryUnlock);
         passInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryUnlock(); } });
 
-        // ----- Admin tab switching -----
-        const tabProfile = document.getElementById('tabProfile');
-        const tabProjects = document.getElementById('tabProjects');
-        const paneProfile = document.getElementById('paneProfile');
-        const paneProjects = document.getElementById('paneProjects');
-        const showTab = (which) => {
-            const prof = which === 'profile';
-            tabProfile.classList.toggle('active', prof); tabProfile.setAttribute('aria-selected', prof);
-            tabProjects.classList.toggle('active', !prof); tabProjects.setAttribute('aria-selected', !prof);
-            paneProfile.hidden = !prof; paneProjects.hidden = prof;
-        };
-        tabProfile.addEventListener('click', () => showTab('profile'));
-        tabProjects.addEventListener('click', () => showTab('projects'));
+        // ----- Admin tab switching (Team & Roles / Painter Profile / Projects) -----
+        const TABS = [
+            ['tabTeam', 'paneTeam'],
+            ['tabProfile', 'paneProfile'],
+            ['tabProjects', 'paneProjects']
+        ].map(([tabId, paneId]) => ({ tab: document.getElementById(tabId), pane: document.getElementById(paneId) }))
+         .filter(t => t.tab && t.pane);
 
-        // ===== PAINTER PROFILE EDITOR =====
-        function profileRead() { try { return Object.assign({}, profileDefaults(), JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}); } catch { return Object.assign({}, profileDefaults()); } }
-        function profileSave(p) { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); }
-        function profileDefaults() {
-            return {
-                photo: '', name: 'Painter Plus', role: 'Lead Painter & Founder',
-                tagline: 'Master painter crafting premium finishes across Jharkhand since 2015.',
-                bio: 'A hands-on painting specialist with a decade of on-site experience. From precise surface preparation to the final flawless coat, every project is treated as a signature piece. The belief is simple: great paint is 70% preparation and 100% care.',
-                stat1: '10+', stat2: '500+', stat3: '5-yr', stat4: '100%',
-                stat1label: 'Years experience', stat2label: 'Projects done', stat3label: 'Warranty', stat4label: 'Free inspection',
-                quote: '“Paint is the first thing a room says about itself. I make sure it always says quality.”',
-                phone: '+91 8825183628', email: 'gahonsh@gmail.com',
-                address: 'Upar Balalong, Arki, Khunti, Jharkhand – 835225',
-                note: 'Active since 2015 · 5-year warranty on every project · Free site inspection'
-            };
+        const showTab = (active) => {
+            TABS.forEach(t => {
+                const on = t === active;
+                t.tab.classList.toggle('active', on);
+                t.tab.setAttribute('aria-selected', on);
+                t.pane.hidden = !on;
+            });
+        };
+        TABS.forEach(t => t.tab.addEventListener('click', () => showTab(t)));
+
+        // ===== TEAM & ROLES MANAGER =====
+        const tmForm = document.getElementById('tmForm');
+        const tmFields = ['tmId', 'tmName', 'tmRole', 'tmTitle', 'tmPhoto', 'tmTagline', 'tmBio', 'tmPhone', 'tmEmail', 'tmAddress'];
+        const tmGet = id => document.getElementById(id);
+        const tmVal = id => { const el = tmGet(id); return el ? (el.value || '').trim() : ''; };
+        let editingMember = null;
+
+        const tmRoleSelect = tmGet('tmRole');
+        if (tmRoleSelect) tmRoleSelect.innerHTML = Team.roleOptions('painter');
+
+        function updateTmPhotoPreview() {
+            const url = tmVal('tmPhoto');
+            const box = document.getElementById('tmPhotoPreview');
+            const img = document.getElementById('tmPhotoPreviewImg');
+            if (!box || !img) return;
+            if (url) { img.src = url; img.onerror = () => { box.hidden = true; }; box.hidden = false; }
+            else { box.hidden = true; }
         }
-        function pfGet(id) { return document.getElementById(id); }
-        function pfVal(id) { return (pfGet(id).value || '').trim(); }
+        const tmPhotoInput = tmGet('tmPhoto');
+        if (tmPhotoInput) tmPhotoInput.addEventListener('input', updateTmPhotoPreview);
+
+        if (tmForm) tmForm.addEventListener('submit', e => {
+            e.preventDefault();
+            if (!tmVal('tmName')) { alert('Please enter the member\'s name.'); return; }
+            const res = Team.save(Object.assign({}, editingMember || {}, {
+                id: tmVal('tmId'),
+                name: tmVal('tmName'),
+                role: tmVal('tmRole') || 'painter',
+                title: tmVal('tmTitle'),
+                photo: tmVal('tmPhoto'),
+                tagline: tmVal('tmTagline'),
+                bio: tmVal('tmBio'),
+                phone: tmVal('tmPhone'),
+                email: tmVal('tmEmail'),
+                address: tmVal('tmAddress')
+            }));
+            if (!res.ok) { alert(res.error); return; }
+            resetMemberForm();
+            renderTeamList();
+            const btn = document.getElementById('tmSave');
+            const orig = btn.textContent; btn.textContent = '✅ Saved!';
+            setTimeout(() => { btn.textContent = orig; }, 1600);
+        });
+
+        const tmResetBtn = document.getElementById('tmReset');
+        if (tmResetBtn) tmResetBtn.addEventListener('click', resetMemberForm);
+
+        function resetMemberForm() {
+            editingMember = null;
+            tmFields.forEach(id => { const el = tmGet(id); if (el) el.value = ''; });
+            if (tmRoleSelect) tmRoleSelect.value = 'painter';
+            const heading = document.getElementById('tmFormTitle');
+            if (heading) heading.textContent = '➕ Add a team member';
+            updateTmPhotoPreview();
+        }
+
+        function renderTeamList() {
+            const ul = document.getElementById('tmItems');
+            if (!ul) return;
+            const empty = document.getElementById('tmEmpty');
+            const members = Team.list();
+            ul.innerHTML = '';
+            if (!members.length) { if (empty) empty.hidden = false; return; }
+            if (empty) empty.hidden = true;
+
+            members.forEach(m => {
+                const li = document.createElement('li');
+                li.className = 'adm-item';
+                li.innerHTML =
+                    '<span class="adm-item-avatar">' + esc(Team.initials(m.name)) + '</span>' +
+                    '<div class="adm-item-body">' +
+                      '<div class="adm-item-title">' + esc(m.name) + Team.roleBadge(m) + '</div>' +
+                      '<div class="adm-item-meta">' + esc([m.title, m.email, m.phone].filter(Boolean).join(' · ')) + '</div>' +
+                    '</div>' +
+                    '<div class="adm-item-actions">' +
+                      '<select class="adm-role-select" data-id="' + esc(m.id) + '" aria-label="Role for ' + esc(m.name) + '">' +
+                        Team.roleOptions(m.role) +
+                      '</select>' +
+                      '<a class="edit" href="./painter-profile.html?id=' + encodeURIComponent(m.id) + '">👤 Profile</a>' +
+                      '<button class="edit" data-id="' + esc(m.id) + '">✏️ Edit</button>' +
+                      '<button class="del" data-id="' + esc(m.id) + '">🗑</button>' +
+                    '</div>';
+                ul.appendChild(li);
+            });
+
+            ul.querySelectorAll('.adm-role-select').forEach(sel => {
+                sel.addEventListener('change', () => {
+                    const res = Team.setRole(sel.dataset.id, sel.value);
+                    if (!res.ok) {
+                        alert(res.error);
+                        const current = Team.get(sel.dataset.id);
+                        if (current) sel.value = current.role;
+                        return;
+                    }
+                    renderTeamList();
+                });
+            });
+            ul.querySelectorAll('button.edit').forEach(b => b.addEventListener('click', () => editMember(b.dataset.id)));
+            ul.querySelectorAll('button.del').forEach(b => b.addEventListener('click', () => delMember(b.dataset.id)));
+        }
+
+        function editMember(id) {
+            const m = Team.get(id);
+            if (!m) return;
+            editingMember = m;
+            tmGet('tmId').value = m.id;
+            tmGet('tmName').value = m.name || '';
+            tmGet('tmRole').value = m.role || 'painter';
+            tmGet('tmTitle').value = m.title || '';
+            tmGet('tmPhoto').value = m.photo || '';
+            tmGet('tmTagline').value = m.tagline || '';
+            tmGet('tmBio').value = m.bio || '';
+            tmGet('tmPhone').value = m.phone || '';
+            tmGet('tmEmail').value = m.email || '';
+            tmGet('tmAddress').value = m.address || '';
+            const heading = document.getElementById('tmFormTitle');
+            if (heading) heading.textContent = '✏️ Editing: ' + m.name;
+            updateTmPhotoPreview();
+            tmForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function delMember(id) {
+            const m = Team.get(id);
+            if (!m) return;
+            if (!confirm('Remove ' + m.name + ' from the team?')) return;
+            const res = Team.remove(id);
+            if (!res.ok) { alert(res.error); return; }
+            if (editingMember && editingMember.id === id) resetMemberForm();
+            renderTeamList();
+        }
+
+        const tmExport = document.getElementById('tmExport');
+        if (tmExport) tmExport.addEventListener('click', () => {
+            const box = document.getElementById('tmExportBox');
+            const ta = document.getElementById('tmExportText');
+            box.hidden = false; ta.value = JSON.stringify(Team.list(), null, 2);
+            ta.select();
+            try { document.execCommand('copy'); } catch {}
+        });
+
+        const tmResetAll = document.getElementById('tmResetAll');
+        if (tmResetAll) tmResetAll.addEventListener('click', () => {
+            if (!confirm('Restore the default roster? All team changes in this browser will be cleared.')) return;
+            localStorage.removeItem(Team.STORE_KEY);
+            Team.list(); // re-seeds the defaults and notifies listeners
+            resetMemberForm(); renderTeamList(); initProfileEditor();
+        });
+
+        // ===== HEAD PROFILE EDITOR =====
+        // The single-profile editor now edits the Head member of the roster,
+        // so the Head's details stay in one place.
+        const pfGet = id => document.getElementById(id);
+        const pfVal = id => { const el = pfGet(id); return el ? (el.value || '').trim() : ''; };
 
         function initProfileEditor() {
-            const p = profileRead();
+            const p = Team.get(Team.OWNER_ID) || Team.head();
+            if (!p) return;
             pfGet('pfPhoto').value = p.photo || '';
             pfGet('pfName').value = p.name || '';
-            pfGet('pfRole').value = p.role || '';
+            pfGet('pfRole').value = p.title || '';
             pfGet('pfTagline').value = p.tagline || '';
             pfGet('pfBio').value = p.bio || '';
             pfGet('pfStat1').value = p.stat1 || '';
@@ -267,40 +370,48 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = pfVal('pfPhoto');
             const box = document.getElementById('pfPhotoPreview');
             const img = document.getElementById('pfPhotoPreviewImg');
+            if (!box || !img) return;
             if (url) { img.src = url; img.onerror = () => { box.hidden = true; }; box.hidden = false; }
             else { box.hidden = true; }
         }
-        document.getElementById('pfPhoto').addEventListener('input', updatePhotoPreview);
+        const pfPhotoInput = document.getElementById('pfPhoto');
+        if (pfPhotoInput) pfPhotoInput.addEventListener('input', updatePhotoPreview);
 
         document.getElementById('profileForm').addEventListener('submit', e => {
             e.preventDefault();
             if (!pfVal('pfName')) { alert('Please enter the painter\'s name.'); return; }
-            const p = profileRead();
-            p.photo = pfVal('pfPhoto');
-            p.name = pfVal('pfName');
-            p.role = pfVal('pfRole');
-            p.tagline = pfVal('pfTagline');
-            p.bio = pfVal('pfBio');
-            p.stat1 = pfVal('pfStat1'); p.stat2 = pfVal('pfStat2');
-            p.stat3 = pfVal('pfStat3'); p.stat4 = pfVal('pfStat4');
-            p.quote = pfVal('pfQuote');
-            p.phone = pfVal('pfPhone'); p.email = pfVal('pfEmail');
-            p.address = pfVal('pfAddress'); p.note = pfVal('pfNote');
-            profileSave(p);
+            const head = Team.get(Team.OWNER_ID) || Team.head();
+            const res = Team.save(Object.assign({}, head, {
+                id: head.id,
+                name: pfVal('pfName'),
+                role: head.role,
+                title: pfVal('pfRole'),
+                photo: pfVal('pfPhoto'),
+                tagline: pfVal('pfTagline'),
+                bio: pfVal('pfBio'),
+                stat1: pfVal('pfStat1'), stat2: pfVal('pfStat2'),
+                stat3: pfVal('pfStat3'), stat4: pfVal('pfStat4'),
+                quote: pfVal('pfQuote'),
+                phone: pfVal('pfPhone'), email: pfVal('pfEmail'),
+                address: pfVal('pfAddress'), note: pfVal('pfNote')
+            }));
+            if (!res.ok) { alert(res.error); return; }
+            renderTeamList();
             const btn = document.getElementById('pfSave');
             const orig = btn.textContent; btn.textContent = '✅ Saved!';
             setTimeout(() => { btn.textContent = orig; }, 1600);
         });
         document.getElementById('pfReset').addEventListener('click', () => {
-            if (!confirm('Reset the profile to the default values? Your saved changes will be cleared.')) return;
-            localStorage.removeItem(PROFILE_KEY);
-            initProfileEditor();
+            if (!confirm('Reset the Head profile to the default values? Your saved changes will be cleared.')) return;
+            const head = Team.get(Team.OWNER_ID) || Team.head();
+            Team.save(Object.assign(Team.ownerDefaults(), { id: head.id, role: head.role }));
+            initProfileEditor(); renderTeamList();
         });
         document.getElementById('pfClearPhoto').addEventListener('click', () => {
             pfGet('pfPhoto').value = ''; updatePhotoPreview();
         });
 
-        // ===== PORTFOLIO PROJECT MANAGER (existing) =====
+        // ===== PORTFOLIO PROJECT MANAGER =====
         const form = document.getElementById('admForm');
         const fields = ['admId','admTitle','admCategory','admTag','admLocation','admYear','admFinish','admImage','admChallenge','admSolution','admResult'];
         const get = id => document.getElementById(id);
@@ -412,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Auto-unlock if already unlocked in this session (placed last so all
         // consts/functions above are initialized before openPanel runs).
-        if (sessionStorage.getItem(SESSION_KEY) === '1') { openPanel(); }
+        if (Team.isActingHead()) { openPanel(); }
     }
 
     function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }

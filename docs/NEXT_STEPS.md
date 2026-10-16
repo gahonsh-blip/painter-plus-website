@@ -1,88 +1,76 @@
 # Next Steps — Recovery & Roadmap
 
-> **Read this first.** The repository is currently broken: almost every file
-> contains unresolved Git merge-conflict markers, and `js/script.js` has a
-> syntax error. This document lists every affected file and gives a
-> step-by-step recovery plan that any developer or AI agent can follow.
+> **Status: merge conflicts RESOLVED.** Every file in this repository is now
+> clean — no Git conflict markers remain, and `js/script.js` parses correctly.
+> Sections 1, 2, 3 and 5 are kept as a record of the recovery. Live decisions
+> are in section 4; the checklist is in section 6; remaining follow-ups are in
+> section 7.
 
 ---
 
-## 1. Why the site is broken
+## 1. What happened
 
-A merge was started but never finished. Two versions of the site were left
-side by side inside each file, separated by conflict markers:
+A merge was started but never finished, leaving two versions of the site side
+by side inside each file, separated by Git conflict markers that looked like
+this (indented below so tooling does not mistake the example for a real
+conflict):
 
 ```
-<<<<<<< HEAD
-   (HEAD / older version)
-=======
-   (incoming / newer version)
->>>>>>> 6e6b6d... commit hash
+ <<<<<<< HEAD
+    (HEAD / older version)
+ =======
+    (incoming / newer version)
+ >>>>>>> 6e6b6d... commit hash
 ```
 
-Browsers and the Pages deploy show **both** versions as raw text, so the site
-is undeployable. Until every marker is removed and a single clean version is
-chosen, no other work matters.
+Browsers and the Pages deploy rendered **both** versions as raw text, so the
+site was undeployable. The markers have since been removed and one clean
+version chosen per file.
 
 ---
 
-## 2. Affected files (verified)
+## 2. Files that were resolved
 
-The following files contain conflict markers and must be resolved:
+| File | Resolution |
+|------|------------|
+| README.md | HEAD version, updated for the current structure |
+| AGENTS.md | new file, never conflicted |
+| index.html | HEAD version; Team nav link added |
+| about.html | HEAD version; Team nav link added |
+| services.html | HEAD version; Team nav link added |
+| portfolio.html | HEAD version; Team nav link added |
+| contact.html | HEAD version; Team nav link added |
+| privacy.html | HEAD version; Team nav link added |
+| css/style.css | HEAD version; role colour variables + team/role styles added |
+| manifest.json | HEAD version; final domain + icons |
+| sw.js | HEAD version; cache v8, team assets + maskable icon added |
+| robots.txt | HEAD version; final domain |
+| sitemap.xml | HEAD version; final domain + `team.html` entry |
+| _headers | HEAD version; security headers kept |
+| .gitignore | HEAD version |
+| admin.html | HEAD version + Team & Roles tab |
+| painter-profile.html | rebuilt as a per-member profile with Head-only role controls |
+| team.html | new roster page |
+| js/team.js, js/team-page.js, js/profile-page.js | new team/roles modules |
+| js/script.js | HEAD version; stray brace removed (section 3) |
 
-| File | Conflict lines (approx) |
-|------|--------------------------|
-| README.md | already fixed |
-| AGENTS.md | new file, no conflict |
-| index.html | 1 / 202 / 447 |
-| about.html | 1 / 67 / 175 |
-| services.html | 1 / 64 / 190 |
-| portfolio.html | 88 / 214 |
-| contact.html | 1 / 99 / 203 |
-| privacy.html | 1 / 55 / 152 |
-| css/style.css | 1 / 432 / 709 |
-| manifest.json | whole file |
-| sw.js | whole file |
-| robots.txt | whole file |
-| sitemap.xml | whole file |
-| _headers | top marker |
-
-Files that are **clean** (no conflicts):
-- terms.html
-- offline.html
-- js/script.js (but has a syntax error — see section 3)
-- .github/workflows/static.yml
-- images/og-image.svg
-
-### Find them yourself
+Confirm the repository is clean:
 
 ```bash
-grep -rln "^<<<<<<< HEAD" .
+grep -rn "^<<<<<<< HEAD" . || echo "clean"
 ```
 
 ---
 
-## 3. `js/script.js` syntax error (separate from conflicts)
+## 3. `js/script.js` syntax error — FIXED
 
-There is a **stray closing brace** `}` between the FAQ-toggle block and the
-service-worker registration block. It prematurely closes the
-`DOMContentLoaded` callback, so theme toggle, menu, animations, FAQ, and SW
-registration all silently fail.
+A **stray closing brace** `}` sat between the FAQ-toggle block and the
+service-worker registration block. It prematurely closed the
+`DOMContentLoaded` callback, so theme toggle, menu, animations, FAQ and SW
+registration all silently failed.
 
-Current (broken) structure:
-
-```js
-    // ----- FAQ TOGGLE -----
-    document.querySelectorAll('.faq-item').forEach(item => { ... });
-
-    }   // <-- THIS stray brace must be removed
-
-    // ----- SERVICE WORKER REGISTRATION (PWA) -----
-    if ('serviceWorker' in navigator) { ... }
-```
-
-Fix: delete the standalone `}` line so the SW block sits inside the
-`DOMContentLoaded` callback. Then validate:
+The stray brace has been deleted, so the SW block sits inside the
+`DOMContentLoaded` callback. Validate any time with:
 
 ```bash
 node --check js/script.js
@@ -90,7 +78,7 @@ node --check js/script.js
 
 ---
 
-## 4. Key decisions to make (ask the owner)
+## 4. Key decisions (resolved)## 4. Key decisions to make (ask the owner)
 
 Before resolving conflicts, confirm:
 
@@ -103,18 +91,20 @@ Before resolving conflicts, confirm:
    links and assets, matching the final live domain. Keep canonical/OG/sitemap
    URLs pointing at `https://gahonsh-blip.github.io/painter-plus-website/`.
 
-3. **Contact form approach?** ⏳ STILL OPEN
-   - HEAD version: Formspree form (needs a real form ID).
-   - Incoming version: no form, only contact details.
-   Decide whether to wire up Formspree or just show contact details.
+3. **Contact form approach?** ✅ **DECIDED: Formspree**
+   `contact.html` posts to `https://formspree.io/f/xeebvvko`. If the form ID
+   changes, update the `action` attribute. Contact details are also shown for
+   visitors who prefer phone, email or WhatsApp.
 
-4. **PWA icons?** ⏳ STILL OPEN
-   Add `images/icon-192.png` and `images/icon-512.png`, or drop the icon entries
-   from `manifest.json`.
+4. **PWA icons?** ✅ **DECIDED: keep the icon entries**
+   `images/icon-192.png`, `images/icon-512.png` and
+   `images/icon-maskable-512.png` all exist and are referenced by
+   `manifest.json`. `sw.js` caches all three, so the service worker install
+   cannot fail on a missing asset.
 
 ---
 
-## 5. Step-by-step recovery procedure
+## 5. Recovery procedure (completed — kept for reference)
 
 For each conflicted file, choose ONE clean version. **Since the owner confirmed
 the account is `gahonsh-blip` and the HEAD path convention, prefer the HEAD
@@ -178,7 +168,7 @@ grep -rn "^<<<<<<< HEAD\|^=======$\|^>>>>>>>" . || echo "clean"
 - Add real project photos to `portfolio.html` and `images/`.
 - Replace `images/og-image.svg` with a 1200x630 PNG/JPG for better social
   sharing previews.
-- Generate proper PWA icons (192/512/maskable).
+- ~~Generate proper PWA icons (192/512/maskable).~~ Done — icons are in `images/`.
 - Add a lightweight form handler (Formspree / Netlify Forms / Google Forms)
   and spam protection (honeypot field).
 - Add structured data (LocalBusiness) to all pages, not just the homepage.

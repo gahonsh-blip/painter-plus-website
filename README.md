@@ -47,13 +47,20 @@ painter-plus-website/
 ├── services.html     Detailed service cards (interior, exterior, putty, texture)
 ├── portfolio.html    Project gallery with case studies
 ├── contact.html      Contact form + business info (see note below)
+├── team.html         Our Team — crew roster with roles (Head/Supervisor/Painter/Helper)
+├── painter-profile.html  Per-member profile (?id=slug) + Head-only role changer
+├── admin.html        Head login: Team & Roles, Head profile, portfolio projects
 ├── privacy.html      Privacy policy
 ├── terms.html        Terms of service
 ├── offline.html      Shown by the service worker when offline
 ├── css/
 │   └── style.css     All styles — dark/light theme, responsive, animations
 ├── js/
-│   └── script.js     Theme toggle, mobile menu, progress bar, reveal-on-scroll, FAQ, PWA registration
+│   ├── script.js     Theme toggle, mobile menu, progress bar, reveal-on-scroll, FAQ, admin, PWA registration
+│   ├── team.js       Shared team roster + roles (window.PPTeam)
+│   ├── team-page.js  Renders the roster on team.html
+│   ├── profile-page.js  Renders one member on painter-profile.html
+│   └── color-studio.js  Color Studio live paint preview
 ├── images/
 │   └── og-image.svg  Open Graph / social share image (placeholder)
 ├── manifest.json     PWA manifest
@@ -73,18 +80,23 @@ painter-plus-website/
 
 The deploy workflow runs automatically on every push to `main`.
 
-## ⚠️ Path convention (two conflicting versions)
+## 🔗 Path convention (resolved)
 
-During the unresolved merge, two URL-path conventions were left in the files. They must be made consistent before deploying:
+The unresolved merge left two URL-path conventions in the files. This is now settled:
 
-- **HEAD version** uses absolute project-prefixed paths, e.g. `/painter-plus-website/about.html`, and references the account `gahonsh-blip`.
-- **Incoming version** uses **relative paths**, e.g. `./about.html`, `./css/style.css`, and references the account `gahonsh`.
+- **Final GitHub account: `gahonsh-blip`** → live domain:
+  `https://gahonsh-blip.github.io/painter-plus-website/`
+- **Internal links and assets use relative paths** (`./about.html`,
+  `./css/style.css`). These resolve correctly under the
+  `/painter-plus-website/` project prefix on GitHub Pages *and* under a plain
+  local server (`python3 -m http.server 8000`), so the site previews the same
+  way it deploys.
+- **Canonical, Open Graph and sitemap URLs use the absolute live domain**,
+  `https://gahonsh-blip.github.io/painter-plus-website/...`, because search
+  engines and social crawlers need a full origin.
 
-### Decision (confirmed by owner)
-
-- **Final GitHub account: `gahonsh-blip`** → live domain: `https://gahonsh-blip.github.io/painter-plus-website/`
-- **Path style:** use the **HEAD convention** — absolute, project-prefixed paths (`/painter-plus-website/...`) for internal links and assets, so the URLs already match the final live domain. Keep canonical/OG/sitemap URLs pointing at `https://gahonsh-blip.github.io/painter-plus-website/`.
-- When resolving conflicts, prefer the **HEAD version** of each file (it matches the confirmed account and absolute paths), then patch in any good content that exists only on the incoming side (e.g. richer meta tags, accessibility attributes) without switching the account or path style.
+Do not reintroduce absolute `/painter-plus-website/...` paths for internal
+links: they break local preview.
 
 ## ✉️ Contact form
 
@@ -96,9 +108,27 @@ The HEAD version of `contact.html` references a **Formspree** form. To make the 
 
 The incoming version currently has **no working form** — only contact details. Choose one approach and apply it consistently (see `docs/NEXT_STEPS.md`).
 
+## 👑 Team roles
+
+The crew roster is shared across `team.html`, `painter-profile.html` and
+`admin.html` via `js/team.js` (`window.PPTeam`).
+
+| Role | Meaning |
+|------|---------|
+| `head` | Owner of Painter Plus. The only role that can change roles. |
+| `supervisor` | Supervises site work, checks quality, signs off finished jobs. |
+| `painter` | Applies the paint, putty and finishes on site. |
+| `helper` | Assists the painter with surface preparation and materials. |
+
+`gahonsh` is the Head; everyone else starts as a Painter. A signed-in Head can
+re-role any member to Painter / Helper / Supervisor, or promote a second Head,
+from that member's profile page or the Admin **Team & Roles** tab. The last
+remaining Head cannot be demoted or removed.
+
 ## 🎨 Customisation
 
 - Replace business name, phone, email, and address in all HTML files (use the values in the table above).
+- Manage the crew on the **Admin → Team & Roles** tab: `gahonsh` is the Head, everyone else starts as a Painter, and the Head can re-role anyone (Painter / Helper / Supervisor / Head). See the Team roles section above.
 - Replace `images/og-image.svg` and any placeholder images with real photography.
 - Update the Formspree endpoint in `contact.html`.
 - Adjust colors via the CSS custom properties at the top of `css/style.css` (`--primary`, `--bg`, etc.).
