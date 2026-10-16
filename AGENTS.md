@@ -61,6 +61,7 @@ Use these exact values when fixing contact info across all pages:
 | Concern | File(s) |
 |--------|---------|
 | Pages | `index.html`, `about.html`, `services.html`, `portfolio.html`, `contact.html`, `privacy.html`, `terms.html`, `offline.html` |
+| Color Studio | `color-studio.html` + `js/color-studio.js` — live room/exterior paint preview, finishes, lighting, and the **area & square-feet estimator** |
 | Team roster | `team.html` (roster page), `painter-profile.html` (per-member profile), `js/team.js` (shared data + roles) |
 | Admin | `admin.html` (Owner/Head login: Team & Roles, profile, Portfolio projects) |
 | Styles | `css/style.css` |
@@ -96,6 +97,29 @@ highest first:
   gate, default `painter123` — client-side only, not real security).
 - `list()` sorts by `roleRank()` (owner → helper), so the Owner/Head always
   lead the roster; `head()` returns the Owner if there is one, else the Head.
+
+## Color Studio — area & square-feet estimator
+
+`color-studio.html` (`js/color-studio.js`) lets a client pick a scene (living
+room, bedroom, kitchen, bathroom, dining, office, kids' room, exterior), click a
+surface in the picture, choose a colour/finish/lighting, and **measure that
+surface**.
+
+- Selecting a surface (tab or click in the picture) loads its stored
+  **length × height** into `#areaW` / `#areaH` and shows its **square feet**
+  (`#areaSurfaceSqft`).
+- `#areaList` lists every surface of the current scene with its dimensions,
+  its square feet, and a checkbox to include/exclude it from the paint total.
+  Floors, sky and ground are excluded by default (`NOT_PAINTED`).
+- `#areaTotal` shows two figures: **total area (all surfaces)** and **paint area
+  (N coats)**. `#paintEstimate` shows the litres needed, using
+  `SQFT_PER_LITRE_PER_COAT = 130` and `WASTAGE = 0.1`.
+- Sizes are per scene, persisted in `localStorage` (`pp_studio.areas`), and
+  carried into the quote link (`?colors=…&sqft=…&coats=…&litres=…`).
+- `DEFAULT_SIZES` holds typical room dimensions so the panel is useful before
+  the client types anything; **Reset sizes** restores them.
+- The stage art is proportional, not to scale — the estimator sums the sizes the
+  client types, it does not measure the picture.
 
 ## Working rules for agents
 

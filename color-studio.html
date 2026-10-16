@@ -44,7 +44,7 @@
       <section class="cs-hero">
         <div class="container">
           <h1 class="cs-hero-title">Color <span>Studio</span></h1>
-          <p class="cs-hero-sub">Pick colours and watch them come to life on full room and exterior demos. Switch scenes, finishes and lighting — then save your scheme and request a quote.</p>
+          <p class="cs-hero-sub">Pick colours and watch them come to life on full room and exterior demos. Switch scenes, finishes and lighting — measure each surface to get its square feet and the paint you need, then save your scheme and request a quote.</p>
         </div>
       </section>
 
@@ -257,7 +257,38 @@
               </div>
 
               <div class="ctrl-group">
-                <h3>6. Your scheme</h3>
+                <h3>6. Area &amp; square feet</h3>
+                <p class="area-hint">Click a surface in the picture, then type its real size. Every surface and the total update live.</p>
+                <div class="area-inputs">
+                  <div class="area-field">
+                    <label for="areaW">Length (ft)</label>
+                    <input type="number" id="areaW" min="0" step="0.5" inputmode="decimal" />
+                  </div>
+                  <div class="area-field">
+                    <label for="areaH">Height (ft)</label>
+                    <input type="number" id="areaH" min="0" step="0.5" inputmode="decimal" />
+                  </div>
+                  <div class="area-field area-field--out">
+                    <span class="area-out-label" id="areaSurfaceName">Back wall</span>
+                    <span class="area-out-value" id="areaSurfaceSqft">0 sq ft</span>
+                  </div>
+                </div>
+                <div class="area-list" id="areaList" aria-live="polite"></div>
+                <div class="area-total" id="areaTotal"></div>
+                <div class="area-paint">
+                  <label for="areaCoats">Coats</label>
+                  <select id="areaCoats">
+                    <option value="1">1 coat</option>
+                    <option value="2" selected>2 coats</option>
+                    <option value="3">3 coats</option>
+                  </select>
+                  <span id="paintEstimate" class="area-estimate"></span>
+                </div>
+                <button class="btn-secondary area-reset" id="areaReset" type="button">↺ Reset sizes</button>
+              </div>
+
+              <div class="ctrl-group">
+                <h3>7. Your scheme</h3>
                 <div class="scheme-summary" id="schemeSummary" aria-live="polite"></div>
                 <div class="ctrl-actions">
                   <button class="btn-secondary" id="saveScheme" type="button">💾 Save</button>
@@ -279,7 +310,8 @@
             <div class="cs-how-card"><div class="cs-how-ic">🎨</div><h3>Choose a scene</h3><p>Living room, bedroom, kitchen, bathroom, dining, office, kids' room or exterior — each is a full demo built so nothing breaks when you switch.</p></div>
             <div class="cs-how-card"><div class="cs-how-ic">🖌️</div><h3>Pick a surface</h3><p>Select which wall or element to paint, then choose a colour. The room updates live as paint fills the wall.</p></div>
             <div class="cs-how-card"><div class="cs-how-ic">✨</div><h3>Try finishes</h3><p>Matte, eggshell, satin or semi-gloss — see how the sheen changes the look under different light.</p></div>
-            <div class="cs-how-card"><div class="cs-how-ic">📐</div><h3>Save &amp; share</h3><p>Save your scheme, copy a shareable link, and send it with your quote request. We match it on site.</p></div>
+            <div class="cs-how-card"><div class="cs-how-ic">📐</div><h3>Measure &amp; estimate</h3><p>Type each surface's length and height to see its square feet, the total, and the litres of paint you'll need.</p></div>
+            <div class="cs-how-card"><div class="cs-how-ic">💾</div><h3>Save &amp; share</h3><p>Save your scheme, copy a shareable link, and send it with your quote request. We match it on site.</p></div>
           </div>
         </div>
       </section>
