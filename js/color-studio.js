@@ -523,6 +523,13 @@
 
   // --- Wire up ---
   function init() {
+    // The studio widgets exist only on color-studio.html. index.html loads this
+    // file for the painter scene in the block below, so bail out here instead of
+    // touching missing widgets and aborting the rest of the file.
+    if (!stage || !paletteEl || !customColor || !customHex || !surfaceTabsEl ||
+        !presetTabsEl || !finishNote || !harmonyEl || !schemeSummaryEl ||
+        !coverageInput || !coverageVal) return;
+
     buildPalette();
     loadPersisted();
 
@@ -587,6 +594,9 @@
     const wall = $("psWall");
     const caption = $("psCaption");
     const strokes = document.querySelectorAll(".ps-stroke");
+
+    // The hero scene markup only exists on index.html.
+    if (!painter || !wall) return;
 
     // Reset to the start of the scene.
     clearTimers();

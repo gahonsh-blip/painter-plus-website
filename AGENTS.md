@@ -1,6 +1,6 @@
 # AGENTS.md — Painter Plus Website (Agent Knowledge Base)
 
-This file gives AI agents and contributors the essential context needed to work on this repository safely and correctly. Humans should read `README.md` and `docs/NEXT_STEPS.md` first.
+This file gives AI agents and contributors the essential context needed to work on this repository safely and correctly. Humans should read `README.md` and `docs/NEXT_STEPS.md` first. `docs/BUG_AUDIT.md` records the full-site bug scan and the fixes applied to it.
 
 ## Project summary
 
@@ -24,6 +24,10 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 5. **PWA icons — RESOLVED.** `images/icon-192.png`, `images/icon-512.png` and `images/icon-maskable-512.png` all exist and are referenced by `manifest.json` and cached by `sw.js`.
 
 6. **Emoji / encoding — RESOLVED.** The garbled `??` emoji from the merge were replaced with real emoji in visible content (logo, phone/email labels, footer). All files are valid UTF-8.
+
+7. **`color-studio.js` homepage crash — FIXED.** `index.html` loads `js/color-studio.js` for its hero painter scene but has none of the Color Studio widget ids, so `buildPalette()` threw on a `null` `#palette` and aborted the whole file — killing the painter animation. `init()` now returns early unless the studio widgets exist, and `playScene()` guards its own elements. See `docs/BUG_AUDIT.md` §1.
+
+8. **Full-site audit — see `docs/BUG_AUDIT.md`.** It lists every bug found and fixed (missing `<h1>`s, undefined `--shadow-sm`, missing `apple-touch-icon`, `admin.html` OG tags, the `offline.html` head, un-typed buttons, the `NEXT_STEPS.md` duplicate heading, and the stale service-worker cache), plus the items investigated and confirmed *not* to be bugs.
 
 ## Business details (source of truth)
 

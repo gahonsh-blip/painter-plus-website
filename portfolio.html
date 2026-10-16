@@ -17,13 +17,14 @@
     <link rel="canonical" href="https://gahonsh-blip.github.io/painter-plus-website/portfolio.html" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E" />
     <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="./images/icon-192.png" />
     <link rel="stylesheet" href="./css/style.css" />
   </head>
   <body>
     <header>
       <div class="container flex-header">
         <a href="./index.html" class="logo">🎨 <span>Painter Plus</span></a>
-        <button class="mobile-toggle" aria-label="Toggle navigation">☰</button>
+        <button class="mobile-toggle" type="button" aria-label="Toggle navigation">☰</button>
         <nav class="nav-links">
           <a href="./index.html">Home</a>
           <a href="./about.html">About</a>
@@ -42,16 +43,16 @@
       <!-- Portfolio hero -->
       <section class="section pf-hero">
         <div class="container">
-          <h2 class="section-title">Our <span>portfolio</span></h2>
+          <h1 class="section-title">Our <span>portfolio</span></h1>
           <p class="pf-intro">A selection of recent projects — interiors, exteriors, textures, and commercial spaces. Hover any project to watch the transformation come to life, like a fresh coat of paint being rolled on.</p>
 
           <!-- Category filter -->
           <div class="pf-filter" role="tablist" aria-label="Filter projects by category">
-            <button class="pf-filter-btn active" data-filter="all" role="tab" aria-selected="true">All</button>
-            <button class="pf-filter-btn" data-filter="interior" role="tab" aria-selected="false">Interior</button>
-            <button class="pf-filter-btn" data-filter="exterior" role="tab" aria-selected="false">Exterior</button>
-            <button class="pf-filter-btn" data-filter="texture" role="tab" aria-selected="false">Texture</button>
-            <button class="pf-filter-btn" data-filter="commercial" role="tab" aria-selected="false">Commercial</button>
+            <button type="button" class="pf-filter-btn active" data-filter="all" role="tab" aria-selected="true">All</button>
+            <button type="button" class="pf-filter-btn" data-filter="interior" role="tab" aria-selected="false">Interior</button>
+            <button type="button" class="pf-filter-btn" data-filter="exterior" role="tab" aria-selected="false">Exterior</button>
+            <button type="button" class="pf-filter-btn" data-filter="texture" role="tab" aria-selected="false">Texture</button>
+            <button type="button" class="pf-filter-btn" data-filter="commercial" role="tab" aria-selected="false">Commercial</button>
           </div>
         </div>
       </section>

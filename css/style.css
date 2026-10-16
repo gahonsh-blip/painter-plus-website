@@ -12,6 +12,7 @@
   --text: #0b1b33;
   --text-light: #64748b;
   --border: #e2e8f0;
+  --shadow-sm: 0 6px 18px rgba(0,0,0,0.06);
   --shadow: 0 12px 40px -12px rgba(0,0,0,0.08);
   --shadow-lg: 0 30px 80px -20px rgba(0,0,0,0.15);
   --radius: 24px;
@@ -32,6 +33,7 @@
   --text: #f8fafc;
   --text-light: #94a3b8;
   --border: #334155;
+  --shadow-sm: 0 6px 18px rgba(0,0,0,0.45);
   --shadow: 0 12px 40px -12px rgba(0,0,0,0.6);
   --shadow-lg: 0 30px 80px -20px rgba(0,0,0,0.7);
 }
@@ -889,7 +891,7 @@ textarea.form-control { resize: vertical; }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 24px; }
 .stat {
   background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
-  padding: 28px 18px; text-align: center; box-shadow: var(--shadow-sm, 0 6px 18px rgba(0,0,0,.06));
+  padding: 28px 18px; text-align: center; box-shadow: var(--shadow-sm);
   transition: transform .3s ease, box-shadow .3s ease;
 }
 .stat:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
