@@ -261,6 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
             members.forEach(m => {
                 const li = document.createElement('li');
                 li.className = 'adm-item';
+                // Disable roles that would strand the roster without an Owner/Head.
+                const roleOpts = Team.ROLES.map(r =>
+                    '<option value="' + r.id + '"' + (r.id === m.role ? ' selected' : '') +
+                    (Team.wouldStrandLeads(m.id, r.id) ? ' disabled' : '') + '>' +
+                    r.icon + ' ' + r.label + '</option>').join('');
                 li.innerHTML =
                     '<span class="adm-item-avatar">' + esc(Team.initials(m.name)) + '</span>' +
                     '<div class="adm-item-body">' +
@@ -269,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     '</div>' +
                     '<div class="adm-item-actions">' +
                       '<select class="adm-role-select" data-id="' + esc(m.id) + '" aria-label="Role for ' + esc(m.name) + '">' +
-                        Team.roleOptions(m.role) +
+                        roleOpts +
                       '</select>' +
                       '<a class="edit" href="./painter-profile.html?id=' + encodeURIComponent(m.id) + '">👤 Profile</a>' +
                       '<button class="edit" data-id="' + esc(m.id) + '">✏️ Edit</button>' +

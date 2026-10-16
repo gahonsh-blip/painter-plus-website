@@ -52,7 +52,7 @@ Use these exact values when fixing contact info across all pages:
 |--------|---------|
 | Pages | `index.html`, `about.html`, `services.html`, `portfolio.html`, `contact.html`, `privacy.html`, `terms.html`, `offline.html` |
 | Team roster | `team.html` (roster page), `painter-profile.html` (per-member profile), `js/team.js` (shared data + roles) |
-| Admin | `admin.html` (Head login: Team & Roles, Head profile, Portfolio projects) |
+| Admin | `admin.html` (Owner/Head login: Team & Roles, profile, Portfolio projects) |
 | Styles | `css/style.css` |
 | Scripts | `js/script.js` |
 | PWA | `manifest.json`, `sw.js` |
@@ -63,23 +63,29 @@ Use these exact values when fixing contact info across all pages:
 ## Team roles
 
 The crew roster lives in `js/team.js` (`window.PPTeam`) and is shared by
-`team.html`, `painter-profile.html` and `admin.html`. Four roles exist:
+`team.html`, `painter-profile.html` and `admin.html`. Five roles exist,
+highest first:
 
 | Role | Meaning |
 |------|---------|
-| `head` | Owner of Painter Plus. **The only role that can change roles.** |
+| `owner` | Founder-owner of Painter Plus. **May change anyone's role.** |
+| `head` | Runs the crew. **May change anyone's role.** |
 | `supervisor` | Supervises site work, checks quality, signs off finished jobs. |
 | `painter` | Applies the paint, putty and finishes on site. |
 | `helper` | Assists the painter with surface preparation and materials. |
 
 - **`gahonsh` is the Head.** Everyone else starts as a **Painter**.
-- The Head can re-role any member to Painter / Helper / Supervisor, or promote
-  a second Head, from either the member's profile page or the Admin page's
+- An Owner or Head can re-role any member to Painter / Helper / Supervisor /
+  Head / Owner, from either the member's profile page or the Admin page's
   **Team & Roles** tab.
-- Role changes are guarded: the last remaining Head cannot be demoted or
-  removed, so the roster always has exactly one Head at minimum.
-- The role controls only render for a signed-in Head (session passcode gate,
-  default `painter123` — client-side only, not real security).
+- Role changes are guarded: the roster must always keep at least one
+  Owner **or** Head, so the last lead can be neither demoted nor removed.
+  `PPTeam.wouldStrandLeads(id, role)` reports this for the UI, which disables
+  the offending option.
+- The role controls only render for a signed-in Owner/Head (session passcode
+  gate, default `painter123` — client-side only, not real security).
+- `list()` sorts by `roleRank()` (owner → helper), so the Owner/Head always
+  lead the roster; `head()` returns the Owner if there is one, else the Head.
 
 ## Working rules for agents
 

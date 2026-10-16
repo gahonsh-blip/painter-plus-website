@@ -4,17 +4,18 @@
    This is a static site with no backend, so the roster lives in
    localStorage and is shared by every page that loads this file.
 
-   Roles
-     head       👑  owner of Painter Plus — the only role that may
-                    change anyone's role
+   Roles (highest first)
+     owner      👑  founder-owner of Painter Plus — full control
+     head       🎩  runs the crew — may change anyone's role
      supervisor 🛡️  supervises site work, checks quality, signs off
      painter    🎨  applies the paint and finishes on site
      helper     🧰  assists the painter with preparation/materials
 
-   `gahonsh` is the Head. Every other member starts as a Painter,
-   and the Head can promote or demote them (painter ⇄ helper /
-   supervisor) from any member's profile page or from the Admin
-   page's "Team & Roles" tab.
+   `gahonsh` is the Head. Every other member starts as a Painter.
+   Both Owner and Head may change roles, so the Head can promote any
+   member to Painter, Helper, Supervisor, Head or Owner from that
+   member's profile page or the Admin page's "Team & Roles" tab.
+   The roster can never lose its last Owner/Head.
    ============================================================ */
 (function () {
   'use strict';
@@ -26,13 +27,19 @@
   const OWNER_ID = 'gahonsh';
 
   const ROLES = [
-    { id: 'head', label: 'Head', icon: '👑', desc: 'Owner of Painter Plus. Only the Head can change roles.' },
+    { id: 'owner', label: 'Owner', icon: '👑', desc: 'Founder-owner of Painter Plus. Full control, and may change anyone\'s role.' },
+    { id: 'head', label: 'Head', icon: '🎩', desc: 'Runs the crew day to day and may change anyone\'s role.' },
     { id: 'supervisor', label: 'Supervisor', icon: '🛡️', desc: 'Supervises site work, checks quality and signs off finished jobs.' },
     { id: 'painter', label: 'Painter', icon: '🎨', desc: 'Applies the paint, putty and finishes on site.' },
     { id: 'helper', label: 'Helper', icon: '🧰', desc: 'Assists the painter with surface preparation and materials.' }
   ];
 
   const ROLE_IDS = ROLES.map(r => r.id);
+  // Roles that can open the role controls and change anyone's role.
+  const MANAGER_ROLE_IDS = ['owner', 'head'];
+  // The roster must always keep at least one of these, so it can never
+  // end up without anyone able to run it.
+  const LEAD_ROLE_IDS = ['owner', 'head'];
 
   // Shared contact defaults — the real business details.
   function contactDefaults() {
@@ -62,8 +69,8 @@
     }, contactDefaults());
   }
 
-  // The Head — site owner gahonsh. Also the default member shown on
-  // painter-profile.html when no member id is given.
+  // The founding member gahonsh — starts as Head, and is the default
+  // member shown on painter-profile.html when no member id is given.
   function ownerMember() {
     return Object.assign(blankMember('head'), {
       id: OWNER_ID,
@@ -138,10 +145,15 @@
     return ROLES.find(r => r.id === id) || ROLES.find(r => r.id === 'painter');
   }
 
+  function roleRank(id) {
+    const i = ROLE_IDS.indexOf(id);
+    return i === -1 ? ROLE_IDS.length : i;
+  }
+
   function list() {
     return read().slice().sort((a, b) => {
-      if (a.role === 'head' && b.role !== 'head') return -1;
-      if (b.role === 'head' && a.role !== 'head') return 1;
+      const byRank = roleRank(a.role) - roleRank(b.role);
+      if (byRank) return byRank;
       const byOrder = (a.order == null ? 99 : a.order) - (b.order == null ? 99 : b.order);
       return byOrder || String(a.name).localeCompare(String(b.name));
     });
@@ -151,8 +163,12 @@
     return read().find(m => m.id === id) || null;
   }
 
+  // The member who fronts the crew: the Owner if there is one, else the Head.
   function head() {
-    return read().find(m => m.role === 'head') || read()[0];
+    const members = read();
+    return members.find(m => m.role === 'owner') ||
+           members.find(m => m.role === 'head') ||
+           members[0];
   }
 
   function slugify(name, taken) {
@@ -174,9 +190,11 @@
       idx = -1;
     }
     if (idx >= 0) {
-      // never let the roster end up with zero Heads
-      if (members[idx].role === 'head' && clean.role !== 'head' && countHeads(members) === 1) {
-        return { ok: false, error: 'There must always be at least one Head. Promote someone else to Head first.' };
+      // never let the roster lose its last Owner/Head
+      const wasLead = LEAD_ROLE_IDS.includes(members[idx].role);
+      const staysLead = LEAD_ROLE_IDS.includes(clean.role);
+      if (wasLead && !staysLead && countLeads(members) === 1) {
+        return { ok: false, error: 'There must always be at least one Owner or Head. Promote someone else first.' };
       }
       members[idx] = clean;
     } else {
@@ -194,17 +212,33 @@
     return save(member);
   }
 
+  // True when moving `id` to `roleId` would leave the roster without any
+  // Owner or Head. The UI uses this to disable the option before saving.
+  function wouldStrandLeads(id, roleId) {
+    const members = read();
+    const target = members.find(m => m.id === id);
+    if (!target) return false;
+    if (!LEAD_ROLE_IDS.includes(target.role)) return false;
+    if (LEAD_ROLE_IDS.includes(roleId)) return false;
+    return countLeads(members) === 1;
+  }
+
   function remove(id) {
     const members = read();
     const target = members.find(m => m.id === id);
     if (!target) return { ok: false, error: 'Member not found.' };
-    if (target.role === 'head' && countHeads(members) === 1) {
-      return { ok: false, error: 'The last Head cannot be removed. Promote someone else to Head first.' };
+    if (LEAD_ROLE_IDS.includes(target.role) && countLeads(members) === 1) {
+      return { ok: false, error: 'The last Owner/Head cannot be removed. Promote someone else first.' };
     }
     write(members.filter(m => m.id !== id));
     return { ok: true };
   }
 
+  function countLeads(members) {
+    return (members || read()).filter(m => LEAD_ROLE_IDS.includes(m.role)).length;
+  }
+
+  // Kept for callers that only care about the Head role.
   function countHeads(members) {
     return (members || read()).filter(m => m.role === 'head').length;
   }
@@ -222,6 +256,14 @@
 
   function lockHead() {
     try { sessionStorage.removeItem(SESSION_KEY); } catch { /* blocked */ }
+  }
+
+  // True when the signed-in member's own role allows changing roles.
+  // Used by the UI to decide whether to offer the role controls.
+  function isManager(id) {
+    if (!isActingHead()) return false;
+    const me = id ? get(id) : head();
+    return !!me && MANAGER_ROLE_IDS.includes(me.role);
   }
 
   function memberFromQuery() {
@@ -249,9 +291,10 @@
 
   window.PPTeam = {
     STORE_KEY, LEGACY_PROFILE_KEY, SESSION_KEY, PASSCODE, OWNER_ID,
-    ROLES, ROLE_IDS,
-    roleOf, list, get, head, save, setRole, remove, countHeads,
-    isActingHead, unlockHead, lockHead,
+    ROLES, ROLE_IDS, MANAGER_ROLE_IDS, LEAD_ROLE_IDS,
+    roleOf, roleRank, list, get, head, save, setRole, remove,
+    countLeads, countHeads, wouldStrandLeads,
+    isActingHead, isManager, unlockHead, lockHead,
     memberFromQuery, roleBadge, roleOptions, initials, blankMember,
     ownerDefaults: ownerMember, esc
   };

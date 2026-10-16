@@ -47,9 +47,9 @@ painter-plus-website/
 ├── services.html     Detailed service cards (interior, exterior, putty, texture)
 ├── portfolio.html    Project gallery with case studies
 ├── contact.html      Contact form + business info (see note below)
-├── team.html         Our Team — crew roster with roles (Head/Supervisor/Painter/Helper)
-├── painter-profile.html  Per-member profile (?id=slug) + Head-only role changer
-├── admin.html        Head login: Team & Roles, Head profile, portfolio projects
+├── team.html         Our Team — crew roster with roles (Owner/Head/Supervisor/Painter/Helper)
+├── painter-profile.html  Per-member profile (?id=slug) + Owner/Head role changer
+├── admin.html        Owner/Head login: Team & Roles, profile, portfolio projects
 ├── privacy.html      Privacy policy
 ├── terms.html        Terms of service
 ├── offline.html      Shown by the service worker when offline
@@ -115,20 +115,22 @@ The crew roster is shared across `team.html`, `painter-profile.html` and
 
 | Role | Meaning |
 |------|---------|
-| `head` | Owner of Painter Plus. The only role that can change roles. |
+| `owner` | Founder-owner of Painter Plus. May change anyone's role. |
+| `head` | Runs the crew day to day. May change anyone's role. |
 | `supervisor` | Supervises site work, checks quality, signs off finished jobs. |
 | `painter` | Applies the paint, putty and finishes on site. |
 | `helper` | Assists the painter with surface preparation and materials. |
 
-`gahonsh` is the Head; everyone else starts as a Painter. A signed-in Head can
-re-role any member to Painter / Helper / Supervisor, or promote a second Head,
-from that member's profile page or the Admin **Team & Roles** tab. The last
-remaining Head cannot be demoted or removed.
+`gahonsh` is the Head; everyone else starts as a Painter. A signed-in Owner or
+Head can re-role any member to Painter / Helper / Supervisor / Head / Owner,
+from that member's profile page or the Admin **Team & Roles** tab. The roster
+always keeps at least one Owner or Head — the last lead cannot be demoted or
+removed.
 
 ## 🎨 Customisation
 
 - Replace business name, phone, email, and address in all HTML files (use the values in the table above).
-- Manage the crew on the **Admin → Team & Roles** tab: `gahonsh` is the Head, everyone else starts as a Painter, and the Head can re-role anyone (Painter / Helper / Supervisor / Head). See the Team roles section above.
+- Manage the crew on the **Admin → Team & Roles** tab: `gahonsh` is the Head, everyone else starts as a Painter, and an Owner/Head can re-role anyone (Painter / Helper / Supervisor / Head / Owner). See the Team roles section above.
 - Replace `images/og-image.svg` and any placeholder images with real photography.
 - Update the Formspree endpoint in `contact.html`.
 - Adjust colors via the CSS custom properties at the top of `css/style.css` (`--primary`, `--bg`, etc.).

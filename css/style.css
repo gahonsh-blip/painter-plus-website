@@ -16,6 +16,7 @@
   --shadow-lg: 0 30px 80px -20px rgba(0,0,0,0.15);
   --radius: 24px;
   --transition: 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --role-owner: #92400e;
   --role-head: #b45309;
   --role-supervisor: #1d4ed8;
   --role-painter: #0f766e;
@@ -1387,6 +1388,7 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
   background: var(--role-painter);
   white-space: nowrap;
 }
+.role-badge.role-owner { background: var(--role-owner); }
 .role-badge.role-head { background: var(--role-head); }
 .role-badge.role-supervisor { background: var(--role-supervisor); }
 .role-badge.role-painter { background: var(--role-painter); }
@@ -1440,6 +1442,7 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 .tm-empty { text-align: center; color: var(--text-light); font-style: italic; }
 
 .tm-card { display: block; text-decoration: none; color: inherit; padding: 26px 22px; border-top: 4px solid var(--border); }
+.tm-card.role-owner { border-top-color: var(--role-owner); }
 .tm-card.role-head { border-top-color: var(--role-head); }
 .tm-card.role-supervisor { border-top-color: var(--role-supervisor); }
 .tm-card.role-painter { border-top-color: var(--role-painter); }

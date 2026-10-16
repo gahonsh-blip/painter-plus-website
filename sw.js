@@ -1,4 +1,4 @@
-const CACHE_NAME = 'painter-plus-v8';
+const CACHE_NAME = 'painter-plus-v9';
 const BASE_PATH = self.location.pathname.replace(/\/[^/]*$/, '/');
 const ASSETS = [
   `${BASE_PATH}`,

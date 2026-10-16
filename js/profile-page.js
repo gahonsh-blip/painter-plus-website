@@ -1,8 +1,8 @@
 /* ============================================================
    MEMBER PROFILE PAGE — renders one team member from the shared
-   PPTeam store (js/team.js) and, when the Head is signed in, shows
-   the role changer so the Head can set the member's role
-   (Painter ⇄ Helper ⇄ Supervisor ⇄ Head).
+   PPTeam store (js/team.js) and, when an Owner or Head is signed in,
+   shows the role changer so they can set the member's role
+   (Painter ⇄ Helper ⇄ Supervisor ⇄ Head ⇄ Owner).
    ============================================================ */
 (function () {
   'use strict';
@@ -75,17 +75,16 @@
 
   function renderRoleControls() {
     if (!roleSection) return;
-    const isHead = T.isActingHead();
+    const isHead = T.isManager();
     roleSection.hidden = !isHead;
     if (lockedSection) lockedSection.hidden = isHead;
     if (!isHead || !optionsWrap) return;
 
-    const isSelf = member.id === T.head().id;
     optionsWrap.innerHTML = T.ROLES.map(r => {
-      // Demoting the only Head would leave the crew without one.
-      const blocked = isSelf && r.id !== 'head' && T.countHeads() === 1;
+      // Demoting the only Owner/Head would leave the crew without one.
+      const blocked = T.wouldStrandLeads(member.id, r.id);
       return '<button type="button" class="pp-role-option' + (r.id === pendingRole ? ' active' : '') +
-        '" data-role="' + r.id + '"' + (blocked ? ' disabled title="Promote another member to Head first"' : '') + '>' +
+        '" data-role="' + r.id + '"' + (blocked ? ' disabled title="Promote another member to Owner or Head first"' : '') + '>' +
         '<span class="pro-ic">' + r.icon + '</span>' +
         '<span class="pro-label">' + T.esc(r.label) + '</span>' +
         '<span class="pro-desc">' + T.esc(r.desc) + '</span>' +
