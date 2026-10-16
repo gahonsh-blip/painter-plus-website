@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin | Painter Plus</title>
-    <meta name="description" content="Painter Plus admin — add and manage portfolio projects." />
+    <meta name="description" content="Painter Plus admin — manage the team, roles and portfolio projects." />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#2563EB" />
     <link rel="canonical" href="https://gahonsh-blip.github.io/painter-plus-website/admin.html" />
@@ -23,7 +23,7 @@
           <a href="./services.html">Services</a>
           <a href="./portfolio.html">Portfolio</a>
           <a href="./color-studio.html">Color Studio</a>
-          <a href="./painter-profile.html">Painter</a>
+          <a href="./team.html">Team</a>
           <a href="./contact.html">Contact</a>
           <a href="./admin.html">Admin</a>
           <button class="theme-toggle" id="theme-toggle" type="button">🌙 Dark</button>
@@ -35,13 +35,13 @@
       <section class="section">
         <div class="container">
           <h2 class="section-title">Project <span>Admin</span></h2>
-          <p class="adm-sub">Add portfolio projects here. Saved projects appear on the <a href="./portfolio.html">Portfolio</a> page (in this browser) and can be exported as JSON to add permanently.</p>
+          <p class="adm-sub">Manage the team and roles, add portfolio projects, and edit the Owner/Head's profile. Everything here is saved in this browser — export the JSON to make changes permanent.</p>
 
           <!-- Lightweight passcode gate (client-side only, not real security) -->
           <div class="adm-gate" id="admGate">
             <div class="adm-gate-card">
-              <h3>🔒 Enter Passcode</h3>
-              <p class="adm-gate-note">This is a simple client-side gate to keep casual visitors out — it is <strong>not</strong> real security. Default passcode: <code>painter123</code> (change it in <code>js/script.js</code>).</p>
+              <h3>🔒 Owner / Head login</h3>
+              <p class="adm-gate-note">Enter the Owner/Head passcode to manage the team and roles. This is a simple client-side gate to keep casual visitors out — it is <strong>not</strong> real security. Default passcode: <code>painter123</code> (change it in <code>js/team.js</code>).</p>
               <div class="adm-gate-form">
                 <input type="password" id="admPass" class="form-control" placeholder="Passcode" autocomplete="current-password" />
                 <button class="btn-primary" id="admUnlock">Unlock →</button>
@@ -52,15 +52,87 @@
 
           <!-- Admin panel (shown after unlock) -->
           <div class="adm-panel" id="admPanel" hidden>
-            <!-- Tabs: Painter Profile / Portfolio Projects -->
+            <!-- Tabs: Team & Roles / Painter Profile / Portfolio Projects -->
             <div class="adm-tabs" role="tablist">
-              <button class="adm-tab active" id="tabProfile" role="tab" aria-selected="true">🧑‍🎨 Painter Profile</button>
+              <button class="adm-tab active" id="tabTeam" role="tab" aria-selected="true">👥 Team &amp; Roles</button>
+              <button class="adm-tab" id="tabProfile" role="tab" aria-selected="false">🧑‍🎨 Painter Profile</button>
               <button class="adm-tab" id="tabProjects" role="tab" aria-selected="false">🖼️ Portfolio Projects</button>
             </div>
 
+            <!-- TAB 0: Team & roles manager -->
+            <section class="adm-tabpane" id="paneTeam" role="tabpanel">
+              <p class="adm-sub"><strong>gahonsh is the Head.</strong> Everyone else starts as a <strong>Painter</strong>. As Owner or Head you can re-role anyone to <strong>Painter</strong>, <strong>Helper</strong> or <strong>Supervisor</strong> — and promote them to <strong>Head</strong> or <strong>Owner</strong> — from here or from any member's <a href="./team.html">profile page</a>.</p>
+
+              <div class="adm-grid">
+                <!-- Add / edit member -->
+                <form class="adm-form card" id="tmForm" novalidate>
+                  <h3 id="tmFormTitle">➕ Add a team member</h3>
+                  <input type="hidden" id="tmId" />
+                  <label class="adm-field">
+                    <span>Full name *</span>
+                    <input type="text" id="tmName" class="form-control" placeholder="e.g. Ramesh Kumar" required />
+                  </label>
+                  <div class="adm-row">
+                    <label class="adm-field">
+                      <span>Role *</span>
+                      <select id="tmRole" class="form-control"></select>
+                    </label>
+                    <label class="adm-field">
+                      <span>Job title</span>
+                      <input type="text" id="tmTitle" class="form-control" placeholder="e.g. Senior Painter" />
+                    </label>
+                  </div>
+                  <label class="adm-field">
+                    <span>Photo (URL)</span>
+                    <input type="url" id="tmPhoto" class="form-control" placeholder="https://…/photo.jpg" />
+                    <small>Optional. Falls back to the member's initials.</small>
+                    <div class="adm-preview" id="tmPhotoPreview" hidden><img id="tmPhotoPreviewImg" alt="Preview" /></div>
+                  </label>
+                  <label class="adm-field">
+                    <span>Tagline</span>
+                    <input type="text" id="tmTagline" class="form-control" placeholder="Short one-line summary" />
+                  </label>
+                  <label class="adm-field">
+                    <span>Bio / about</span>
+                    <textarea id="tmBio" class="form-control" rows="3" placeholder="A few sentences about this member's experience and approach."></textarea>
+                  </label>
+                  <div class="adm-row">
+                    <label class="adm-field"><span>Phone</span><input type="text" id="tmPhone" class="form-control" placeholder="+91 8825183628" /></label>
+                    <label class="adm-field"><span>Email</span><input type="email" id="tmEmail" class="form-control" placeholder="gahonsh@gmail.com" /></label>
+                  </div>
+                  <label class="adm-field">
+                    <span>Address</span>
+                    <input type="text" id="tmAddress" class="form-control" placeholder="Upar Balalong, Arki, Khunti, Jharkhand – 835225" />
+                  </label>
+                  <div class="adm-form-actions">
+                    <button type="submit" class="btn-primary" id="tmSave">Save member</button>
+                    <button type="button" class="btn-ghost" id="tmReset">Clear form</button>
+                  </div>
+                </form>
+
+                <!-- Roster -->
+                <div class="adm-list card">
+                  <div class="adm-list-head">
+                    <h3>Team roster</h3>
+                    <div class="adm-list-tools">
+                      <button class="btn-ghost btn-sm" id="tmExport" title="Copy the roster as JSON">📋 Export JSON</button>
+                      <button class="btn-ghost btn-sm" id="tmResetAll" title="Restore the default roster">↺ Reset roster</button>
+                    </div>
+                  </div>
+                  <p class="adm-empty" id="tmEmpty">No team members yet. Use the form to add the first one.</p>
+                  <ul class="adm-items" id="tmItems"></ul>
+                </div>
+              </div>
+
+              <div class="adm-export-box" id="tmExportBox" hidden>
+                <p>Copied! Paste this JSON into a developer issue or save it. To make the roster permanent for all visitors, the site owner can add it to <code>js/team.js</code>.</p>
+                <textarea class="form-control" id="tmExportText" rows="8" readonly></textarea>
+              </div>
+            </section>
+
             <!-- TAB 1: Painter profile editor -->
-            <section class="adm-tabpane" id="paneProfile" role="tabpanel">
-              <p class="adm-sub">Edit the painter's profile shown on the <a href="./painter-profile.html">Painter Profile</a> page — add the painter's real photo and all details.</p>
+            <section class="adm-tabpane" id="paneProfile" role="tabpanel" hidden>
+              <p class="adm-sub">Edit the <strong>Owner/Head's</strong> profile shown on the <a href="./painter-profile.html">Painter Profile</a> page — add the real photo and details. To edit another member, open them from the <a href="./team.html">team page</a>.</p>
               <form class="adm-form card" id="profileForm" novalidate>
                 <h3>🧑‍🎨 Painter profile details</h3>
                 <label class="adm-field">
@@ -227,6 +299,7 @@
             <h4>Resources</h4>
             <ul>
               <li><a href="./portfolio.html">Portfolio</a></li>
+              <li><a href="./team.html">Our Team</a></li>
               <li><a href="./painter-profile.html">Painter Profile</a></li>
               <li><a href="./admin.html">Admin</a></li>
               <li><a href="./contact.html">Free Quote</a></li>
@@ -250,6 +323,7 @@
     </footer>
 
     <a href="https://wa.me/918825183628" class="whatsapp-float" target="_blank" rel="noreferrer">💬 WhatsApp</a>
+    <script src="./js/team.js"></script>
     <script src="./js/script.js"></script>
   </body>
 </html>

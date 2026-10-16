@@ -1,4 +1,4 @@
-const CACHE_NAME = 'painter-plus-v6';
+const CACHE_NAME = 'painter-plus-v9';
 const BASE_PATH = self.location.pathname.replace(/\/[^/]*$/, '/');
 const ASSETS = [
   `${BASE_PATH}`,
@@ -11,15 +11,20 @@ const ASSETS = [
   `${BASE_PATH}terms.html`,
   `${BASE_PATH}offline.html`,
   `${BASE_PATH}color-studio.html`,
+  `${BASE_PATH}team.html`,
   `${BASE_PATH}painter-profile.html`,
   `${BASE_PATH}admin.html`,
   `${BASE_PATH}css/style.css`,
   `${BASE_PATH}js/script.js`,
   `${BASE_PATH}js/color-studio.js`,
+  `${BASE_PATH}js/team.js`,
+  `${BASE_PATH}js/team-page.js`,
+  `${BASE_PATH}js/profile-page.js`,
   `${BASE_PATH}manifest.json`,
   `${BASE_PATH}images/og-image.svg`,
   `${BASE_PATH}images/icon-192.png`,
-  `${BASE_PATH}images/icon-512.png`
+  `${BASE_PATH}images/icon-512.png`,
+  `${BASE_PATH}images/icon-maskable-512.png`
 ];
 
 self.addEventListener('install', (event) => {

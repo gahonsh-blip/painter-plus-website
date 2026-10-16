@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Painter Profile | Painter Plus</title>
-    <meta name="description" content="Meet the painter behind Painter Plus — experience, specialisations, and the craft behind every finish." />
+    <title>Team Member Profile | Painter Plus</title>
+    <meta name="description" content="Meet a member of the Painter Plus crew — their role, experience, specialisations, and the craft behind every finish." />
     <meta name="theme-color" content="#2563EB" />
-    <meta property="og:title" content="Painter Profile | Painter Plus" />
-    <meta property="og:description" content="Meet the painter behind Painter Plus — experience, specialisations, and the craft behind every finish." />
+    <meta property="og:title" content="Team Member Profile | Painter Plus" />
+    <meta property="og:description" content="Meet a member of the Painter Plus crew — their role, experience, specialisations, and the craft behind every finish." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://gahonsh-blip.github.io/painter-plus-website/painter-profile.html" />
     <meta property="og:image" content="https://gahonsh-blip.github.io/painter-plus-website/images/og-image.svg" />
-    <meta property="og:image:alt" content="Painter Plus painter profile page" />
+    <meta property="og:image:alt" content="Painter Plus team member profile page" />
     <meta property="og:site_name" content="Painter Plus" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="canonical" href="https://gahonsh-blip.github.io/painter-plus-website/painter-profile.html" />
@@ -30,7 +30,7 @@
           <a href="./services.html">Services</a>
           <a href="./portfolio.html">Portfolio</a>
           <a href="./color-studio.html">Color Studio</a>
-          <a href="./painter-profile.html">Painter</a>
+          <a href="./team.html">Team</a>
           <a href="./contact.html">Contact</a>
           <a href="./admin.html">Admin</a>
           <button class="theme-toggle" id="theme-toggle" type="button">🌙 Dark</button>
@@ -65,13 +65,17 @@
             </svg>
           </div>
           <div class="pp-intro reveal-right">
-            <span class="pp-eyebrow" id="ppRole">Lead Painter &amp; Founder</span>
-            <h1 class="pp-name" id="ppName">Painter Plus</h1>
+            <div class="pp-badges">
+              <span class="pp-eyebrow" id="ppRole">Head &amp; Founder — Painter Plus</span>
+              <span id="ppRoleBadge"></span>
+            </div>
+            <h1 class="pp-name" id="ppName">Gahonsh</h1>
             <p class="pp-tagline" id="ppTagline">Master painter crafting premium finishes across Jharkhand since 2015.</p>
             <p class="pp-bio" id="ppBio">A hands-on painting specialist with a decade of on-site experience. From precise surface preparation to the final flawless coat, every project is treated as a signature piece. The belief is simple: great paint is 70% preparation and 100% care.</p>
             <div class="pp-cta">
               <a href="./contact.html" class="btn-primary">Get a Free Quote →</a>
               <a href="https://wa.me/918825183628" class="btn-ghost" target="_blank" rel="noreferrer">💬 WhatsApp</a>
+              <a href="./team.html" class="btn-ghost">👥 All team</a>
             </div>
           </div>
         </div>
@@ -86,6 +90,30 @@
             <div class="stat reveal"><span class="stat-num">5-yr</span><span class="stat-label">Warranty</span></div>
             <div class="stat reveal"><span class="stat-num">100%</span><span class="stat-label">Free inspection</span></div>
           </div>
+        </div>
+      </section>
+
+      <!-- Role management — rendered for the Head only -->
+      <section class="section" id="ppRoleSection" hidden>
+        <div class="container">
+          <div class="card pp-role-card">
+            <h2 class="pp-role-heading">👑 Owner / Head controls — change this member's role</h2>
+            <p class="pp-role-note">As Owner or Head you can set what this member does: <strong>Painter</strong>, <strong>Helper</strong>, <strong>Supervisor</strong>, <strong>Head</strong> or <strong>Owner</strong>. The change shows here and on the team page immediately.</p>
+            <div class="pp-role-grid" id="ppRoleOptions"></div>
+            <div class="pp-role-actions">
+              <button type="button" class="btn-primary" id="ppRoleSave">💾 Save role</button>
+              <a class="btn-ghost" href="./admin.html">🔑 Open admin</a>
+              <button type="button" class="btn-ghost adm-danger" id="ppRoleRemove">🗑 Remove member</button>
+            </div>
+            <p class="pp-role-status" id="ppRoleStatus" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Discreet hint for everyone else — no role controls are shown -->
+      <section class="section pp-lock-section" id="ppRoleLocked" hidden>
+        <div class="container">
+          <p class="pp-lock-note">🔒 <strong>Team roles</strong> — only the Owner or Head can change roles. <a href="./admin.html">Owner/Head login</a></p>
         </div>
       </section>
 
@@ -184,10 +212,10 @@
             <h4>Resources</h4>
             <ul>
               <li><a href="./portfolio.html">Portfolio</a></li>
+              <li><a href="./team.html">Our Team</a></li>
               <li><a href="./painter-profile.html">Painter Profile</a></li>
               <li><a href="./admin.html">Admin</a></li>
               <li><a href="./contact.html">Free Quote</a></li>
-              <li><a href="./about.html">Our Story</a></li>
             </ul>
           </div>
           <div class="footer-col">
@@ -207,6 +235,8 @@
     </footer>
 
     <a href="https://wa.me/918825183628" class="whatsapp-float" target="_blank" rel="noreferrer">💬 WhatsApp</a>
+    <script src="./js/team.js"></script>
+    <script src="./js/profile-page.js" defer></script>
     <script src="./js/script.js"></script>
   </body>
 </html>
