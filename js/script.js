@@ -4,17 +4,28 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
+    // localStorage/sessionStorage can throw in private mode or when storage is
+    // blocked. Every access goes through these helpers so one failure can never
+    // abort the whole DOMContentLoaded handler.
+    const store = {
+        get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+        set(k, v) { try { localStorage.setItem(k, v); } catch { /* blocked */ } },
+        del(k) { try { localStorage.removeItem(k); } catch { /* blocked */ } }
+    };
+
     // ----- THEME TOGGLE (Dark/Light) -----
     const toggle = document.getElementById('theme-toggle');
     if (toggle) {
         const html = document.documentElement;
-        const current = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        let prefersDark = false;
+        try { prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch { /* unsupported */ }
+        const current = store.get('theme') || (prefersDark ? 'dark' : 'light');
         html.setAttribute('data-theme', current);
         toggle.innerHTML = current === 'dark' ? '☀️ Light' : '🌙 Dark';
         toggle.addEventListener('click', () => {
             const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             html.setAttribute('data-theme', next);
-            localStorage.setItem('theme', next);
+            store.set('theme', next);
             toggle.innerHTML = next === 'dark' ? '☀️ Light' : '🌙 Dark';
         });
     }
@@ -115,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Projects added via admin.html are stored locally and shown here so
     // the painter can preview additions instantly. (Static site, no backend.)
     const PP_KEY = 'painterPlusProjects';
-    function ppRead() { try { return JSON.parse(localStorage.getItem(PP_KEY)) || []; } catch { return []; } }
+    function ppRead() { try { return JSON.parse(store.get(PP_KEY)) || []; } catch { return []; } }
     const pfGridMerge = document.getElementById('pfGrid');
     if (pfGridMerge) {
         const added = ppRead();
@@ -341,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tmResetAll = document.getElementById('tmResetAll');
         if (tmResetAll) tmResetAll.addEventListener('click', () => {
             if (!confirm('Restore the default roster? All team changes in this browser will be cleared.')) return;
-            localStorage.removeItem(Team.STORE_KEY);
+            store.del(Team.STORE_KEY);
             Team.list(); // re-seeds the defaults and notifies listeners
             resetMemberForm(); renderTeamList(); initProfileEditor();
         });
@@ -441,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const list = ppRead();
             const idx = list.findIndex(x => x.id === project.id);
             if (idx >= 0) { list[idx] = project; } else { list.push(project); }
-            localStorage.setItem(PP_KEY, JSON.stringify(list));
+            store.set(PP_KEY, JSON.stringify(list));
             resetForm();
             renderList();
         });
@@ -461,7 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('admClearAll').addEventListener('click', () => {
             if (ppRead().length === 0) return;
             if (confirm('Delete ALL saved projects? This cannot be undone.')) {
-                localStorage.removeItem(PP_KEY);
+                store.del(PP_KEY);
                 renderList(); resetForm();
             }
         });
@@ -515,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
         function delProject(id) {
             if (!confirm('Delete this project?')) return;
             const list = ppRead().filter(x => x.id !== id);
-            localStorage.setItem(PP_KEY, JSON.stringify(list));
+            store.set(PP_KEY, JSON.stringify(list));
             if (get('admId').value === id) resetForm();
             renderList();
         }
