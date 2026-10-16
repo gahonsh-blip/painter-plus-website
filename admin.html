@@ -7,16 +7,23 @@
     <meta name="description" content="Painter Plus admin — manage the team, roles and portfolio projects." />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#2563EB" />
+    <meta property="og:title" content="Admin | Painter Plus" />
+    <meta property="og:description" content="Painter Plus admin — manage the team, roles and portfolio projects." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://gahonsh-blip.github.io/painter-plus-website/admin.html" />
+    <meta property="og:image" content="https://gahonsh-blip.github.io/painter-plus-website/images/og-image.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="canonical" href="https://gahonsh-blip.github.io/painter-plus-website/admin.html" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E" />
     <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="./images/icon-192.png" />
     <link rel="stylesheet" href="./css/style.css" />
   </head>
   <body>
     <header>
       <div class="container flex-header">
         <a href="./index.html" class="logo">🎨 <span>Painter Plus</span></a>
-        <button class="mobile-toggle" aria-label="Toggle navigation">☰</button>
+        <button class="mobile-toggle" type="button" aria-label="Toggle navigation">☰</button>
         <nav class="nav-links">
           <a href="./index.html">Home</a>
           <a href="./about.html">About</a>
@@ -34,7 +41,7 @@
     <main>
       <section class="section">
         <div class="container">
-          <h2 class="section-title">Project <span>Admin</span></h2>
+          <h1 class="section-title">Project <span>Admin</span></h1>
           <p class="adm-sub">Manage the team and roles, add portfolio projects, and edit the Owner/Head's profile. Everything here is saved in this browser — export the JSON to make changes permanent.</p>
 
           <!-- Lightweight passcode gate (client-side only, not real security) -->
@@ -44,7 +51,7 @@
               <p class="adm-gate-note">Enter the Owner/Head passcode to manage the team and roles. This is a simple client-side gate to keep casual visitors out — it is <strong>not</strong> real security. Default passcode: <code>painter123</code> (change it in <code>js/team.js</code>).</p>
               <div class="adm-gate-form">
                 <input type="password" id="admPass" class="form-control" placeholder="Passcode" autocomplete="current-password" />
-                <button class="btn-primary" id="admUnlock">Unlock →</button>
+                <button type="button" class="btn-primary" id="admUnlock">Unlock →</button>
               </div>
               <p class="adm-gate-error" id="admGateErr" hidden>Wrong passcode. Try again.</p>
             </div>
@@ -54,9 +61,9 @@
           <div class="adm-panel" id="admPanel" hidden>
             <!-- Tabs: Team & Roles / Painter Profile / Portfolio Projects -->
             <div class="adm-tabs" role="tablist">
-              <button class="adm-tab active" id="tabTeam" role="tab" aria-selected="true">👥 Team &amp; Roles</button>
-              <button class="adm-tab" id="tabProfile" role="tab" aria-selected="false">🧑‍🎨 Painter Profile</button>
-              <button class="adm-tab" id="tabProjects" role="tab" aria-selected="false">🖼️ Portfolio Projects</button>
+              <button type="button" class="adm-tab active" id="tabTeam" role="tab" aria-selected="true">👥 Team &amp; Roles</button>
+              <button type="button" class="adm-tab" id="tabProfile" role="tab" aria-selected="false">🧑‍🎨 Painter Profile</button>
+              <button type="button" class="adm-tab" id="tabProjects" role="tab" aria-selected="false">🖼️ Portfolio Projects</button>
             </div>
 
             <!-- TAB 0: Team & roles manager -->
@@ -115,8 +122,8 @@
                   <div class="adm-list-head">
                     <h3>Team roster</h3>
                     <div class="adm-list-tools">
-                      <button class="btn-ghost btn-sm" id="tmExport" title="Copy the roster as JSON">📋 Export JSON</button>
-                      <button class="btn-ghost btn-sm" id="tmResetAll" title="Restore the default roster">↺ Reset roster</button>
+                      <button type="button" class="btn-ghost btn-sm" id="tmExport" title="Copy the roster as JSON">📋 Export JSON</button>
+                      <button type="button" class="btn-ghost btn-sm" id="tmResetAll" title="Restore the default roster">↺ Reset roster</button>
                     </div>
                   </div>
                   <p class="adm-empty" id="tmEmpty">No team members yet. Use the form to add the first one.</p>
@@ -255,8 +262,8 @@
                 <div class="adm-list-head">
                   <h3>Saved projects</h3>
                   <div class="adm-list-tools">
-                    <button class="btn-ghost btn-sm" id="admExport" title="Copy all projects as JSON">📋 Export JSON</button>
-                    <button class="btn-ghost btn-sm adm-danger" id="admClearAll" title="Delete all saved projects">🗑 Clear all</button>
+                    <button type="button" class="btn-ghost btn-sm" id="admExport" title="Copy all projects as JSON">📋 Export JSON</button>
+                    <button type="button" class="btn-ghost btn-sm adm-danger" id="admClearAll" title="Delete all saved projects">🗑 Clear all</button>
                   </div>
                 </div>
                 <p class="adm-empty" id="admEmpty">No projects added yet. Use the form to add your first project.</p>

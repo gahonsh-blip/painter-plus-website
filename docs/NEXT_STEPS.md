@@ -78,7 +78,7 @@ node --check js/script.js
 
 ---
 
-## 4. Key decisions (resolved)## 4. Key decisions to make (ask the owner)
+## 4. Key decisions (resolved)
 
 Before resolving conflicts, confirm:
 
