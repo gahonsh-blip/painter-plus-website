@@ -195,6 +195,15 @@
   const coverageInput = document.getElementById("coverage");
   const coverageVal = document.getElementById("coverageVal");
   const quoteLink = document.getElementById("quoteScheme");
+  // Area estimator widgets.
+  const areaWEl = document.getElementById("areaW");
+  const areaHEl = document.getElementById("areaH");
+  const areaSurfaceNameEl = document.getElementById("areaSurfaceName");
+  const areaSurfaceSqftEl = document.getElementById("areaSurfaceSqft");
+  const areaListEl = document.getElementById("areaList");
+  const areaTotalEl = document.getElementById("areaTotal");
+  const areaCoatsEl = document.getElementById("areaCoats");
+  const paintEstimateEl = document.getElementById("paintEstimate");
 
   // --- State ---
   // colours[scene][surface] = chosen hex (the "after")
@@ -319,6 +328,8 @@
     customHex.textContent = cur.toUpperCase();
     markActiveSwatch(null);
     updateHarmony();
+    syncAreaInputs();
+    renderArea();
   }
 
   // --- Scene switching ---
@@ -420,6 +431,135 @@
     paintStage();
   }
 
+  // --- Area & square feet estimator ---
+  // The stage art is proportional, not to scale, so the client types the real
+  // length x height of each surface and we sum the paint area live. Every
+  // surface reports its own square feet; the total is shown separately.
+  const DEFAULT_SIZES = {
+    back: [12, 10], left: [10, 10], right: [10, 10], ceiling: [12, 10],
+    floor: [12, 10], accent: [4, 3], cabinet: [8, 3], cab: [8, 3],
+    tile: [8, 7], sky: [0, 0], main: [20, 12], roof: [20, 6],
+    ground: [0, 0], trim: [6, 8], door: [3, 7]
+  };
+  // Surfaces that wall paint is not normally applied to — left out of the paint
+  // total by default, but the client can switch any of them back on.
+  const NOT_PAINTED = ["floor", "sky", "ground"];
+  const SQFT_PER_LITRE_PER_COAT = 130; // ~130 sq ft covered by 1 litre, one coat
+  const WASTAGE = 0.1;                 // +10% for touch-ups and absorption
+
+  const areas = {};
+  Object.keys(DEFAULTS).forEach((s) => {
+    areas[s] = {};
+    Object.keys(DEFAULTS[s]).forEach((k) => {
+      const d = DEFAULT_SIZES[k] || [0, 0];
+      areas[s][k] = { w: d[0], h: d[1], inc: NOT_PAINTED.indexOf(k) === -1 };
+    });
+  });
+
+  function sqft(w, h) {
+    const n = (parseFloat(w) || 0) * (parseFloat(h) || 0);
+    return n > 0 ? n : 0;
+  }
+  function fmt(n) {
+    return (Math.round(n * 10) / 10).toLocaleString("en-IN") + " sq ft";
+  }
+  function areaState() { return areas[scene] || {}; }
+
+  function setArea(w, h) {
+    const st = areaState()[surface];
+    if (!st) return;
+    st.w = Math.max(0, parseFloat(w) || 0);
+    st.h = Math.max(0, parseFloat(h) || 0);
+    syncAreaInputs();
+    renderArea();
+    persist();
+  }
+
+  function syncAreaInputs() {
+    const st = areaState()[surface];
+    if (!st || !areaWEl) return;
+    areaWEl.value = st.w || "";
+    areaHEl.value = st.h || "";
+    if (areaSurfaceNameEl) areaSurfaceNameEl.textContent = SURFACE_LABELS[surface] || surface;
+    if (areaSurfaceSqftEl) areaSurfaceSqftEl.textContent = fmt(sqft(st.w, st.h));
+  }
+
+  function renderArea() {
+    if (!areaListEl || !areaTotalEl) return;
+    const st = areaState();
+    const keys = Object.keys(st);
+    let totalAll = 0;
+    let paintTotal = 0;
+
+    areaListEl.innerHTML = "";
+    keys.forEach((key) => {
+      const a = st[key];
+      const s = sqft(a.w, a.h);
+      totalAll += s;
+      if (a.inc) paintTotal += s;
+
+      const row = document.createElement("label");
+      row.className = "area-row" + (key === surface ? " active" : "");
+
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = a.inc;
+      cb.setAttribute("aria-label", "Include " + (SURFACE_LABELS[key] || key) + " in the paint total");
+      cb.addEventListener("change", () => { a.inc = cb.checked; renderArea(); persist(); });
+
+      const nm = document.createElement("span");
+      nm.className = "area-row-name";
+      nm.textContent = SURFACE_LABELS[key] || key;
+
+      const dim = document.createElement("span");
+      dim.className = "area-row-dim";
+      dim.textContent = (a.w || 0) + " × " + (a.h || 0) + " ft";
+
+      const val = document.createElement("span");
+      val.className = "area-row-val";
+      val.textContent = fmt(s);
+
+      row.appendChild(cb);
+      row.appendChild(nm);
+      row.appendChild(dim);
+      row.appendChild(val);
+      areaListEl.appendChild(row);
+    });
+
+    const coats = parseInt(areaCoatsEl ? areaCoatsEl.value : 2, 10) || 2;
+    const litres = paintTotal > 0
+      ? (paintTotal * coats * (1 + WASTAGE)) / SQFT_PER_LITRE_PER_COAT
+      : 0;
+
+    areaTotalEl.innerHTML = "";
+    const t1 = document.createElement("div");
+    t1.className = "area-total-row";
+    t1.innerHTML = "<span>Total area (all surfaces)</span><strong>" + fmt(totalAll) + "</strong>";
+    const t2 = document.createElement("div");
+    t2.className = "area-total-row";
+    t2.innerHTML = "<span>Paint area (" + coats + " coat" + (coats > 1 ? "s" : "") + ")</span><strong>" + fmt(paintTotal) + "</strong>";
+    areaTotalEl.appendChild(t1);
+    areaTotalEl.appendChild(t2);
+
+    if (paintEstimateEl) {
+      paintEstimateEl.textContent = litres > 0
+        ? "≈ " + (Math.ceil(litres * 2) / 2) + " L of paint"
+        : "Enter sizes to see paint needed";
+    }
+  }
+
+  function resetArea() {
+    const st = areaState();
+    Object.keys(st).forEach((k) => {
+      const d = DEFAULT_SIZES[k] || [0, 0];
+      st[k] = { w: d[0], h: d[1], inc: NOT_PAINTED.indexOf(k) === -1 };
+    });
+    syncAreaInputs();
+    renderArea();
+    persist();
+    flash("Surface sizes reset to typical values.");
+  }
+
   // --- Scheme summary + quote link ---
   function renderSummary() {
     schemeSummaryEl.innerHTML = "";
@@ -446,15 +586,26 @@
   function persist() {
     try {
       localStorage.setItem("pp_studio", JSON.stringify({
-        colours, scene, surface, finish, light
+        colours, scene, surface, finish, light, areas,
+        coats: areaCoatsEl ? parseInt(areaCoatsEl.value, 10) || 2 : 2
       }));
     } catch (e) {}
-    // Carry the scheme into the quote form via URL params.
+    // Carry the scheme and the measured area into the quote form via URL params.
     const params = new URLSearchParams();
     params.set("scene", scene);
     params.set("finish", finish);
     params.set("light", light);
     Object.keys(colours[scene]).forEach((k) => params.set(k, colours[scene][k].replace("#", "")));
+    const coats = areaCoatsEl ? parseInt(areaCoatsEl.value, 10) || 2 : 2;
+    let paintTotal = 0;
+    const st = areaState();
+    Object.keys(st).forEach((k) => { if (st[k].inc) paintTotal += sqft(st[k].w, st[k].h); });
+    if (paintTotal > 0) {
+      params.set("sqft", String(Math.round(paintTotal * 10) / 10));
+      params.set("coats", String(coats));
+      const litres = (paintTotal * coats * (1 + WASTAGE)) / SQFT_PER_LITRE_PER_COAT;
+      params.set("litres", String(Math.ceil(litres * 2) / 2));
+    }
     quoteLink.href = "./contact.html?colors=" + encodeURIComponent(params.toString());
   }
   function loadPersisted() {
@@ -467,6 +618,15 @@
           if (colours[s]) Object.assign(colours[s], d.colours[s]);
         });
       }
+      if (d.areas) {
+        Object.keys(d.areas).forEach((s) => {
+          if (!areas[s]) return;
+          Object.keys(d.areas[s]).forEach((k) => {
+            if (areas[s][k] && d.areas[s][k]) Object.assign(areas[s][k], d.areas[s][k]);
+          });
+        });
+      }
+      if (d.coats && areaCoatsEl) areaCoatsEl.value = String(d.coats);
     } catch (e) {}
   }
 
@@ -474,10 +634,19 @@
   function saveScheme() {
     persist();
     flash("Scheme saved! Use 'Request quote' to send these colours.");
+    const st = areaState();
+    let paintTotal = 0;
+    Object.keys(st).forEach((k) => { if (st[k].inc) paintTotal += sqft(st[k].w, st[k].h); });
+    const coats = areaCoatsEl ? parseInt(areaCoatsEl.value, 10) || 2 : 2;
     const summary = ["Painter Plus colour scheme (" + scene + "):"]
       .concat(Object.keys(colours[scene]).map(
         (k) => (SURFACE_LABELS[k] || k) + ": " + colours[scene][k].toUpperCase()
-      )).join("\n");
+      ))
+      .concat(paintTotal > 0
+        ? ["Paint area: " + fmt(paintTotal) + " (" + coats + " coat" + (coats > 1 ? "s" : "") +
+           ", ≈ " + (Math.ceil(((paintTotal * coats * (1 + WASTAGE)) / SQFT_PER_LITRE_PER_COAT) * 2) / 2) + " L)"]
+        : [])
+      .join("\n");
     if (navigator.clipboard) navigator.clipboard.writeText(summary).catch(() => {});
   }
   function shareScheme() {
@@ -550,6 +719,13 @@
 
     coverageInput.addEventListener("input", (e) => setCoverage(parseInt(e.target.value, 10)));
 
+    // Area estimator: length/height for the selected surface, coats, reset.
+    if (areaWEl) areaWEl.addEventListener("input", () => setArea(areaWEl.value, areaHEl.value));
+    if (areaHEl) areaHEl.addEventListener("input", () => setArea(areaWEl.value, areaHEl.value));
+    if (areaCoatsEl) areaCoatsEl.addEventListener("change", () => { renderArea(); persist(); });
+    const areaResetBtn = document.getElementById("areaReset");
+    if (areaResetBtn) areaResetBtn.addEventListener("click", resetArea);
+
     document.getElementById("saveScheme").addEventListener("click", saveScheme);
     document.getElementById("shareScheme").addEventListener("click", shareScheme);
     document.getElementById("resetScheme").addEventListener("click", resetScheme);
@@ -564,6 +740,8 @@
     setFinish("flatmatte");
     setLight("day");
     finishNote.textContent = FINISH_NOTES.flatmatte;
+    syncAreaInputs();
+    renderArea();
   }
 
   if (document.readyState === "loading") {
