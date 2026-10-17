@@ -33,7 +33,11 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 10. **CSP blocked the contact form — FIXED.** `_headers` had no `form-action`, so the `contact.html` POST to Formspree fell back to `default-src 'self'` and would be blocked. Added `form-action`/`connect-src` for `https://formspree.io`, plus `base-uri` and `frame-ancestors`. Note GitHub Pages ignores `_headers`; it matters on hosts that honour it. See §11.
 
-**Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present.
+11. **Attribute injection via photo URL — FIXED.** The shared `esc()` helper escaped `&`, `<`, `>` but **not** quotes, so a work-log photo URL (`x" onerror="…`) broke out of the `<img src="…">` attribute and injected a live handler. Added `escAttr()` in `js/worklog.js` and quote-escaping to `esc()` in `js/team.js` / `js/script.js`. See §15.
+
+12. **Phantom empty day — FIXED.** Typing then clearing a project on an entry-less date still wrote a day, which showed up in the work-log history as a `0 sq ft` day. `persistDayMeta()` now skips (and removes) such empty shells. See §16.
+
+**Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`).
 
 ## Business details (source of truth)
 
@@ -151,8 +155,12 @@ room, the work log is for the *crew* to record the work actually done.
   `#wlArea`, `#wlW`, `#wlH`, `#wlSqft`, `#wlPhotoFile`/`#wlPhotoUrl`,
   `#wlItems`, `#wlTotals`, `#wlSubmit`, `#wlReopen`, `#wlHistory`.
 - It is `noindex, nofollow` (like `admin.html`) and therefore **not** in
-  `sitemap.xml`. Its public API: `getDay`, `listDays`, `addEntry`, `removeEntry`,
-  `submitDay`, `reopenDay`, `totals`, `breakdown`, `summary`, `sqft`, `fmt`.
+  `sitemap.xml`. Its public API: `getDay`, `listDays`, `saveDay`, `hasDay`,
+  `removeDay`, `addEntry`, `removeEntry`, `submitDay`, `reopenDay`, `totals`,
+  `breakdown`, `summary`, `sqft`, `fmt`.
+- Attribute values (photo `src`, `alt`, `data-id`, option `value`) go through the
+  local `escAttr()` — **not** the text `esc()` — because the shared `esc()` does
+  not escape quotes. Never interpolate a stored value into an attribute with `esc()`.
 
 ## Working rules for agents
 

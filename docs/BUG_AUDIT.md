@@ -30,6 +30,8 @@ the whole file" failure shape.
 | 12 | Low | `color-studio.html` meta description too long | Fixed |
 | 13 | Low | `painter-profile.html` missing from the sitemap | Fixed |
 | 14 | Low | Honeypot input not hidden from assistive tech | Fixed |
+| 15 | **High** | Photo URL could break out of an HTML attribute (injection) | Fixed |
+| 16 | Low | Empty day appeared in the work-log history as a phantom 0 sq ft day | Fixed |
 
 ---
 
@@ -278,6 +280,40 @@ unreachable by keyboard.
 
 ---
 
+## 15. High — photo URL could break out of an HTML attribute (injection)
+
+**Symptom.** The work log renders each entry's photo as
+`<img src="…" alt="…">`. The shared `esc()` helper escapes `&`, `<` and `>` but
+**not** the quote characters — correct for text nodes, unsafe inside a quoted
+attribute. A photo URL such as
+`x" onerror="window.__pwned=1` closed the `src` attribute early and injected a
+live `onerror` handler onto the element. A URL typed into the work log (or a
+member's photo URL on the team/admin pages) could therefore run script when the
+entry was rendered.
+
+**Fix.** Added a dedicated `escAttr()` in `js/worklog.js` that also escapes `"`
+and `'`, and used it for every attribute-context value (photo `src`, `alt`,
+`data-id`, option `value`). The same quote-escaping was added to the shared
+`esc()` in `js/team.js` and `js/script.js`, so the team, profile, admin and
+portfolio lists are covered too. The fix is verified in both directions: the
+injected `onerror` attribute no longer appears, and the raw URL still round-trips
+unchanged through `src`.
+
+---
+
+## 16. Low — empty day showed up in the work-log history
+
+**Symptom.** Typing a project name and then clearing it on a date with no photo
+entries still wrote a day record. It then appeared in *Logged days* as a phantom
+`0 sq ft` day with no photos.
+
+**Fix.** `persistDayMeta()` in `js/worklog.js` now skips the write when the day
+has no entries and no project/crew, and removes the stored day if such a shell
+already exists. A real day (with entries) is never dropped. Added `hasDay()` and
+`removeDay()` to the `PPWorkLog` API to support this.
+
+---
+
 ## Second-pass audit — categories checked and clean
 
 The follow-up pass covered bug *types* the first pass did not:
@@ -337,3 +373,10 @@ The follow-up pass covered bug *types* the first pass did not:
    duplicate-id, HTML-balance, manifest, sitemap and CSP audits.
 8. Every page and every referenced asset requested over HTTP — all return 200.
 9. Browser check: theme toggle flips light↔dark and persists to `localStorage`.
+10. Work-log functional test — 17/17 pass (unlock, live square feet, per-entry
+    square feet, running day total, delete/re-add, breakdown, submit locks the
+    day, reopen, summary).
+11. Work-log bug probes — the attribute-injection payload no longer injects an
+    `onerror`, and browsing dates / clearing a project leaves no phantom day.
+12. Site-wide re-run after the `esc()` hardening — 13/13 pages clean and no page
+    double-escapes visible text.

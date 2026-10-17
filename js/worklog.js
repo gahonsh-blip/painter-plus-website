@@ -50,6 +50,19 @@
   function sqft(w, h) { return num(w) * num(h); }
   function fmt(n) { return (Math.round((n || 0) * 10) / 10).toLocaleString('en-IN') + ' sq ft'; }
 
+  // HTML-attribute escaper. team.js's esc() escapes &, < and > but NOT
+  // quotes, which is correct for text nodes yet lets a value break out of a
+  // quoted attribute. Photo URLs, labels and ids are interpolated into
+  // attributes below, so escape the quote characters too.
+  function escAttr(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   function pad(n) { return String(n).padStart(2, '0'); }
   function todayKey(d) {
     const t = d || new Date();
@@ -88,6 +101,18 @@
     writeAll(days);
     emit();
     return day;
+  }
+  function hasDay(date) {
+    const days = readAll();
+    return Object.prototype.hasOwnProperty.call(days, date);
+  }
+  function removeDay(date) {
+    const days = readAll();
+    if (!Object.prototype.hasOwnProperty.call(days, date)) return { ok: false };
+    delete days[date];
+    writeAll(days);
+    emit();
+    return { ok: true };
   }
 
   function totals(day) {
@@ -177,7 +202,7 @@
 
   window.PPWorkLog = {
     STORE_KEY, AREAS, areaLabel, fmt, sqft, num, todayKey,
-    getDay, listDays, saveDay, addEntry, removeEntry,
+    getDay, listDays, saveDay, hasDay, removeDay, addEntry, removeEntry,
     submitDay, reopenDay, totals, breakdown, summary
   };
 
@@ -227,11 +252,11 @@
     let photoData = '';
 
     // ----- area options + crew options -----
-    if (areaEl) areaEl.innerHTML = AREAS.map(a => '<option value="' + a.id + '">' + esc(a.label) + '</option>').join('');
+    if (areaEl) areaEl.innerHTML = AREAS.map(a => '<option value="' + escAttr(a.id) + '">' + esc(a.label) + '</option>').join('');
     function fillCrew() {
       if (!crewEl) return;
       const opts = ['<option value="">— select crew —</option>'];
-      if (T) T.list().forEach(m => opts.push('<option value="' + esc(m.id) + '">' + esc(m.name) + ' · ' + esc(T.roleOf(m.role).label) + '</option>'));
+      if (T) T.list().forEach(m => opts.push('<option value="' + escAttr(m.id) + '">' + esc(m.name) + ' · ' + esc(T.roleOf(m.role).label) + '</option>'));
       crewEl.innerHTML = opts.join('');
     }
 
@@ -368,10 +393,19 @@
     if (projectEl) projectEl.addEventListener('change', persistDayMeta);
     if (crewEl) crewEl.addEventListener('change', persistDayMeta);
     function persistDayMeta() {
-      const day = PPWorkLog.getDay(currentDate());
+      const date = currentDate();
+      const day = PPWorkLog.getDay(date);
       if (day.status === 'submitted') return;
       day.project = projectEl ? projectEl.value : '';
       day.crew = crewEl ? crewEl.value : '';
+      // Don't create a stored day for an empty shell — a date with no photo
+      // entry and no project/crew would otherwise show up in the history as a
+      // phantom 0 sq ft day. Only drop it if a real day already exists.
+      if (!day.entries.length && !day.project && !day.crew) {
+        if (PPWorkLog.hasDay(date)) PPWorkLog.removeDay(date);
+        render();
+        return;
+      }
       PPWorkLog.saveDay(day);
       render();
     }
@@ -395,7 +429,7 @@
         const li = document.createElement('li');
         li.className = 'wl-item';
         const thumb = e.photo
-          ? '<img class="wl-thumb" loading="lazy" src="' + esc(e.photo) + '" alt="' + esc(e.label) + ' work photo" />'
+          ? '<img class="wl-thumb" loading="lazy" src="' + escAttr(e.photo) + '" alt="' + escAttr(e.label) + ' work photo" />'
           : '<span class="wl-thumb wl-thumb-empty" aria-hidden="true">📷</span>';
         li.innerHTML =
           thumb +
@@ -407,8 +441,8 @@
           '<div class="wl-item-val">' + esc(PPWorkLog.fmt(e.sqft || PPWorkLog.sqft(e.w, e.h))) + '</div>' +
           (locked ? '' :
             '<div class="wl-item-actions">' +
-              '<button type="button" class="edit" data-id="' + esc(e.id) + '">✏️</button>' +
-              '<button type="button" class="del" data-id="' + esc(e.id) + '">🗑</button>' +
+              '<button type="button" class="edit" data-id="' + escAttr(e.id) + '">✏️</button>' +
+              '<button type="button" class="del" data-id="' + escAttr(e.id) + '">🗑</button>' +
             '</div>');
         itemsEl.appendChild(li);
       });

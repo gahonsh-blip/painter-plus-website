@@ -109,10 +109,13 @@
     ];
   }
 
+  // Escapes text AND the quote characters, so it is safe in both text nodes
+  // and quoted HTML attributes (names, ids and photo URLs are interpolated
+  // into attributes on the team, profile and admin pages).
   function esc(s) {
     const d = document.createElement('div');
     d.textContent = s == null ? '' : String(s);
-    return d.innerHTML;
+    return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function read() {

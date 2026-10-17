@@ -542,7 +542,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Team.isActingHead()) { openPanel(); }
     }
 
-    function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+    // Escapes text AND the quote characters so it is safe in quoted HTML
+    // attributes too (member/project ids, names and photo URLs are
+    // interpolated into attributes in the admin lists below).
+    function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     function capital(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
 
     // ----- LINE-ART PAINTER MASCOT (on every page) -----
