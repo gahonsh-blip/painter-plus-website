@@ -1226,6 +1226,27 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 .scene[data-light="night"] .prop-window .sun,
 .scene[data-light="night"] .prop-sun { opacity: 0.2; }
 
+/* On-photo readout (HUD) — selected surface size + square feet, over the picture */
+.stage-hud {
+  position: absolute;
+  right: 14px; top: 14px;
+  z-index: 6;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(17, 24, 39, 0.72);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  font-size: 0.82rem;
+  max-width: 62%;
+}
+.stage-hud-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.stage-hud-name { font-weight: 700; }
+.stage-hud-dim { font-family: monospace; color: rgba(255,255,255,0.75); }
+.stage-hud-sqft { font-family: monospace; font-size: 1.05rem; }
+.stage-hud-total { font-family: monospace; font-size: 0.78rem; color: rgba(255,255,255,0.8); text-align: right; }
+
 /* Coverage slider */
 .coverage {
   display: flex; align-items: center; gap: 12px;

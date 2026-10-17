@@ -204,6 +204,11 @@
   const areaTotalEl = document.getElementById("areaTotal");
   const areaCoatsEl = document.getElementById("areaCoats");
   const paintEstimateEl = document.getElementById("paintEstimate");
+  // On-photo readout widgets.
+  const hudSurfaceNameEl = document.getElementById("hudSurfaceName");
+  const hudSurfaceDimEl = document.getElementById("hudSurfaceDim");
+  const hudSurfaceSqftEl = document.getElementById("hudSurfaceSqft");
+  const hudTotalEl = document.getElementById("hudTotal");
 
   // --- State ---
   // colours[scene][surface] = chosen hex (the "after")
@@ -482,21 +487,45 @@
     areaHEl.value = st.h || "";
     if (areaSurfaceNameEl) areaSurfaceNameEl.textContent = SURFACE_LABELS[surface] || surface;
     if (areaSurfaceSqftEl) areaSurfaceSqftEl.textContent = fmt(sqft(st.w, st.h));
+    updateHud();
+  }
+
+  // Sum the current scene's surfaces: everything, and only the painted ones.
+  function areaTotals() {
+    const st = areaState();
+    let totalAll = 0;
+    let paintTotal = 0;
+    Object.keys(st).forEach((key) => {
+      const s = sqft(st[key].w, st[key].h);
+      totalAll += s;
+      if (st[key].inc) paintTotal += s;
+    });
+    const coats = parseInt(areaCoatsEl ? areaCoatsEl.value : 2, 10) || 2;
+    return { totalAll, paintTotal, coats };
+  }
+
+  // Mirror the selected surface's size and the scene totals onto the picture.
+  function updateHud() {
+    if (!hudSurfaceSqftEl) return;
+    const st = areaState()[surface];
+    if (hudSurfaceNameEl) hudSurfaceNameEl.textContent = SURFACE_LABELS[surface] || surface;
+    if (hudSurfaceDimEl) hudSurfaceDimEl.textContent = (st ? st.w || 0 : 0) + " × " + (st ? st.h || 0 : 0) + " ft";
+    hudSurfaceSqftEl.textContent = fmt(st ? sqft(st.w, st.h) : 0);
+    if (hudTotalEl) {
+      const t = areaTotals();
+      hudTotalEl.textContent = "Total " + fmt(t.totalAll) + " · Paint " + fmt(t.paintTotal);
+    }
   }
 
   function renderArea() {
     if (!areaListEl || !areaTotalEl) return;
     const st = areaState();
     const keys = Object.keys(st);
-    let totalAll = 0;
-    let paintTotal = 0;
 
     areaListEl.innerHTML = "";
     keys.forEach((key) => {
       const a = st[key];
       const s = sqft(a.w, a.h);
-      totalAll += s;
-      if (a.inc) paintTotal += s;
 
       const row = document.createElement("label");
       row.className = "area-row" + (key === surface ? " active" : "");
@@ -526,7 +555,7 @@
       areaListEl.appendChild(row);
     });
 
-    const coats = parseInt(areaCoatsEl ? areaCoatsEl.value : 2, 10) || 2;
+    const { totalAll, paintTotal, coats } = areaTotals();
     const litres = paintTotal > 0
       ? (paintTotal * coats * (1 + WASTAGE)) / SQFT_PER_LITRE_PER_COAT
       : 0;
@@ -546,6 +575,8 @@
         ? "≈ " + (Math.ceil(litres * 2) / 2) + " L of paint"
         : "Enter sizes to see paint needed";
     }
+
+    updateHud();
   }
 
   function resetArea() {

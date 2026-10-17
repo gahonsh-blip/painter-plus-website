@@ -108,6 +108,11 @@ surface**.
 - Selecting a surface (tab or click in the picture) loads its stored
   **length × height** into `#areaW` / `#areaH` and shows its **square feet**
   (`#areaSurfaceSqft`).
+- The selected surface's size and square feet, plus the scene totals, also
+  appear on the picture itself in the stage HUD (`#stageHud`, `#hudSurfaceName`,
+  `#hudSurfaceDim`, `#hudSurfaceSqft`, `#hudTotal`), so the figure is visible
+  where the client clicks. `updateHud()` mirrors the panel and is called from
+  `syncAreaInputs()` and `renderArea()`.
 - `#areaList` lists every surface of the current scene with its dimensions,
   its square feet, and a checkbox to include/exclude it from the paint total.
   Floors, sky and ground are excluded by default (`NOT_PAINTED`).
