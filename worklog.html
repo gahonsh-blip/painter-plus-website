@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Daily Work Log | Painter Plus</title>
+    <meta name="description" content="Painter Plus daily work log — add each work photo, measure the area in square feet, and submit the day's total." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#2563EB" />
+    <meta property="og:title" content="Daily Work Log | Painter Plus" />
+    <meta property="og:description" content="Record each work photo with its square feet, see the day's total, and submit." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://gahonsh-blip.github.io/painter-plus-website/worklog.html" />
+    <meta property="og:image" content="https://gahonsh-blip.github.io/painter-plus-website/images/og-image.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://gahonsh-blip.github.io/painter-plus-website/worklog.html" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="./images/icon-192.png" />
+    <link rel="stylesheet" href="./css/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="container flex-header">
+        <a href="./index.html" class="logo">🎨 <span>Painter Plus</span></a>
+        <button class="mobile-toggle" type="button" aria-label="Toggle navigation">☰</button>
+        <nav class="nav-links">
+          <a href="./index.html">Home</a>
+          <a href="./about.html">About</a>
+          <a href="./services.html">Services</a>
+          <a href="./portfolio.html">Portfolio</a>
+          <a href="./color-studio.html">Color Studio</a>
+          <a href="./team.html">Team</a>
+          <a href="./contact.html">Contact</a>
+          <a href="./worklog.html">Work Log</a>
+          <a href="./admin.html">Admin</a>
+          <button class="theme-toggle" id="theme-toggle" type="button">🌙 Dark</button>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="section">
+        <div class="container" id="wlApp">
+          <h1 class="section-title">Daily <span>work log</span></h1>
+          <p class="adm-sub">Add each work photo, pick the area you painted, and type its length × height. Every photo's square feet is saved and added into one running total for the day — then close the day with a <strong>Final submit</strong>.</p>
+
+          <!-- Lightweight passcode gate (client-side only, not real security) -->
+          <div class="adm-gate" id="wlGate">
+            <div class="adm-gate-card">
+              <h3>🔒 Crew login</h3>
+              <p class="adm-gate-note">Enter the Owner/Head passcode to log the day's work. This is a simple client-side gate to keep casual visitors out — it is <strong>not</strong> real security. Default passcode: <code>painter123</code> (change it in <code>js/team.js</code>).</p>
+              <div class="adm-gate-form">
+                <input type="password" id="wlPass" class="form-control" placeholder="Passcode" autocomplete="current-password" />
+                <button type="button" class="btn-primary" id="wlUnlock">Unlock →</button>
+              </div>
+              <p class="adm-gate-error" id="wlGateErr" hidden>Wrong passcode. Try again.</p>
+            </div>
+          </div>
+
+          <!-- Work log panel (shown after unlock) -->
+          <div class="adm-panel" id="wlPanel" hidden>
+            <!-- Day bar -->
+            <div class="wl-daybar card">
+              <label class="wl-field">
+                <span>Date</span>
+                <input type="date" id="wlDate" class="form-control" />
+              </label>
+              <label class="wl-field">
+                <span>Project / site</span>
+                <input type="text" id="wlProject" class="form-control" placeholder="e.g. Sharma House, Ranchi" />
+              </label>
+              <label class="wl-field">
+                <span>Logged by</span>
+                <select id="wlCrew" class="form-control"></select>
+              </label>
+              <span class="wl-status wl-status-open" id="wlStatus">🟢 Open</span>
+            </div>
+
+            <div class="wl-grid">
+              <!-- Left: add a photo entry -->
+              <form class="adm-form card" id="wlForm" novalidate onsubmit="return false;">
+                <h3 id="wlFormTitle">📷 Add a photo entry</h3>
+
+                <label class="adm-field">
+                  <span>Work photo</span>
+                  <input type="file" id="wlPhotoFile" class="form-control" accept="image/*" />
+                  <small>Take or choose a photo of the finished surface.</small>
+                </label>
+                <label class="adm-field">
+                  <span>…or paste a photo URL</span>
+                  <input type="url" id="wlPhotoUrl" class="form-control" placeholder="https://…/photo.jpg" />
+                </label>
+                <div class="adm-preview wl-preview" id="wlPhotoPreview" hidden><img id="wlPhotoPreviewImg" alt="Work photo preview" /></div>
+
+                <label class="adm-field">
+                  <span>Area painted *</span>
+                  <select id="wlArea" class="form-control"></select>
+                </label>
+                <div class="adm-row">
+                  <label class="adm-field">
+                    <span>Length (ft) *</span>
+                    <input type="number" id="wlW" class="form-control" min="0" step="0.5" inputmode="decimal" placeholder="e.g. 12" />
+                  </label>
+                  <label class="adm-field">
+                    <span>Height (ft) *</span>
+                    <input type="number" id="wlH" class="form-control" min="0" step="0.5" inputmode="decimal" placeholder="e.g. 10" />
+                  </label>
+                  <label class="adm-field">
+                    <span>Square feet</span>
+                    <input type="text" id="wlSqft" class="form-control" value="0 sq ft" readonly aria-live="polite" />
+                  </label>
+                </div>
+                <label class="adm-field">
+                  <span>Note (optional)</span>
+                  <input type="text" id="wlNote" class="form-control" placeholder="e.g. first coat done" />
+                </label>
+
+                <div class="adm-form-actions">
+                  <button type="button" class="btn-primary" id="wlAdd">💾 Save photo area</button>
+                  <button type="button" class="btn-ghost" id="wlCancelEdit" hidden>Cancel edit</button>
+                </div>
+                <p class="wl-hint" id="wlHint" aria-live="polite"></p>
+              </form>
+
+              <!-- Right: day's entries + running total -->
+              <div class="adm-list card">
+                <div class="adm-list-head">
+                  <h3>Today's photos</h3>
+                  <div class="adm-list-tools">
+                    <button type="button" class="btn-ghost btn-sm" id="wlExport" title="Copy the day summary">📋 Copy summary</button>
+                  </div>
+                </div>
+                <p class="adm-empty" id="wlEmpty">No photos yet. Add the first photo entry on the left.</p>
+                <ul class="adm-items" id="wlItems"></ul>
+
+                <div class="wl-totals" id="wlTotals"></div>
+
+                <div class="wl-submit-row">
+                  <button type="button" class="btn-primary" id="wlSubmit">✅ Final submit day</button>
+                  <button type="button" class="btn-ghost" id="wlReopen" hidden>↩ Reopen day</button>
+                </div>
+
+                <div class="adm-export-box" id="wlExportBox" hidden>
+                  <p>Day summary (paste it into WhatsApp, a message or a report):</p>
+                  <textarea class="form-control" id="wlExportText" rows="8" readonly></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- History -->
+            <div class="adm-list card wl-history-card">
+              <div class="adm-list-head">
+                <h3>Logged days</h3>
+                <span class="wl-hist-note">Newest first · ✅ = submitted</span>
+              </div>
+              <div class="wl-history" id="wlHistory"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <h4>Company</h4>
+            <ul>
+              <li><a href="./about.html">About Us</a></li>
+              <li><a href="./contact.html">Contact</a></li>
+              <li><a href="./privacy.html">Privacy Policy</a></li>
+              <li><a href="./terms.html">Terms of Service</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Services</h4>
+            <ul>
+              <li><a href="./services.html#interior">Interior Painting</a></li>
+              <li><a href="./services.html#exterior">Exterior Painting</a></li>
+              <li><a href="./services.html#putty">Wall Putty</a></li>
+              <li><a href="./services.html#texture">Texture Finishes</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Resources</h4>
+            <ul>
+              <li><a href="./portfolio.html">Portfolio</a></li>
+              <li><a href="./color-studio.html">Color Studio</a></li>
+              <li><a href="./team.html">Our Team</a></li>
+              <li><a href="./worklog.html">Work Log</a></li>
+              <li><a href="./admin.html">Admin</a></li>
+              <li><a href="./contact.html">Free Quote</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Get in Touch</h4>
+            <ul>
+              <li>📞 <a href="tel:+918825183628">+91 8825183628</a></li>
+              <li>✉️ <a href="mailto:gahonsh@gmail.com">gahonsh@gmail.com</a></li>
+              <li>📍 Upar Balalong, Arki, Khunti, Jharkhand, India - 835225</li>
+              <li><a href="https://wa.me/918825183628" target="_blank" rel="noreferrer">💬 WhatsApp</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>© 2026 Painter Plus. All rights reserved. <a href="./privacy.html">Privacy</a> | <a href="./terms.html">Terms</a></p>
+        </div>
+      </div>
+    </footer>
+
+    <a href="https://wa.me/918825183628" class="whatsapp-float" target="_blank" rel="noreferrer">💬 WhatsApp</a>
+    <script src="./js/team.js"></script>
+    <script src="./js/worklog.js" defer></script>
+    <script src="./js/script.js"></script>
+  </body>
+</html>

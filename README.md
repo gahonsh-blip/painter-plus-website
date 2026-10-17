@@ -50,6 +50,7 @@ painter-plus-website/
 ├── team.html         Our Team — crew roster with roles (Owner/Head/Supervisor/Painter/Helper)
 ├── painter-profile.html  Per-member profile (?id=slug) + Owner/Head role changer
 ├── admin.html        Owner/Head login: Team & Roles, profile, portfolio projects
+├── worklog.html      Daily work log (ERP) — photo + area square feet per entry, one day total, final submit
 ├── privacy.html      Privacy policy
 ├── terms.html        Terms of service
 ├── offline.html      Shown by the service worker when offline
@@ -60,7 +61,8 @@ painter-plus-website/
 │   ├── team.js       Shared team roster + roles (window.PPTeam)
 │   ├── team-page.js  Renders the roster on team.html
 │   ├── profile-page.js  Renders one member on painter-profile.html
-│   └── color-studio.js  Color Studio live paint preview
+│   ├── color-studio.js  Color Studio live paint preview
+│   └── worklog.js    Daily work log store + page (window.PPWorkLog)
 ├── images/
 │   └── og-image.svg  Open Graph / social share image (placeholder)
 ├── manifest.json     PWA manifest
@@ -126,6 +128,26 @@ Head can re-role any member to Painter / Helper / Supervisor / Head / Owner,
 from that member's profile page or the Admin **Team & Roles** tab. The roster
 always keeps at least one Owner or Head — the last lead cannot be demoted or
 removed.
+
+## 🧾 Daily work log (ERP)
+
+`worklog.html` (`js/worklog.js`, `window.PPWorkLog`) is the on-site day book —
+the site's ERP. The crew logs the day's work photo by photo:
+
+1. Pick the **date** and the **project / site** (and, optionally, who is logging).
+2. For each finished surface: add the **work photo** (take/choose a file, or
+   paste a URL), choose the **area** it is (wall, ceiling, floor, feature wall,
+   exterior wall, trim, door/window, cabinet, tile, other), and type its
+   **length × height**. The **square feet** appear live and are saved with the
+   photo.
+3. Every entry adds into **one running total** for the day, with a per-area
+   breakdown — so it is clear how many square feet were completed.
+4. **Final submit** closes the day (entries lock; **Reopen day** to change
+   anything). **Copy summary** copies a plain-text day report.
+
+All days are listed newest-first under *Logged days* (✅ = submitted). Everything
+is stored in this browser (`localStorage`, key `painterPlusWorkLog`), behind the
+same Owner/Head passcode gate as the Admin page.
 
 ## 🎨 Customisation
 

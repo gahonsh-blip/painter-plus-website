@@ -1,4 +1,4 @@
-const CACHE_NAME = 'painter-plus-v13';
+const CACHE_NAME = 'painter-plus-v14';
 const BASE_PATH = self.location.pathname.replace(/\/[^/]*$/, '/');
 const ASSETS = [
   `${BASE_PATH}`,
@@ -14,12 +14,14 @@ const ASSETS = [
   `${BASE_PATH}team.html`,
   `${BASE_PATH}painter-profile.html`,
   `${BASE_PATH}admin.html`,
+  `${BASE_PATH}worklog.html`,
   `${BASE_PATH}css/style.css`,
   `${BASE_PATH}js/script.js`,
   `${BASE_PATH}js/color-studio.js`,
   `${BASE_PATH}js/team.js`,
   `${BASE_PATH}js/team-page.js`,
   `${BASE_PATH}js/profile-page.js`,
+  `${BASE_PATH}js/worklog.js`,
   `${BASE_PATH}manifest.json`,
   `${BASE_PATH}images/og-image.svg`,
   `${BASE_PATH}images/icon-192.png`,

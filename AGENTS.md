@@ -64,6 +64,7 @@ Use these exact values when fixing contact info across all pages:
 | Color Studio | `color-studio.html` + `js/color-studio.js` — live room/exterior paint preview, finishes, lighting, and the **area & square-feet estimator** |
 | Team roster | `team.html` (roster page), `painter-profile.html` (per-member profile), `js/team.js` (shared data + roles) |
 | Admin | `admin.html` (Owner/Head login: Team & Roles, profile, Portfolio projects) |
+| Daily work log | `worklog.html` + `js/worklog.js` — the site's **ERP**: each day the crew adds a photo entry per painted surface, measures its square feet, sees one running day total, then does a **Final submit** |
 | Styles | `css/style.css` |
 | Scripts | `js/script.js` |
 | PWA | `manifest.json`, `sw.js` |
@@ -125,6 +126,33 @@ surface**.
   the client types anything; **Reset sizes** restores them.
 - The stage art is proportional, not to scale — the estimator sums the sizes the
   client types, it does not measure the picture.
+
+## Daily work log (ERP) — `worklog.html` + `js/worklog.js`
+
+The on-site day book. Where the Color Studio is for the *client* to preview a
+room, the work log is for the *crew* to record the work actually done.
+
+- One day per date. `window.PPWorkLog` (in `js/worklog.js`) stores everything in
+  `localStorage` under `painterPlusWorkLog`, keyed by `YYYY-MM-DD`.
+- Each **photo entry** is one painted surface: a work photo (file upload,
+  downscaled to ≤1024px JPEG, or a URL), the **area** it is (`AREAS` — wall,
+  ceiling, floor, feature wall, exterior wall, trim, door/window, cabinet, tile,
+  other), its **length × height**, and an optional note. Saving computes that
+  photo's **square feet** on the spot.
+- All entries of the day sum into **one running total** (`PPWorkLog.totals`),
+  shown as *Total area today* plus a per-area breakdown (`PPWorkLog.breakdown`).
+- **Final submit** closes the day (`status: 'submitted'`): entries lock, and a
+  **Reopen day** button appears. `PPWorkLog.summary` produces a copyable text
+  report; **Copy summary** copies it.
+- Every logged day is listed newest-first in *Logged days* (✅ = submitted).
+- The page reuses the shared Owner/Head passcode gate (`PPTeam.unlockHead`) and
+  can attribute the day to a crew member (`#wlCrew`, filled from `PPTeam.list`).
+- Key ids: `#wlApp`, `#wlGate`/`#wlPanel`, `#wlDate`, `#wlProject`, `#wlCrew`,
+  `#wlArea`, `#wlW`, `#wlH`, `#wlSqft`, `#wlPhotoFile`/`#wlPhotoUrl`,
+  `#wlItems`, `#wlTotals`, `#wlSubmit`, `#wlReopen`, `#wlHistory`.
+- It is `noindex, nofollow` (like `admin.html`) and therefore **not** in
+  `sitemap.xml`. Its public API: `getDay`, `listDays`, `addEntry`, `removeEntry`,
+  `submitDay`, `reopenDay`, `totals`, `breakdown`, `summary`, `sqft`, `fmt`.
 
 ## Working rules for agents
 

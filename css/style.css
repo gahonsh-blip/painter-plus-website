@@ -1646,3 +1646,87 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
   .adm-item-actions { width: 100%; justify-content: flex-start; }
 }
 
+/* --- Daily work log (worklog.html) --- */
+.wl-daybar {
+  display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;
+  padding: 16px 18px; margin-bottom: 24px;
+}
+.wl-field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 170px; }
+.wl-field > span { font-size: .8rem; font-weight: 600; color: var(--text-light); }
+.wl-field .form-control { width: 100%; }
+.wl-status {
+  margin-left: auto; align-self: center;
+  font-size: .82rem; font-weight: 700; padding: 6px 12px; border-radius: 999px;
+  white-space: nowrap;
+}
+.wl-status-open { background: color-mix(in srgb, #16a34a 16%, transparent); color: #15803d; }
+.wl-status-submitted { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); }
+
+.wl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+.wl-preview img { max-width: 100%; max-height: 240px; border-radius: 12px; border: 1px solid var(--border); object-fit: cover; }
+.wl-hint { font-size: .85rem; min-height: 1.2em; color: var(--primary); }
+
+.wl-item {
+  display: flex; align-items: center; gap: 12px;
+  border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px;
+  background: var(--surface);
+}
+.wl-thumb {
+  width: 56px; height: 56px; flex-shrink: 0; border-radius: 10px;
+  object-fit: cover; background: var(--surface-hover);
+}
+.wl-thumb-empty { display: grid; place-items: center; font-size: 1.4rem; }
+.wl-item-body { flex: 1; min-width: 0; }
+.wl-item-title { font-weight: 700; color: var(--text); }
+.wl-item-meta { font-size: .8rem; color: var(--text-light); margin-top: 2px; }
+.wl-item-val { font-family: monospace; font-weight: 700; white-space: nowrap; }
+.wl-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.wl-item-actions button {
+  background: transparent; border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 9px; cursor: pointer; font-size: .8rem; color: var(--text);
+  transition: border-color .2s, color .2s;
+}
+.wl-item-actions .edit:hover { border-color: var(--primary); color: var(--primary); }
+.wl-item-actions .del:hover { border-color: #dc2626; color: #dc2626; }
+
+.wl-totals {
+  margin-top: 18px; padding: 16px; border-radius: 14px;
+  background: var(--surface-hover); border: 1px solid var(--border);
+}
+.wl-total-main { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.wl-total-main span { font-weight: 600; color: var(--text-light); }
+.wl-total-main strong { font-family: monospace; font-size: 1.5rem; color: var(--primary); }
+.wl-total-sub { font-size: .82rem; color: var(--text-light); margin-top: 2px; }
+.wl-breakdown { list-style: none; padding: 12px 0 0; margin: 10px 0 0; border-top: 1px dashed var(--border); }
+.wl-breakdown li { display: flex; justify-content: space-between; font-size: .82rem; color: var(--text-light); padding: 2px 0; }
+.wl-breakdown li span:last-child { font-family: monospace; color: var(--text); }
+
+.wl-submit-row { display: flex; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+.wl-submit-row .btn-primary { flex: 1; }
+.wl-empty { color: var(--text-light); font-style: italic; }
+
+.wl-history-card { margin-top: 28px; }
+.wl-hist-note { font-size: .78rem; color: var(--text-light); }
+.wl-history { display: flex; flex-direction: column; gap: 8px; }
+.wl-hist-row {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  width: 100%; text-align: left; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;
+  background: var(--surface); color: var(--text); font: inherit;
+  transition: border-color .2s, background .2s;
+}
+.wl-hist-row:hover { border-color: var(--primary); }
+.wl-hist-row.active { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.wl-hist-date { font-weight: 700; font-family: monospace; }
+.wl-hist-proj { color: var(--text-light); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wl-hist-val { font-family: monospace; font-weight: 700; }
+
+@media (max-width: 860px) {
+  .wl-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .wl-status { margin-left: 0; }
+  .wl-item { flex-wrap: wrap; }
+  .wl-item-actions { width: 100%; justify-content: flex-end; }
+}
+
