@@ -62,6 +62,7 @@ painter-plus-website/
 │   ├── team-page.js  Renders the roster on team.html
 │   ├── profile-page.js  Renders one member on painter-profile.html
 │   ├── color-studio.js  Color Studio live paint preview
+│   ├── photo-studio.js  "Paint my photo" — recolour an uploaded wall photo + material estimate (window.PPPhoto)
 │   ├── measure.js    Photo measurement (perspective-corrected sq ft) + costing (window.PPMeasure)
    └── worklog.js    Daily work log store + page (window.PPWorkLog)
 ├── images/
@@ -168,6 +169,39 @@ geometry is pure and unit-tested:
 ```bash
 node tests/measure.test.js
 ```
+
+### 🖼️ Paint my photo (recolour a real wall)
+
+`color-studio.html` has a **Paint my photo** section (`js/photo-studio.js`,
+`window.PPPhoto`). The client takes or uploads a photo of their own wall, taps
+its **four corners**, picks a **colour**, a **finish** and a **texture**, and the
+wall in *their* photo is repainted. Below it, the **wall area** (width × height
+in feet) drives a **material estimate**: paint litres, putty kg and primer
+litres, each rounded up to the packs a shop actually sells.
+
+- The recolour keeps the photo's own light and shade and rebuilds it in the
+  paint's colour, so a shadow still reads as a shadow. The paint keeps its own
+  lightness — a navy stays navy, it is not forced to the wall's brightness.
+- The texture (roller, orange peel, stucco, sand, stripes) is laid on
+  **perspective-correct**: the tapped quad is mapped to the unit square and the
+  grain is drawn through that mapping, so it follows the wall's real angle
+  instead of lying flat across the photo.
+- **Before / after** toggles back to the untouched photo. **Save preview**
+  downloads the result.
+- The colour maths, material maths and texture generation are pure and
+  unit-tested; the canvas editor is exercised in a real browser.
+
+```bash
+# pure engine (colour, material, textures, geometry)
+node tests/photo-studio.test.js
+
+# browser self-test: writes ok/FAIL into the page
+bash tests/run-pmp-selftest.sh 8133   # then open http://localhost:8133/_pmp-selftest.html
+```
+
+> Coverage rates are practical on-site figures for Indian walls (interior paint
+> ≈ 130 sq ft/L/coat, exterior ≈ 110, putty ≈ 17 sq ft/kg), with 10% wastage.
+> They are estimates for a quote, not a guarantee.
 
 ## 🎨 Customisation
 

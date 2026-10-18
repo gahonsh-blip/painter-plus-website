@@ -46,6 +46,10 @@
         <div class="container">
           <h1 class="cs-hero-title">Color <span>Studio</span></h1>
           <p class="cs-hero-sub">Pick colours and watch them come to life on full room and exterior demos. Switch scenes, finishes and lighting — measure each surface to get its square feet and the paint you need, then save your scheme and request a quote.</p>
+          <div class="cs-hero-actions">
+            <a href="#paint-my-photo" class="btn-primary">📷 Paint my photo</a>
+            <a href="#studio" class="btn-secondary">Try the demo rooms</a>
+          </div>
         </div>
       </section>
 
@@ -316,6 +320,111 @@
         </div>
       </section>
 
+      <section class="section cs-section" id="paint-my-photo">
+        <div class="container">
+          <h2 class="section-title">Paint my <span>photo</span></h2>
+          <p class="pmp-lead">Take or upload a photo of your own wall. Tap its four corners, pick a colour and a texture, and see that exact wall repainted in your photo — with the paint, putty and primer you will need.</p>
+
+          <div class="pmp-grid" id="pmp">
+            <!-- LEFT: the photo + tools -->
+            <div class="pmp-stage-wrap">
+              <div class="pmp-source-bar" role="group" aria-label="Choose a photo">
+                <label class="btn-secondary pmp-file">
+                  📷 Take / upload photo
+                  <input type="file" id="pmpFile" accept="image/*" capture="environment" hidden />
+                </label>
+                <button class="btn-secondary" id="pmpDemoInterior" type="button">🛋️ Demo interior</button>
+                <button class="btn-secondary" id="pmpDemoExterior" type="button">🏡 Demo exterior</button>
+              </div>
+
+              <div class="pmp-canvas-wrap">
+                <canvas id="pmpCanvas" width="1000" height="700" aria-label="Your wall photo, with the selected wall repainted"></canvas>
+                <div class="pmp-empty" id="pmpEmpty">
+                  <span class="pmp-empty-ic">🖼️</span>
+                  <p>No photo yet. Upload one, or press a demo button to try it right now.</p>
+                </div>
+              </div>
+
+              <div class="pmp-tools">
+                <button class="btn-secondary pmp-tool active" id="pmpCornersBtn" type="button">🔷 Tap wall corners</button>
+                <button class="btn-secondary pmp-tool" id="pmpBeforeBtn" type="button">👁️ Before / after</button>
+                <button class="btn-secondary pmp-tool" id="pmpSaveBtn" type="button">⬇️ Save preview</button>
+                <button class="btn-secondary pmp-tool" id="pmpClearBtn" type="button">🧽 Clear corners</button>
+              </div>
+              <p class="pmp-hint" id="pmpHint">Upload a photo, or press a demo button to try it.</p>
+            </div>
+
+            <!-- RIGHT: the controls -->
+            <div class="pmp-controls">
+              <div class="ctrl-group">
+                <h3>1. Wall colour</h3>
+                <div class="pmp-palette" id="pmpPalette"></div>
+                <div class="pmp-custom">
+                  <label for="pmpCustom">Custom colour</label>
+                  <input type="color" id="pmpCustom" value="#e4d9c6" aria-label="Pick a custom colour" />
+                  <input type="text" id="pmpHex" class="pmp-hex" value="#e4d9c6" maxlength="7" aria-label="Colour hex code" />
+                </div>
+              </div>
+
+              <div class="ctrl-group">
+                <h3>2. Finish</h3>
+                <div class="pmp-finishes" id="pmpFinishes">
+                  <button class="pmp-finish active" data-finish="matte" type="button">Matte</button>
+                  <button class="pmp-finish" data-finish="eggshell" type="button">Eggshell</button>
+                  <button class="pmp-finish" data-finish="satin" type="button">Satin</button>
+                  <button class="pmp-finish" data-finish="gloss" type="button">Gloss</button>
+                </div>
+                <p class="pmp-note">Finish changes the sheen and how deep the colour reads.</p>
+              </div>
+
+              <div class="ctrl-group">
+                <h3>3. Texture</h3>
+                <div class="pmp-textures" id="pmpTextures"></div>
+                <p class="pmp-note" id="pmpTextureNote">Smooth: flat finish, no grain.</p>
+              </div>
+
+              <div class="ctrl-group">
+                <h3>4. Paint coverage</h3>
+                <label class="pmp-slider-label" for="pmpOpacity">Paint amount: <span id="pmpOpacityVal">100%</span></label>
+                <input type="range" id="pmpOpacity" min="0" max="100" value="100" />
+                <p class="pmp-note">Slide down to see the paint fade in over the original wall.</p>
+              </div>
+
+              <div class="ctrl-group">
+                <h3>5. Wall area</h3>
+                <p class="pmp-area-hint" id="pmpAreaHint">Select the wall corners on the photo to work out its area.</p>
+                <div class="pmp-area-inputs">
+                  <label for="pmpWallW">Wall width (ft)</label>
+                  <input type="number" id="pmpWallW" min="0" step="0.1" placeholder="e.g. 12" />
+                  <label for="pmpWallH">Wall height (ft)</label>
+                  <input type="number" id="pmpWallH" min="0" step="0.1" placeholder="e.g. 10" />
+                </div>
+                <div class="pmp-area-out">
+                  <span>Wall area</span>
+                  <strong id="pmpAreaSqft">0 sq ft</strong>
+                </div>
+              </div>
+
+              <div class="ctrl-group">
+                <h3>6. Material needed</h3>
+                <div class="pmp-area-type" id="pmpAreaType">
+                  <button class="pmp-atype active" data-type="interior" type="button">Interior</button>
+                  <button class="pmp-atype" data-type="exterior" type="button">Exterior</button>
+                </div>
+                <label class="pmp-slider-label" for="pmpCoats">Coats: <span id="pmpCoatsVal">2</span></label>
+                <input type="range" id="pmpCoats" min="1" max="4" value="2" />
+                <div class="pmp-material" id="pmpMaterial" aria-live="polite"></div>
+                <p class="pmp-note">Estimates use practical on-site coverage for Indian walls, with wastage included.</p>
+              </div>
+
+              <div class="ctrl-actions">
+                <a class="btn-primary" id="pmpQuote" href="./contact.html">Request quote →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="section">
         <div class="container">
           <h2 class="section-title">How the <span>Studio</span> works</h2>
@@ -381,6 +490,8 @@
     </footer>
 
     <a href="https://wa.me/918825183628" class="whatsapp-float" target="_blank" rel="noreferrer">💬 WhatsApp</a>
+    <script src="./js/measure.js" defer></script>
+    <script src="./js/photo-studio.js" defer></script>
     <script src="./js/color-studio.js" defer></script>
     <script src="./js/script.js" defer></script>
   </body>

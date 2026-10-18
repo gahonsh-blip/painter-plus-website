@@ -41,6 +41,8 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 **Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`).
 
+**Canvas gotcha:** `ctx.createImageData(w, h)` returns *transparent black*, not a copy of what is on the canvas. A repaint loop that writes only the pixels it changes (as `js/photo-studio.js` does) must first `out.data.set(baseData.data)`, or everything outside the edited region is wiped. `js/photo-studio.js` also keeps every per-pixel access inside a `try/catch`, because a `file://` page taints the canvas and `getImageData` throws.
+
 ## Business details (source of truth)
 
 Use these exact values when fixing contact info across all pages:
@@ -68,6 +70,7 @@ Use these exact values when fixing contact info across all pages:
 |--------|---------|
 | Pages | `index.html`, `about.html`, `services.html`, `portfolio.html`, `contact.html`, `privacy.html`, `terms.html`, `offline.html` |
 | Color Studio | `color-studio.html` + `js/color-studio.js` — live room/exterior paint preview, finishes, lighting, and the **area & square-feet estimator** |
+| Paint my photo | `js/photo-studio.js` (`window.PPPhoto`) — recolour an uploaded wall photo (tap 4 corners, pick colour/finish/texture) + paint/putty/primer estimate; the section lives in `color-studio.html` |
 | Team roster | `team.html` (roster page), `painter-profile.html` (per-member profile), `js/team.js` (shared data + roles) |
 | Admin | `admin.html` (Owner/Head login: Team & Roles, profile, Portfolio projects) |
 | Daily work log | `worklog.html` + `js/worklog.js` — the site's **ERP**: each day the crew adds a photo entry per painted surface, **measures its square feet on the photo** (or types length × height), sees one running day total plus labour and paint, then does a **Final submit** |

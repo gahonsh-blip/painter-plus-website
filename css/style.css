@@ -1779,3 +1779,77 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
   .wl-rates-note { margin-left: 0; }
 }
 
+
+/* ============================================================
+   PAINT MY PHOTO (Color Studio)
+   ============================================================ */
+.cs-hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 26px; }
+.cs-hero-actions .btn-primary,
+.cs-hero-actions .btn-secondary { text-decoration: none; }
+
+.pmp-lead { max-width: 760px; margin: 0 auto 34px; text-align: center; color: var(--text-light); font-size: 1.02rem; line-height: 1.6; }
+
+.pmp-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+
+/* --- left: stage --- */
+.pmp-stage-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-sm); }
+.pmp-source-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.pmp-file { cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.pmp-canvas-wrap { position: relative; border-radius: 16px; overflow: hidden; background: #0b1220; min-height: 240px; display: flex; align-items: center; justify-content: center; }
+#pmpCanvas { display: block; width: 100%; height: auto; touch-action: none; cursor: crosshair; }
+.pmp-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; color: #cbd5e1; padding: 24px; }
+.pmp-empty-ic { font-size: 2.4rem; }
+.pmp-empty p { max-width: 320px; font-size: 0.95rem; }
+.pmp-empty[hidden] { display: none; }
+
+.pmp-tools { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.pmp-tool.active, .pmp-finish.active, .pmp-tex.active, .pmp-atype.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pmp-hint { margin-top: 12px; font-size: 0.92rem; color: var(--text-light); min-height: 1.3em; }
+
+/* --- right: controls --- */
+.pmp-controls { display: flex; flex-direction: column; gap: 18px; }
+.pmp-controls .ctrl-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow-sm); }
+.pmp-controls .ctrl-group h3 { font-family: var(--font-display); font-size: 1rem; margin-bottom: 12px; }
+
+.pmp-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 8px; }
+.pmp-swatch { width: 100%; aspect-ratio: 1; border-radius: 9px; border: 2px solid var(--border); background: var(--sw); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+.pmp-swatch:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.pmp-swatch.active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
+
+.pmp-custom { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.pmp-custom label { font-size: 0.9rem; color: var(--text-light); }
+.pmp-custom input[type="color"] { width: 46px; height: 36px; border: 1px solid var(--border); border-radius: 9px; background: none; cursor: pointer; padding: 2px; }
+.pmp-hex { width: 110px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); color: var(--text); font-family: monospace; }
+
+.pmp-finishes, .pmp-textures, .pmp-area-type { display: flex; flex-wrap: wrap; gap: 8px; }
+.pmp-finish, .pmp-tex, .pmp-atype { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; font-size: 0.88rem; transition: background 0.2s, color 0.2s, border-color 0.2s; }
+.pmp-finish:hover, .pmp-tex:hover, .pmp-atype:hover { border-color: var(--primary); }
+
+.pmp-note { font-size: 0.83rem; color: var(--text-light); margin-top: 10px; line-height: 1.5; }
+.pmp-slider-label { display: block; font-size: 0.9rem; color: var(--text-light); margin-bottom: 6px; }
+.pmp-slider-label span { color: var(--text); font-weight: 600; }
+.pmp-controls input[type="range"] { width: 100%; accent-color: var(--primary); }
+
+.pmp-area-hint { font-size: 0.86rem; color: var(--text-light); margin-bottom: 12px; }
+.pmp-area-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pmp-area-inputs label { display: block; font-size: 0.85rem; color: var(--text-light); margin-bottom: 4px; }
+.pmp-area-inputs input { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); color: var(--text); }
+.pmp-area-out { display: flex; align-items: baseline; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.pmp-area-out span { color: var(--text-light); font-size: 0.9rem; }
+.pmp-area-out strong { font-size: 1.3rem; font-family: var(--font-display); }
+
+.pmp-material { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.pmp-mat-row { display: grid; grid-template-columns: 28px 1fr auto; grid-template-areas: "ic label amt" "ic label pack"; align-items: center; gap: 2px 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+.pmp-mat-ic { grid-area: ic; font-size: 1.15rem; }
+.pmp-mat-label { grid-area: label; font-size: 0.9rem; color: var(--text); }
+.pmp-mat-amt { grid-area: amt; font-weight: 700; font-family: var(--font-display); text-align: right; }
+.pmp-mat-pack { grid-area: pack; font-size: 0.78rem; color: var(--text-light); text-align: right; }
+
+@media (max-width: 900px) {
+  .pmp-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .pmp-tools { gap: 8px; }
+  .pmp-finish, .pmp-tex, .pmp-atype { flex: 1 1 auto; text-align: center; }
+}
+
