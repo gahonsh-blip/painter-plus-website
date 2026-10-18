@@ -50,7 +50,7 @@ painter-plus-website/
 ├── team.html         Our Team — crew roster with roles (Owner/Head/Supervisor/Painter/Helper)
 ├── painter-profile.html  Per-member profile (?id=slug) + Owner/Head role changer
 ├── admin.html        Owner/Head login: Team & Roles, profile, portfolio projects
-├── worklog.html      Daily work log (ERP) — photo + area square feet per entry, one day total, final submit
+├── worklog.html      Daily work log (ERP) — photo, on-photo square feet measure, labour + paint, final submit
 ├── privacy.html      Privacy policy
 ├── terms.html        Terms of service
 ├── offline.html      Shown by the service worker when offline
@@ -62,7 +62,8 @@ painter-plus-website/
 │   ├── team-page.js  Renders the roster on team.html
 │   ├── profile-page.js  Renders one member on painter-profile.html
 │   ├── color-studio.js  Color Studio live paint preview
-│   └── worklog.js    Daily work log store + page (window.PPWorkLog)
+│   ├── measure.js    Photo measurement (perspective-corrected sq ft) + costing (window.PPMeasure)
+   └── worklog.js    Daily work log store + page (window.PPWorkLog)
 ├── images/
 │   └── og-image.svg  Open Graph / social share image (placeholder)
 ├── manifest.json     PWA manifest
@@ -135,19 +136,38 @@ removed.
 the site's ERP. The crew logs the day's work photo by photo:
 
 1. Pick the **date** and the **project / site** (and, optionally, who is logging).
-2. For each finished surface: add the **work photo** (take/choose a file, or
+2. Set the day's **labour rate** (₹ per sq ft) and **paint coverage** (sq ft per
+   litre per coat, plus the number of coats) — used for the day's costing.
+3. For each finished surface: add the **work photo** (take/choose a file, or
    paste a URL), choose the **area** it is (wall, ceiling, floor, feature wall,
-   exterior wall, trim, door/window, cabinet, tile, other), and type its
-   **length × height**. The **square feet** appear live and are saved with the
-   photo.
-3. Every entry adds into **one running total** for the day, with a per-area
-   breakdown — so it is clear how many square feet were completed.
-4. **Final submit** closes the day (entries lock; **Reopen day** to change
+   exterior wall, trim, door/window, cabinet, tile, other), then get its
+   **square feet** either way:
+   - **Measure it on the photo.** Tap **Set scale**, tap the **4 corners of a
+     known rectangle** (the wall, a door, a window, a tile grid) and type its
+     real width × height; then tap **Draw area** and tap out the painted
+     surface. The area is **perspective-corrected**, so a tilted or angled photo
+     still gives the true square feet. Tap **Use this measurement**.
+   - Or just type the **length × height**.
+4. Every entry adds into **one running total** for the day, with a per-area
+   breakdown, a **labour cost** (area × rate) and a **paint estimate** (litres).
+5. **Final submit** closes the day (entries lock; **Reopen day** to change
    anything). **Copy summary** copies a plain-text day report.
 
 All days are listed newest-first under *Logged days* (✅ = submitted). Everything
 is stored in this browser (`localStorage`, key `painterPlusWorkLog`), behind the
 same Owner/Head passcode gate as the Admin page.
+
+### 📐 Measuring square feet from a photo
+
+`js/measure.js` (`window.PPMeasure`) turns a shape drawn on a photo into real
+square feet. Because a photo is a perspective view, a plain pixel count is wrong
+— the module calibrates against a **known rectangle** (4 corners → homography)
+and then measures the tapped polygon with the **shoelace formula**. The
+geometry is pure and unit-tested:
+
+```bash
+node tests/measure.test.js
+```
 
 ## 🎨 Customisation
 
@@ -182,12 +202,38 @@ npx serve
 
 Then open http://localhost:8000.
 
+## 🧪 Tests
+
+The measurement geometry is pure and unit-tested (Node, no dependencies):
+
+```bash
+node tests/measure.test.js
+```
+
+It checks the shoelace area, flat calibration, and **perspective recovery** — a
+skewed photo of a 10 × 6 ft wall must still measure 60 sq ft — plus the labour
+and paint maths.
+
+The work-log UI itself is checked by a browser harness (the measurement tool
+draws on a `<canvas>`, so it needs a real browser):
+
+```bash
+bash tests/run-wl-selftest.sh 8130
+# then open http://localhost:8130/_selftest.html
+```
+
+It unlocks the page, loads a synthetic perspective photo of a 10 × 6 ft wall,
+taps the calibration corners and the painted area, saves the entry, and prints
+`ok` / `FAIL` lines for the measured square feet, the labour cost, editing,
+submit/reopen and the day summary.
+
 ## 🧪 Before you finish
 
 Before considering the site fixed, verify:
 
 - [ ] No merge-conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) remain in any file.
 - [ ] `js/script.js` has no syntax error (the stray `}` brace is removed).
+- [ ] `node tests/measure.test.js` passes (photo measurement geometry + costing).
 - [ ] All pages load with no console errors.
 - [ ] Dark/light theme toggle works.
 - [ ] Mobile menu opens/closes.

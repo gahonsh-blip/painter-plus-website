@@ -43,7 +43,7 @@
       <section class="section">
         <div class="container" id="wlApp">
           <h1 class="section-title">Daily <span>work log</span></h1>
-          <p class="adm-sub">Add each work photo, pick the area you painted, and type its length × height. Every photo's square feet is saved and added into one running total for the day — then close the day with a <strong>Final submit</strong>.</p>
+          <p class="adm-sub">Add each work photo, then either <strong>measure the painted area on the photo</strong> (tap a known rectangle for scale, then tap the area) or type its length × height. Every photo's square feet is saved and added into one running total, along with the day's <strong>labour</strong> and <strong>paint estimate</strong> — then close the day with a <strong>Final submit</strong>.</p>
 
           <!-- Lightweight passcode gate (client-side only, not real security) -->
           <div class="adm-gate" id="wlGate">
@@ -77,6 +77,23 @@
               <span class="wl-status wl-status-open" id="wlStatus">🟢 Open</span>
             </div>
 
+            <!-- Day rates: turn the measured square feet into labour + paint -->
+            <div class="wl-rates card" id="wlRates">
+              <label class="wl-field">
+                <span>Labour rate (₹ per sq ft)</span>
+                <input type="number" id="wlRate" class="form-control" min="0" step="0.5" inputmode="decimal" placeholder="e.g. 12" />
+              </label>
+              <label class="wl-field">
+                <span>Paint coverage (sq ft / litre, per coat)</span>
+                <input type="number" id="wlCoverage" class="form-control" min="1" step="1" inputmode="decimal" value="130" />
+              </label>
+              <label class="wl-field">
+                <span>Coats</span>
+                <input type="number" id="wlCoats" class="form-control" min="1" step="1" inputmode="numeric" value="2" />
+              </label>
+              <span class="wl-rates-note">Used for the day's labour and paint estimate.</span>
+            </div>
+
             <div class="wl-grid">
               <!-- Left: add a photo entry -->
               <form class="adm-form card" id="wlForm" novalidate onsubmit="return false;">
@@ -92,6 +109,39 @@
                   <input type="url" id="wlPhotoUrl" class="form-control" placeholder="https://…/photo.jpg" />
                 </label>
                 <div class="adm-preview wl-preview" id="wlPhotoPreview" hidden><img id="wlPhotoPreviewImg" alt="Work photo preview" /></div>
+
+                <!-- On-photo measurement: tap a known rectangle for scale, then tap the painted area -->
+                <div class="wl-measure" id="wlMeasurePanel" hidden>
+                  <div class="wl-measure-head">
+                    <span class="wl-measure-title">📐 Measure on photo</span>
+                    <span class="wl-measure-mode" id="wlMeasureMode">Not started</span>
+                  </div>
+                  <canvas class="wl-canvas" id="wlCanvas" aria-label="Tap the photo to measure the painted area"></canvas>
+                  <div class="wl-measure-tools">
+                    <button type="button" class="btn-ghost btn-sm" id="wlCalibBtn">📏 Set scale</button>
+                    <button type="button" class="btn-ghost btn-sm" id="wlDrawBtn">✏️ Draw area</button>
+                    <button type="button" class="btn-ghost btn-sm" id="wlUndoBtn">↶ Undo point</button>
+                    <button type="button" class="btn-ghost btn-sm" id="wlClearBtn">🧽 Clear</button>
+                    <button type="button" class="btn-ghost btn-sm" id="wlMeasureReset">♻️ Reset</button>
+                  </div>
+                  <div class="wl-measure-calib">
+                    <label class="wl-field">
+                      <span>Known width (ft)</span>
+                      <input type="number" id="wlCalibW" class="form-control" min="0" step="0.1" inputmode="decimal" placeholder="e.g. 10" />
+                    </label>
+                    <label class="wl-field">
+                      <span>Known height (ft)</span>
+                      <input type="number" id="wlCalibH" class="form-control" min="0" step="0.1" inputmode="decimal" placeholder="e.g. 8" />
+                    </label>
+                  </div>
+                  <div class="wl-measure-out">
+                    <span>Measured area</span>
+                    <strong id="wlMeasuredSqft">0 sq ft</strong>
+                  </div>
+                  <p class="wl-hint" id="wlMeasureHint" aria-live="polite"></p>
+                  <button type="button" class="btn-primary btn-sm" id="wlUseMeasured" disabled>✔ Use this measurement</button>
+                  <small class="wl-measure-note">Measure the painted surface here, or type length × height below.</small>
+                </div>
 
                 <label class="adm-field">
                   <span>Area painted *</span>
@@ -109,6 +159,7 @@
                   <label class="adm-field">
                     <span>Square feet</span>
                     <input type="text" id="wlSqft" class="form-control" value="0 sq ft" readonly aria-live="polite" />
+                    <small id="wlSqftSrc">From length × height</small>
                   </label>
                 </div>
                 <label class="adm-field">
@@ -211,6 +262,7 @@
 
     <a href="https://wa.me/918825183628" class="whatsapp-float" target="_blank" rel="noreferrer">💬 WhatsApp</a>
     <script src="./js/team.js"></script>
+    <script src="./js/measure.js"></script>
     <script src="./js/worklog.js" defer></script>
     <script src="./js/script.js"></script>
   </body>

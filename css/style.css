@@ -1721,12 +1721,61 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 .wl-hist-proj { color: var(--text-light); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wl-hist-val { font-family: monospace; font-weight: 700; }
 
+/* --- Work log: day rates (labour + paint) --- */
+.wl-rates {
+  display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;
+  padding: 16px 18px; margin-bottom: 24px;
+}
+.wl-rates .wl-field { flex: 0 1 200px; }
+.wl-rates-note { align-self: center; font-size: .78rem; color: var(--text-light); margin-left: auto; }
+
+/* --- Work log: on-photo measurement --- */
+.wl-measure {
+  display: flex; flex-direction: column; gap: 12px;
+  border: 1px dashed var(--border); border-radius: 14px; padding: 14px;
+  background: var(--surface-hover);
+}
+.wl-measure-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.wl-measure-title { font-weight: 700; font-size: .9rem; }
+.wl-measure-mode { font-size: .78rem; color: var(--text-light); font-family: monospace; }
+.wl-canvas {
+  width: 100%; height: auto; max-height: 460px; object-fit: contain;
+  border-radius: 12px; border: 1px solid var(--border); background: #0b1220;
+  touch-action: none; cursor: crosshair; display: block;
+}
+.wl-measure-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.wl-measure-tools .btn-ghost { border: 1.5px solid var(--border); }
+.wl-measure-tools button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.wl-measure-calib { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wl-measure-out {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; border-radius: 10px;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.wl-measure-out span { font-size: .82rem; font-weight: 600; color: var(--text-light); }
+.wl-measure-out strong { font-family: monospace; font-size: 1.2rem; color: var(--primary); }
+.wl-measure-note { color: var(--text-light); font-size: .76rem; }
+
+/* --- Work log: measured badge + labour/paint rows --- */
+.wl-tag {
+  font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary);
+  padding: 2px 8px; border-radius: 999px;
+}
+.wl-econ { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.wl-econ-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: .85rem; padding: 3px 0; }
+.wl-econ-row span { color: var(--text-light); }
+.wl-econ-row strong { font-family: monospace; color: var(--text); }
+.wl-econ-hint span { font-style: italic; }
+
 @media (max-width: 860px) {
   .wl-grid { grid-template-columns: 1fr; }
+  .wl-measure-calib { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
   .wl-status { margin-left: 0; }
   .wl-item { flex-wrap: wrap; }
   .wl-item-actions { width: 100%; justify-content: flex-end; }
+  .wl-rates-note { margin-left: 0; }
 }
 

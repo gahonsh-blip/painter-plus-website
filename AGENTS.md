@@ -37,6 +37,8 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 12. **Phantom empty day — FIXED.** Typing then clearing a project on an entry-less date still wrote a day, which showed up in the work-log history as a `0 sq ft` day. `persistDayMeta()` now skips (and removes) such empty shells. See §16.
 
+13. **Real square feet from the photo — ADDED.** The work log could only take a typed length × height; the "square feet from the photo" feature was not implemented (the old photo system had no polygon/measure code and no Firebase — the data lives in `localStorage`). `js/measure.js` now measures a tapped polygon with perspective correction (4-corner calibration → homography → shoelace), and the day carries a labour rate and paint coverage so the area turns into a labour cost and a paint estimate. Geometry is unit-tested in `tests/measure.test.js`.
+
 **Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`).
 
 ## Business details (source of truth)
@@ -68,7 +70,8 @@ Use these exact values when fixing contact info across all pages:
 | Color Studio | `color-studio.html` + `js/color-studio.js` — live room/exterior paint preview, finishes, lighting, and the **area & square-feet estimator** |
 | Team roster | `team.html` (roster page), `painter-profile.html` (per-member profile), `js/team.js` (shared data + roles) |
 | Admin | `admin.html` (Owner/Head login: Team & Roles, profile, Portfolio projects) |
-| Daily work log | `worklog.html` + `js/worklog.js` — the site's **ERP**: each day the crew adds a photo entry per painted surface, measures its square feet, sees one running day total, then does a **Final submit** |
+| Daily work log | `worklog.html` + `js/worklog.js` — the site's **ERP**: each day the crew adds a photo entry per painted surface, **measures its square feet on the photo** (or types length × height), sees one running day total plus labour and paint, then does a **Final submit** |
+| Photo measurement | `js/measure.js` (`window.PPMeasure`) — perspective-corrected area from a photo (4-corner calibration + shoelace), and the paint/labour maths |
 | Styles | `css/style.css` |
 | Scripts | `js/script.js` |
 | PWA | `manifest.json`, `sw.js` |
@@ -141,26 +144,73 @@ room, the work log is for the *crew* to record the work actually done.
 - Each **photo entry** is one painted surface: a work photo (file upload,
   downscaled to ≤1024px JPEG, or a URL), the **area** it is (`AREAS` — wall,
   ceiling, floor, feature wall, exterior wall, trim, door/window, cabinet, tile,
-  other), its **length × height**, and an optional note. Saving computes that
-  photo's **square feet** on the spot.
+  other), and an optional note. Its square feet come from **either**:
+  - **measured on the photo** (`js/measure.js`, see below) — perspective is
+    corrected, so a tilted photo still gives the true area; or
+  - **length × height** typed by hand.
+  Saving records which one was used (`entry.method`: `'measured'` or `'manual'`).
 - All entries of the day sum into **one running total** (`PPWorkLog.totals`),
   shown as *Total area today* plus a per-area breakdown (`PPWorkLog.breakdown`).
+- The day also carries a **labour rate** (`#wlRate`, ₹ per sq ft), a **paint
+  coverage** (`#wlCoverage`, sq ft/litre/coat) and **coats** (`#wlCoats`).
+  `PPWorkLog.costing(day)` turns the total square feet into a **labour cost**
+  and a **paint estimate** (litres, incl. 10% wastage), shown under the totals.
 - **Final submit** closes the day (`status: 'submitted'`): entries lock, and a
   **Reopen day** button appears. `PPWorkLog.summary` produces a copyable text
-  report; **Copy summary** copies it.
+  report (area, breakdown, labour and paint); **Copy summary** copies it.
 - Every logged day is listed newest-first in *Logged days* (✅ = submitted).
 - The page reuses the shared Owner/Head passcode gate (`PPTeam.unlockHead`) and
   can attribute the day to a crew member (`#wlCrew`, filled from `PPTeam.list`).
 - Key ids: `#wlApp`, `#wlGate`/`#wlPanel`, `#wlDate`, `#wlProject`, `#wlCrew`,
-  `#wlArea`, `#wlW`, `#wlH`, `#wlSqft`, `#wlPhotoFile`/`#wlPhotoUrl`,
-  `#wlItems`, `#wlTotals`, `#wlSubmit`, `#wlReopen`, `#wlHistory`.
+  `#wlRate`, `#wlCoverage`, `#wlCoats`, `#wlArea`, `#wlW`, `#wlH`, `#wlSqft`,
+  `#wlSqftSrc`, `#wlPhotoFile`/`#wlPhotoUrl`, the measurement ids (`#wlMeasurePanel`,
+  `#wlCanvas`, `#wlCalibBtn`/`#wlDrawBtn`/`#wlUndoBtn`/`#wlClearBtn`/`#wlMeasureReset`,
+  `#wlCalibW`/`#wlCalibH`, `#wlMeasuredSqft`, `#wlMeasureMode`, `#wlMeasureHint`,
+  `#wlUseMeasured`), `#wlItems`, `#wlTotals`, `#wlSubmit`, `#wlReopen`, `#wlHistory`.
 - It is `noindex, nofollow` (like `admin.html`) and therefore **not** in
   `sitemap.xml`. Its public API: `getDay`, `listDays`, `saveDay`, `hasDay`,
   `removeDay`, `addEntry`, `removeEntry`, `submitDay`, `reopenDay`, `totals`,
-  `breakdown`, `summary`, `sqft`, `fmt`.
+  `breakdown`, `costing`, `summary`, `sqft`, `fmt`, `money`, `fmtLitres`,
+  `DEFAULTS`.
+- The form's day rates are read **live** from the inputs via `liveDay()` so the
+  totals cost correctly before the first entry is saved, without persisting an
+  empty day. A date with no entry and no project/crew is never stored (no
+  phantom `0 sq ft` day); the rates are captured onto the day when the first
+  entry is saved.
 - Attribute values (photo `src`, `alt`, `data-id`, option `value`) go through the
   local `escAttr()` — **not** the text `esc()` — because the shared `esc()` does
   not escape quotes. Never interpolate a stored value into an attribute with `esc()`.
+
+## Photo measurement — `js/measure.js` (`window.PPMeasure`)
+
+The module that turns a shape drawn on a photo into real square feet. It has a
+pure-geometry half (no DOM, unit-testable in Node) and a browser editor half.
+
+- A photo is a **perspective projection**, so a raw pixel count is wrong: a wall
+  photographed at an angle covers fewer pixels than it does face-on. The tool
+  therefore asks the painter to tap the **four corners of a known rectangle**
+  (the wall, a door, a window, a tile grid) and type its real **width × height**.
+  Those four point pairs define a **homography** (projective map from image
+  pixels to feet). Applying it to the drawn polygon and measuring that with the
+  **shoelace formula** gives the true area even on a skewed, tilted photo.
+- Geometry API: `polygonArea(pts)` (shoelace), `homographyFromCalibration(corners, w, h)`,
+  `calibratedArea(H, pts)`, `flatArea(pts, ftPerPx)`, `homographyFromQuad`,
+  `applyH`, `transformPoints`, `distance`, `solve`. `homographyFromCalibration`
+  returns `null` for collinear/degenerate corners.
+- Costing API: `paintLitres(sqft, { coats, coverage, wastage })` (defaults
+  130 sq ft/L/coat, 2 coats, +10% wastage), `labourCost(sqft, ratePerSqft)`.
+- Editor API: `createEditor({ canvas, hintEl, buttons, onChange })` →
+  `loadImage(src)`, `setMode('calib'|'draw')`, `undo()`, `clear()`, `reset()`,
+  `setCalibSize(w, h)`, `setInitial(savedMeasure)`, `getResult()`. The result is
+  `{ ok, sqft, calibrated, method, calib: { corners, w, h }, points, canvas }` —
+  stored on the entry as `entry.measure` so the overlay can be restored on edit.
+- The editor guards everything: if `window.PPMeasure` or `#wlCanvas` is missing,
+  the work log silently falls back to plain length × height entry.
+- Workflow in the UI: choose a photo → **Set scale** (tap 4 corners, type the
+  known size) → **Draw area** (tap the painted surface) → **Use this measurement**.
+- Tests: `node tests/measure.test.js` covers the shoelace, flat calibration and
+  perspective recovery (a skewed photo of a 10×6 ft wall must still measure
+  60 sq ft), plus the costing maths.
 
 ## Working rules for agents
 
