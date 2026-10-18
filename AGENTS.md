@@ -39,7 +39,18 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 13. **Real square feet from the photo — ADDED.** The work log could only take a typed length × height; the "square feet from the photo" feature was not implemented (the old photo system had no polygon/measure code and no Firebase — the data lives in `localStorage`). `js/measure.js` now measures a tapped polygon with perspective correction (4-corner calibration → homography → shoelace), and the day carries a labour rate and paint coverage so the area turns into a labour cost and a paint estimate. Geometry is unit-tested in `tests/measure.test.js`.
 
-**Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`).
+14. **ERP saves silently did nothing in the browser — FIXED.** `js/erp.js` used the UMD wrapper `(function (root, factory) { const api = factory(); … })(window, function () { … })`, but the factory body reached for `root` (to get `window.localStorage`) and `root` was never passed in, so it was `undefined`. Node tests passed because they inject an in-memory store via `_setStore`, which short-circuits before `root` is touched; in a real browser every `saveProject`/`approveDay`/`addBill` reported `ok: true` yet persisted nothing, because `backing()` returned `null`. The factory now receives `root` (`factory(root)`, `function (root) { … }`), and `tests/erp.test.js` loads the file in a browser-like `vm` context to prove a save reaches `window.localStorage`. `js/measure.js` and `js/photo-studio.js` share the wrapper shape but never reference `root`, so they were unaffected.
+
+15. **Stale approval — FIXED.** An approved day kept its approval after being reopened and edited, so the bill counted the new measurements under the old sign-off. An approval now stores a `sig` fingerprint of the day it signed; `approvalOf()` reports `pending` when the day no longer matches, and `reopenDay()` calls `PPERP.clearApproval()`. See §17.
+
+16. **Invoice id collision — FIXED.** `addBill()` used `Date.now()` alone, so two bills raised in the same millisecond shared an id and deleting one deleted both. The id now appends a random suffix. See §18.
+
+17. **Invoice number reuse — FIXED.** The number came from `list.length`, so deleting `PP-001` made the next bill `PP-002` again. `nextBillNo()` now returns one past the highest number ever used. See §19.
+
+18. **Rejected work counted as pending — FIXED.** `overview()` folded rejected labour into `unbilledLabour`, so the dashboard advertised rejected money as awaiting approval. It now reports `rejectedSqft` / `rejectedLabour` separately. See §20.
+
+
+**Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`). And a UMD wrapper must actually pass its global into the factory: `factory()` with a body that uses `root` passes in Node (where the in-memory store hides it) and fails silently in the browser.
 
 **Canvas gotcha:** `ctx.createImageData(w, h)` returns *transparent black*, not a copy of what is on the canvas. A repaint loop that writes only the pixels it changes (as `js/photo-studio.js` does) must first `out.data.set(baseData.data)`, or everything outside the edited region is wiped. `js/photo-studio.js` also keeps every per-pixel access inside a `try/catch`, because a `file://` page taints the canvas and `getImageData` throws.
 
@@ -73,7 +84,8 @@ Use these exact values when fixing contact info across all pages:
 | Paint my photo | `js/photo-studio.js` (`window.PPPhoto`) — recolour an uploaded wall photo (tap 4 corners, pick colour/finish/texture) + paint/putty/primer estimate; the section lives in `color-studio.html` |
 | Team roster | `team.html` (roster page), `painter-profile.html` (per-member profile), `js/team.js` (shared data + roles) |
 | Admin | `admin.html` (Owner/Head login: Team & Roles, profile, Portfolio projects) |
-| Daily work log | `worklog.html` + `js/worklog.js` — the site's **ERP**: each day the crew adds a photo entry per painted surface, **measures its square feet on the photo** (or types length × height), sees one running day total plus labour and paint, then does a **Final submit** |
+| Daily work log | `worklog.html` + `js/worklog.js` — each day the crew adds a photo entry per painted surface, **measures its square feet on the photo** (or types length × height), sees one running day total plus labour and paint, then does a **Final submit** |
+| ERP | `erp.html` + `js/erp.js` (`window.PPERP`) + `js/erp-page.js` — the layer above the work log: projects, approvals, billing (**approved work only**) and daily/project/painter reports |
 | Photo measurement | `js/measure.js` (`window.PPMeasure`) — perspective-corrected area from a photo (4-corner calibration + shoelace), and the paint/labour maths |
 | Styles | `css/style.css` |
 | Scripts | `js/script.js` |
@@ -214,6 +226,60 @@ pure-geometry half (no DOM, unit-testable in Node) and a browser editor half.
 - Tests: `node tests/measure.test.js` covers the shoelace, flat calibration and
   perspective recovery (a skewed photo of a 10×6 ft wall must still measure
   60 sq ft), plus the costing maths.
+
+## ERP — `erp.html` + `js/erp.js` (`window.PPERP`) + `js/erp-page.js`
+
+The money layer above the work log. Owner/Head gated like `admin.html` and
+`worklog.html`. Data lives in `localStorage` under `painterPlusERP`; the work log
+it reads stays under `painterPlusWorkLog`.
+
+Data shape:
+
+```
+{
+  projects: [ { id, name, client, phone, address, rate, coverage, coats,
+                startDate, status: "active"|"closed", note } ],
+  approvals: { "YYYY-MM-DD": { status: "approved"|"rejected", by, at, note,
+                               sig } },   # sig = daySignature() at approval time
+  bills: { "<projectId>": [ { id, no, date, note, amount, sqft, createdAt } ] }
+}
+```
+
+**The one rule, do not break it:** a measurement that has not been *approved*
+never adds a rupee to a bill. `billFor()` returns `totals` (approved, billable)
+and `pending` in **separate** fields; they are never summed. `billFor()` and
+`invoiceText()` read only approved days. There is a block of `THE RULE:` tests in
+`tests/erp.test.js` that fails if this ever regresses.
+
+- A day can only be approved once it is **final-submitted** (`canApprove(day)`
+  checks `day.status === 'submitted'`) — an open day is still being edited.
+- **An approval is bound to the measurements it signed.** `setApproval()` stores a `sig` fingerprint of the day (`daySignature()`); `approvalOf()` returns `pending` (with `stale: true`) whenever the day no longer matches — i.e. it was reopened and edited after approval. `PPWorkLog.reopenDay()` also calls `PPERP.clearApproval(date)`. Never remove this: without it, an approved day could be edited and the *old* sign-off would still bill the *new* amount. (An approval with no `sig` — written before this existed — is honoured as-is.)
+- **Invoice ids and numbers must stay unique.** `addBill()` appends a random suffix to the id, and `nextBillNo()` derives the number from the highest `PP-nnn` ever used (never the list length), so deleting an invoice neither collides nor frees its number for reuse.
+- A day links to a project by `day.projectId` **first**, then by the free-text
+  `day.project` name (`dayMatchesProject`), so days logged before projects
+  existed still appear in a project's bill and reports.
+- A project's `rate`/`coats`/`coverage` override the day's own values
+  (`dayCosting(day, project)`), so changing the project rate re-prices the bill.
+- Reports: `reportDaily` (newest first, with approval state), `reportByProject`
+  (approved vs pending vs rejected), `reportByPainter` (attributed by `day.crew`,
+  `'Unassigned'` when missing), `overview` (whole-operation KPIs).
+- The work log's day bar has a project picker (`#wlProjectPick`, filled from
+  `PPERP.listProjects()`); picking one names the site and copies the project's
+  rates into the day. `js/worklog.js` reads the approval state from `PPERP` to
+  badge each submitted day in *Logged days*.
+- The picker is refreshed when the gate opens (`openPanel`) and on window
+  `focus`, and the history is re-rendered on `focus` too — a project added on
+  `erp.html`, or a day approved there, shows up when the crew returns to this
+  tab without a manual reload.
+- Pure engine: everything except the small storage helpers is DOM-free and
+  unit-tested. Tests: `node tests/erp.test.js`.
+- Browser self-tests (need a real browser; both runners cache-bust their scripts
+  and drop the service worker, which caches cache-first and would otherwise serve
+  a stale `js` file while iterating):
+  - `bash tests/run-erp-selftest.sh` → `tests/erp-selftest.js`: unlock, create a
+    project, seed days, approve, bill, report, reject.
+  - `bash tests/run-wl-erp-selftest.sh` → `tests/wl-erp-selftest.js`: log a day
+    against an ERP project and confirm it reaches that project's bill.
 
 ## Working rules for agents
 

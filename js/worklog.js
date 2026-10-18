@@ -64,8 +64,8 @@
   function money(n) { return '₹' + Math.round((n || 0)).toLocaleString('en-IN'); }
   function fmtLitres(n) { return (Math.round((n || 0) * 10) / 10).toLocaleString('en-IN') + ' L'; }
 
-  // HTML-attribute escaper. team.js's esc() escapes &, < and > but NOT
-  // quotes, which is correct for text nodes yet lets a value break out of a
+  // HTML-attribute escaper. The shared text escaper escapes &, < and > but
+  // NOT quotes, which is correct for text nodes yet lets a value break out of a
   // quoted attribute. Photo URLs, labels and ids are interpolated into
   // attributes below, so escape the quote characters too.
   function escAttr(s) {
@@ -98,7 +98,7 @@
 
   function blankDay(date) {
     return {
-      date: date, project: '', crew: '', status: 'open', entries: [],
+      date: date, project: '', projectId: '', crew: '', status: 'open', entries: [],
       rate: DEFAULTS.rate, coverage: DEFAULTS.coverage, coats: DEFAULTS.coats,
       submittedAt: '', submittedBy: ''
     };
@@ -235,6 +235,12 @@
     day.submittedAt = '';
     day.submittedBy = '';
     saveDay(day);
+    // Reopening withdraws any ERP approval: the numbers are about to change,
+    // so the old sign-off must not survive to bill the new figures. The ERP
+    // also guards this by comparing the day's signature, but clearing here
+    // keeps storage honest.
+    const ERP = window.PPERP;
+    if (ERP && ERP.clearApproval) ERP.clearApproval(date);
     return { ok: true, day: day };
   }
 
@@ -280,6 +286,7 @@
 
     const dateEl = $('wlDate');
     const projectEl = $('wlProject');
+    const projectPickEl = $('wlProjectPick');
     const crewEl = $('wlCrew');
     const statusEl = $('wlStatus');
     const gate = $('wlGate');
@@ -553,15 +560,59 @@
       dateEl.addEventListener('change', () => { resetForm(); loadDay(); });
     }
     if (projectEl) projectEl.addEventListener('change', persistDayMeta);
+    if (projectPickEl) projectPickEl.addEventListener('change', onPickProject);
     if (crewEl) crewEl.addEventListener('change', persistDayMeta);
     if (rateEl) rateEl.addEventListener('input', persistDayMeta);
     if (coverageEl) coverageEl.addEventListener('input', persistDayMeta);
     if (coatsEl) coatsEl.addEventListener('input', persistDayMeta);
+
+    // ----- ERP project link -----
+    // The work log can attach a day to a project created in erp.html. The
+    // free-text field stays so old days (and one-off sites) still work; the
+    // ERP matches a day to a project by id first, then by name.
+    const ERP = window.PPERP;
+    function fillProjectPicker() {
+      if (!projectPickEl || !ERP) return;
+      const list = ERP.listProjects();
+      const current = projectPickEl.value;
+      projectPickEl.innerHTML = '<option value="">— no project —</option>' +
+        list.map(p => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('');
+      if (current) projectPickEl.value = current;
+    }
+    function onPickProject() {
+      if (!projectPickEl) return;
+      const id = projectPickEl.value;
+      const day = PPWorkLog.getDay(currentDate());
+      if (day.status === 'submitted') { loadDay(); return; }
+      day.projectId = id;
+      if (ERP && id) {
+        const p = ERP.getProject(id);
+        // A picked project names the site and sets the day's rates, so the
+        // painter does not retype them on every new day.
+        if (p) {
+          if (projectEl) projectEl.value = p.name;
+          if (rateEl && p.rate) rateEl.value = p.rate;
+          if (coverageEl && p.coverage) coverageEl.value = p.coverage;
+          if (coatsEl && p.coats) coatsEl.value = p.coats;
+        }
+      }
+      persistDayMeta();
+    }
+    function syncProjectPicker(day) {
+      if (!projectPickEl) return;
+      projectPickEl.value = (day && day.projectId) || '';
+    }
+    fillProjectPicker();
+    // Projects may be added in another tab; refresh when we come back. Approval
+    // badges in the history also come from the ERP, so re-render those too.
+    window.addEventListener('focus', () => { fillProjectPicker(); renderHistory(); });
+
     function persistDayMeta() {
       const date = currentDate();
       const day = PPWorkLog.getDay(date);
       if (day.status === 'submitted') return;
       day.project = projectEl ? projectEl.value : '';
+      day.projectId = projectPickEl ? projectPickEl.value : '';
       day.crew = crewEl ? crewEl.value : '';
       day.rate = rateEl ? num(rateEl.value) : 0;
       day.coverage = coverageEl ? (num(coverageEl.value) || PPWorkLog.DEFAULTS.coverage) : PPWorkLog.DEFAULTS.coverage;
@@ -570,7 +621,7 @@
       // entry and no project/crew would otherwise show up in the history as a
       // phantom 0 sq ft day. The day rates are still read live from the form
       // (see liveDay), and get captured for real when the first entry is saved.
-      if (!day.entries.length && !day.project && !day.crew) {
+      if (!day.entries.length && !day.project && !day.projectId && !day.crew) {
         if (PPWorkLog.hasDay(date)) PPWorkLog.removeDay(date);
         render();
         return;
@@ -586,6 +637,7 @@
       const day = PPWorkLog.getDay(currentDate());
       if (day.status === 'submitted') return day;
       if (projectEl) day.project = projectEl.value;
+      if (projectPickEl) day.projectId = projectPickEl.value;
       if (crewEl) day.crew = crewEl.value;
       if (rateEl) day.rate = num(rateEl.value);
       if (coverageEl) day.coverage = num(coverageEl.value) || PPWorkLog.DEFAULTS.coverage;
@@ -596,6 +648,7 @@
     function loadDay() {
       const day = PPWorkLog.getDay(currentDate());
       if (projectEl) projectEl.value = day.project || '';
+      syncProjectPicker(day);
       if (crewEl) crewEl.value = day.crew || '';
       if (rateEl) rateEl.value = day.rate || '';
       if (coverageEl) coverageEl.value = day.coverage || PPWorkLog.DEFAULTS.coverage;
@@ -694,12 +747,20 @@
       }
       days.forEach(d => {
         const t = PPWorkLog.totals(d);
+        // Approval state comes from the ERP; a submitted day still reads as
+        // pending until an Owner/Head approves it there.
+        const appr = (ERP && ERP.approvalOf) ? ERP.approvalOf(d.date).status : 'pending';
+        const apprBadge = d.status === 'submitted'
+          ? { approved: ' <span class="wl-appr wl-appr-ok" title="Approved in ERP">✅ approved</span>',
+              rejected: ' <span class="wl-appr wl-appr-bad" title="Rejected in ERP">⛔ rejected</span>',
+              pending:  ' <span class="wl-appr wl-appr-wait" title="Awaiting approval in ERP">⏳ approval</span>' }[appr] || ''
+          : '';
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'wl-hist-row' + (d.date === currentDate() ? ' active' : '');
         btn.innerHTML =
           '<span class="wl-hist-date">' + esc(d.date) + (d.status === 'submitted' ? ' ✅' : '') + '</span>' +
-          '<span class="wl-hist-proj">' + esc(d.project || '—') + '</span>' +
+          '<span class="wl-hist-proj">' + esc(d.project || '—') + apprBadge + '</span>' +
           '<span class="wl-hist-val">' + esc(PPWorkLog.fmt(t.sqft)) + '</span>';
         btn.addEventListener('click', () => {
           if (dateEl) dateEl.value = d.date;
@@ -754,7 +815,14 @@
     const unlockBtn = $('wlUnlock');
     const passInput = $('wlPass');
     const gateErr = $('wlGateErr');
-    function openPanel() { if (gate) gate.hidden = true; if (panel) panel.hidden = false; loadDay(); }
+    function openPanel() {
+      if (gate) gate.hidden = true;
+      if (panel) panel.hidden = false;
+      // Projects may have been added on the ERP page since this tab loaded,
+      // so refresh the picker before showing the day.
+      fillProjectPicker();
+      loadDay();
+    }
     function tryUnlock() {
       if (T && T.unlockHead(passInput ? passInput.value : '')) openPanel();
       else if (gateErr) { gateErr.hidden = false; if (passInput) passInput.value = ''; }

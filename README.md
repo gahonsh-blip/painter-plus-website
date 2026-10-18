@@ -51,6 +51,7 @@ painter-plus-website/
 ├── painter-profile.html  Per-member profile (?id=slug) + Owner/Head role changer
 ├── admin.html        Owner/Head login: Team & Roles, profile, portfolio projects
 ├── worklog.html      Daily work log (ERP) — photo, on-photo square feet measure, labour + paint, final submit
+├── erp.html          ERP — projects, approvals, billing (approved work only) and daily/project/painter reports
 ├── privacy.html      Privacy policy
 ├── terms.html        Terms of service
 ├── offline.html      Shown by the service worker when offline
@@ -64,7 +65,9 @@ painter-plus-website/
 │   ├── color-studio.js  Color Studio live paint preview
 │   ├── photo-studio.js  "Paint my photo" — recolour an uploaded wall photo + material estimate (window.PPPhoto)
 │   ├── measure.js    Photo measurement (perspective-corrected sq ft) + costing (window.PPMeasure)
-   └── worklog.js    Daily work log store + page (window.PPWorkLog)
+│   ├── worklog.js    Daily work log store + page (window.PPWorkLog)
+│   ├── erp.js        ERP core — projects, approvals, billing, reports (window.PPERP)
+│   └── erp-page.js   ERP page controller for erp.html
 ├── images/
 │   └── og-image.svg  Open Graph / social share image (placeholder)
 ├── manifest.json     PWA manifest
@@ -203,6 +206,55 @@ bash tests/run-pmp-selftest.sh 8133   # then open http://localhost:8133/_pmp-sel
 > ≈ 130 sq ft/L/coat, exterior ≈ 110, putty ≈ 17 sq ft/kg), with 10% wastage.
 > They are estimates for a quote, not a guarantee.
 
+## 🧮 ERP — projects, approvals, billing and reports
+
+`erp.html` (`js/erp.js`, `window.PPERP`) is the layer above the work log that
+turns measurements into money. It is Owner/Head gated, exactly like `admin.html`
+and `worklog.html` (default passcode `painter123`, client-side only).
+
+The chain is deliberately gated:
+
+```
+Work log day → Final submit → Owner/Head approval → Bill → Report
+                              (pending)   (approved)
+```
+
+**The one rule that matters:** a measurement that has not been *approved* never
+adds a rupee to a bill. Pending work is shown beside the bill so it is visible,
+but kept in its own bucket. `billFor()` returns `totals` (approved, billable) and
+`pending` separately — they are never added together.
+
+- **Dashboard** — billable vs awaiting-approval money, total measured, latest days.
+- **Projects** — name, client, phone, site, labour rate, coats, coverage, status.
+- **Approvals** — only a *final-submitted* day can be approved or rejected (an
+  open day is still being edited, so its numbers are not final). Decisions can be
+  undone.
+- **Billing** — pick a project and the bill lists approved days only, with a
+  "not included" callout for pending work. **Record this bill** saves a numbered
+  invoice (`PP-001`, `PP-002`, …); **Copy invoice** produces a pasteable text bill.
+- **Reports** — daily, project-wise and painter-wise, each showing approved vs
+  pending area and labour.
+
+The work log links a day to a project through a picker on the day bar
+(`#wlProjectPick`); the free-text site name is still there for one-off jobs, and
+the ERP matches a day to a project by **id first, then by name**, so days logged
+before projects existed still appear. The logged-days list shows each submitted
+day's approval state (⏳ approval / ✅ approved / ⛔ rejected).
+
+Data lives in `localStorage` under `painterPlusERP`; the work log it reads stays
+under `painterPlusWorkLog`. Everything is pure except the small storage helpers,
+so the costing and the approval gate are unit-tested:
+
+```bash
+node tests/erp.test.js
+```
+
+`tests/erp.test.js` includes a block of `THE RULE:` tests that prove unapproved
+and rejected work never reaches a bill total, plus regression tests for the
+third-pass fixes: an approval is bound to the measurements it signed (editing an
+approved day withdraws it), invoice ids stay unique, a deleted invoice number is
+never reused, and rejected work is not counted as pending.
+
 ## 🎨 Customisation
 
 - Replace business name, phone, email, and address in all HTML files (use the values in the table above).
@@ -248,6 +300,23 @@ It checks the shoelace area, flat calibration, and **perspective recovery** — 
 skewed photo of a 10 × 6 ft wall must still measure 60 sq ft — plus the labour
 and paint maths.
 
+The ERP costing, approval gate and reports are pure and unit-tested too:
+
+```bash
+node tests/erp.test.js
+```
+
+Its `THE RULE:` block proves unapproved and rejected work never reaches a bill
+total, that approving a pending day moves it into the bill, and that a day with
+no decision reads as pending.
+
+The photo-recolour engine and the Color Studio material maths are pure and
+unit-tested as well:
+
+```bash
+node tests/photo-studio.test.js
+```
+
 The work-log UI itself is checked by a browser harness (the measurement tool
 draws on a `<canvas>`, so it needs a real browser):
 
@@ -261,6 +330,21 @@ taps the calibration corners and the painted area, saves the entry, and prints
 `ok` / `FAIL` lines for the measured square feet, the labour cost, editing,
 submit/reopen and the day summary.
 
+The ERP page and the work-log → ERP link each have a browser harness too:
+
+```bash
+bash tests/run-erp-selftest.sh 8131        # then open http://localhost:8131/_erp-selftest.html
+bash tests/run-wl-erp-selftest.sh 8132     # then open http://localhost:8132/_wl-erp-selftest.html
+```
+
+`run-erp-selftest.sh` unlocks `erp.html`, creates a project through the real
+form, seeds a submitted and an open day, and checks the dashboard, approvals,
+billing (₹0 before approval, ₹960 after), the invoice and all three reports.
+`run-wl-erp-selftest.sh` proves a day logged in `worklog.html` is stamped with
+the chosen ERP project and then appears in that project's bill once approved.
+Both runners cache-bust their scripts and drop the service worker, which caches
+cache-first and would otherwise serve a stale `js` file.
+
 ## 🧪 Before you finish
 
 Before considering the site fixed, verify:
@@ -268,6 +352,8 @@ Before considering the site fixed, verify:
 - [ ] No merge-conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) remain in any file.
 - [ ] `js/script.js` has no syntax error (the stray `}` brace is removed).
 - [ ] `node tests/measure.test.js` passes (photo measurement geometry + costing).
+- [ ] `node tests/erp.test.js` passes (ERP costing + the approval gate + the browser-global binding).
+- [ ] `node tests/photo-studio.test.js` passes (photo recolour + material maths).
 - [ ] All pages load with no console errors.
 - [ ] Dark/light theme toggle works.
 - [ ] Mobile menu opens/closes.

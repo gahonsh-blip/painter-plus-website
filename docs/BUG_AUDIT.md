@@ -3,14 +3,15 @@
 Full-site scan of every page, stylesheet, script and PWA asset. Each entry lists
 the symptom, the root cause, the fix, and how the fix was verified.
 
-Date of audit: 2026-10-16
-Scope: all 12 HTML pages, 5 JS files, `css/style.css`, `manifest.json`, `sw.js`,
+Date of audit: 2026-10-16 (third pass 2026-10-18)
+Scope: all 14 HTML pages, 10 JS files, `css/style.css`, `manifest.json`, `sw.js`,
 `robots.txt`, `sitemap.xml`, `_headers`.
 
-Two passes. The first fixed 9 bugs; the second targeted bug *types* the first did
-not (storage failures, CSP, data consistency, HTML validity, links, a11y) and
+Three passes. The first fixed 9 bugs; the second targeted bug *types* the first
+did not (storage failures, CSP, data consistency, HTML validity, links, a11y) and
 found 5 more — including a second instance of the same "one unguarded call kills
-the whole file" failure shape.
+the whole file" failure shape. The third pass reviewed the ERP/work-log data flow
+and found 4 more, the worst being an approval that outlived the work it signed off.
 
 ## Summary
 
@@ -32,6 +33,10 @@ the whole file" failure shape.
 | 14 | Low | Honeypot input not hidden from assistive tech | Fixed |
 | 15 | **High** | Photo URL could break out of an HTML attribute (injection) | Fixed |
 | 16 | Low | Empty day appeared in the work-log history as a phantom 0 sq ft day | Fixed |
+| 17 | **High** | An approved day could be edited and still billed at the new amount | Fixed |
+| 18 | Medium | Two invoices raised together shared an id — deleting one deleted both | Fixed |
+| 19 | Low | A deleted invoice number was reused by the next invoice | Fixed |
+| 20 | Low | Rejected work counted as "awaiting approval" on the dashboard | Fixed |
 
 ---
 
@@ -314,6 +319,74 @@ already exists. A real day (with entries) is never dropped. Added `hasDay()` and
 
 ---
 
+## 17. High — an approved day could be edited and still billed
+
+**Symptom.** The ERP deliberately bills **approved work only**. But a day was
+approved *as a snapshot*: the sign-off was stored as a plain
+`{status, by, at}` with no record of *what* it covered. Reopening the day in the
+work log, adding or changing measurements, and submitting again left the old
+approval in place — so the bill silently counted the **new** figures under the
+**old** sign-off.
+
+```
+approved 80 sq ft  ->  bill ₹960
+reopen, add 120 sq ft, resubmit
+                        bill ₹2,400   <-- never re-approved
+```
+
+Worse, `reopenDay()` did not touch the approval at all, so the day could sit
+"approved" while openly being edited.
+
+**Fix (two layers).**
+1. `js/erp.js` — an approval now stores a **signature** of the day it signed
+   (`daySignature()`: total sq ft, entry count, ids, per-entry sq ft, rate,
+   coverage, coats, project). `approvalOf()` compares the stored signature with
+   the day's current one and reports `pending` (with `stale: true`) when they
+   differ. An edited-after-approval day therefore reverts to *pending* on its
+   own and cannot reach a bill until it is reviewed again.
+2. `js/worklog.js` — `reopenDay()` calls the new `PPERP.clearApproval(date)`, so
+   reopening a day also deletes the stored decision instead of leaving it to
+   rot. Approvals written before signatures existed have no `sig` and are
+   honoured as-is, so old data keeps working.
+
+---
+
+## 18. Medium — deleting one invoice deleted two
+
+**Symptom.** `addBill()` built the invoice id as `'b' + Date.now().toString(36)`
+— **millisecond** precision and nothing else. Two invoices raised in the same
+millisecond (double-clicking *Record this bill*, or a scripted raise) shared an
+id. `removeBill()` filters by id, so deleting one deleted **both**.
+
+**Fix.** The id now appends `Math.random().toString(36).slice(2, 6)`, the same
+collision-proofing `worklog.js` already used for entry ids.
+
+---
+
+## 19. Low — a deleted invoice number was reused
+
+**Symptom.** The invoice number came from the list length:
+`'PP-' + (list.length + 1)`. Delete `PP-001` and the next invoice was numbered
+`PP-002` again — two live invoices sharing a number.
+
+**Fix.** `nextBillNo()` now scans the existing invoices and returns one past the
+**highest** `PP-nnn` ever used, so a number is never handed out twice.
+
+---
+
+## 20. Low — rejected work was counted as "awaiting approval"
+
+**Symptom.** The dashboard's *Awaiting approval* KPI is
+`labour − approvedLabour`. A **rejected** day is neither approved nor waiting,
+but it was not subtracted, so rejected money was advertised as pending money —
+and its day count landed in "day(s) submitted".
+
+**Fix.** `overview()` now reports `rejectedSqft` / `rejectedLabour` separately
+and excludes them from `unbilledLabour`; the dashboard renders a distinct red
+*Rejected* KPI (new `.erp-kpi-bad` style) only when there is rejected work.
+
+---
+
 ## Second-pass audit — categories checked and clean
 
 The follow-up pass covered bug *types* the first pass did not:
@@ -380,3 +453,21 @@ The follow-up pass covered bug *types* the first pass did not:
     `onerror`, and browsing dates / clearing a project leaves no phantom day.
 12. Site-wide re-run after the `esc()` hardening — 13/13 pages clean and no page
     double-escapes visible text.
+
+### Third pass (2026-10-18)
+
+13. `node tests/erp.test.js` — **47/47 pass**, including six new regression tests
+    covering bugs 17–20 (edit-after-approval withdraws the sign-off, re-approval
+    bills the new amount, distinct invoice ids, no reused invoice number, a
+    rejected day is not pending).
+14. `node tests/measure.test.js` 16/16, `node tests/photo-studio.test.js` 50/50 —
+    unchanged by the ERP fixes.
+15. Real-browser run of `tests/run-wl-erp-selftest.sh` — **16/16 checks pass**,
+    including *reopen withdraws the ERP approval* and *an edited day is not
+    billed on the old approval*.
+16. Real-browser run of `tests/run-erp-selftest.sh` — **25/25 checks pass**;
+    the dashboard still shows the correct billable / pending split, now with a
+    separate Rejected KPI.
+17. A page-load probe of all 14 pages — every page loads with no JS errors and
+    no missing element ids.
+18. `node --check` on every JS file — all parse.

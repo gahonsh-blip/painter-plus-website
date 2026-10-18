@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ERP — Projects, Billing &amp; Reports | Painter Plus</title>
+    <meta name="description" content="Painter Plus ERP — link work-log measurements to projects, approve them, raise bills from approved work only, and read daily, project and painter reports." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#2563EB" />
+    <meta property="og:title" content="ERP — Projects, Billing &amp; Reports | Painter Plus" />
+    <meta property="og:description" content="Projects, approvals, billing and reports for Painter Plus." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://gahonsh-blip.github.io/painter-plus-website/erp.html" />
+    <meta property="og:image" content="https://gahonsh-blip.github.io/painter-plus-website/images/og-image.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://gahonsh-blip.github.io/painter-plus-website/erp.html" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="./images/icon-192.png" />
+    <link rel="stylesheet" href="./css/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="container flex-header">
+        <a href="./index.html" class="logo">🎨 <span>Painter Plus</span></a>
+        <button class="mobile-toggle" type="button" aria-label="Toggle navigation">☰</button>
+        <nav class="nav-links">
+          <a href="./index.html">Home</a>
+          <a href="./about.html">About</a>
+          <a href="./services.html">Services</a>
+          <a href="./portfolio.html">Portfolio</a>
+          <a href="./color-studio.html">Color Studio</a>
+          <a href="./team.html">Team</a>
+          <a href="./contact.html">Contact</a>
+          <a href="./worklog.html">Work Log</a>
+          <a href="./erp.html" class="active" aria-current="page">ERP</a>
+          <a href="./admin.html">Admin</a>
+          <button class="theme-toggle" id="theme-toggle" type="button">🌙 Dark</button>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="section">
+        <div class="container" id="erpApp">
+          <h1 class="section-title">Painter <span>ERP</span></h1>
+          <p class="adm-sub">Everything measured in the <a href="./worklog.html">work log</a> flows through here. Link each day to a <strong>project</strong>, approve the finished work, and raise a bill — the bill counts <strong>approved work only</strong>. The tabs below also show daily, project-wise and painter-wise reports.</p>
+
+          <!-- Lightweight passcode gate (client-side only, not real security) -->
+          <div class="adm-gate" id="erpGate">
+            <div class="adm-gate-card">
+              <h3>🔒 Owner / Head login</h3>
+              <p class="adm-gate-note">Approve work and raise bills. This is a simple client-side gate to keep casual visitors out — it is <strong>not</strong> real security. Default passcode: <code>painter123</code> (change it in <code>js/team.js</code>).</p>
+              <div class="adm-gate-form">
+                <input type="password" id="erpPass" class="form-control" placeholder="Passcode" autocomplete="current-password" />
+                <button type="button" class="btn-primary" id="erpUnlock">Unlock →</button>
+              </div>
+              <p class="adm-gate-error" id="erpGateErr" hidden>Wrong passcode. Try again.</p>
+            </div>
+          </div>
+
+          <!-- ERP panel (shown after unlock) -->
+          <div class="adm-panel" id="erpPanel" hidden>
+            <div class="adm-tabs" role="tablist" aria-label="ERP sections">
+              <button type="button" class="adm-tab active" id="tabDash" role="tab" aria-selected="true">📊 Dashboard</button>
+              <button type="button" class="adm-tab" id="tabProj" role="tab" aria-selected="false">🏗️ Projects</button>
+              <button type="button" class="adm-tab" id="tabApprove" role="tab" aria-selected="false">✅ Approvals</button>
+              <button type="button" class="adm-tab" id="tabBill" role="tab" aria-selected="false">🧾 Billing</button>
+              <button type="button" class="adm-tab" id="tabReport" role="tab" aria-selected="false">📈 Reports</button>
+            </div>
+
+            <!-- ===== DASHBOARD ===== -->
+            <div class="adm-pane" id="paneDash">
+              <div class="erp-kpis" id="erpKpis"></div>
+              <div class="erp-two">
+                <div class="erp-card">
+                  <h3>Latest days</h3>
+                  <div id="erpDashDays"></div>
+                </div>
+                <div class="erp-card">
+                  <h3>Projects</h3>
+                  <div id="erpDashProjects"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== PROJECTS ===== -->
+            <div class="adm-pane" id="paneProj" hidden>
+              <div class="erp-two">
+                <div class="erp-card">
+                  <h3 id="erpProjFormTitle">➕ Add a project</h3>
+                  <form id="erpProjForm" class="erp-form">
+                    <input type="hidden" id="erpProjId" />
+                    <label for="erpProjName">Project name *</label>
+                    <input type="text" id="erpProjName" class="form-control" placeholder="e.g. Sharma House" required />
+                    <label for="erpProjClient">Client</label>
+                    <input type="text" id="erpProjClient" class="form-control" placeholder="Client name" />
+                    <label for="erpProjPhone">Client phone</label>
+                    <input type="text" id="erpProjPhone" class="form-control" placeholder="+91 …" />
+                    <label for="erpProjAddress">Site address</label>
+                    <input type="text" id="erpProjAddress" class="form-control" placeholder="Village / town" />
+                    <div class="erp-form-row">
+                      <div>
+                        <label for="erpProjRate">Labour rate (₹ per sq ft)</label>
+                        <input type="number" id="erpProjRate" class="form-control" min="0" step="0.5" placeholder="e.g. 12" />
+                      </div>
+                      <div>
+                        <label for="erpProjCoats">Coats</label>
+                        <input type="number" id="erpProjCoats" class="form-control" min="1" max="5" step="1" placeholder="2" />
+                      </div>
+                      <div>
+                        <label for="erpProjCoverage">Coverage (sq ft / L)</label>
+                        <input type="number" id="erpProjCoverage" class="form-control" min="1" step="5" placeholder="130" />
+                      </div>
+                    </div>
+                    <label for="erpProjStatus">Status</label>
+                    <select id="erpProjStatus" class="form-control">
+                      <option value="active">Active</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                    <label for="erpProjNote">Note</label>
+                    <input type="text" id="erpProjNote" class="form-control" placeholder="Anything worth remembering" />
+                    <div class="erp-form-actions">
+                      <button type="submit" class="btn-primary" id="erpProjSave">💾 Save project</button>
+                      <button type="button" class="btn-secondary" id="erpProjReset">Reset</button>
+                    </div>
+                  </form>
+                </div>
+                <div class="erp-card">
+                  <h3>Saved projects</h3>
+                  <p class="erp-empty" id="erpProjEmpty">No projects yet. Add your first one on the left.</p>
+                  <ul class="erp-list" id="erpProjList"></ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== APPROVALS ===== -->
+            <div class="adm-pane" id="paneApprove" hidden>
+              <p class="erp-lead">Only a <strong>final-submitted</strong> day can be approved. An open day is still being edited, so it is not offered here.</p>
+              <div class="erp-card">
+                <h3>Days awaiting a decision</h3>
+                <p class="erp-empty" id="erpApprEmpty">Nothing waiting — every submitted day has been decided.</p>
+                <ul class="erp-list" id="erpApprList"></ul>
+              </div>
+              <div class="erp-card">
+                <h3>Decided</h3>
+                <p class="erp-empty" id="erpApprDoneEmpty">No decisions yet.</p>
+                <ul class="erp-list" id="erpApprDoneList"></ul>
+              </div>
+            </div>
+
+            <!-- ===== BILLING ===== -->
+            <div class="adm-pane" id="paneBill" hidden>
+              <div class="erp-card">
+                <label for="erpBillProject">Project to bill</label>
+                <select id="erpBillProject" class="form-control"></select>
+                <div id="erpBillOut" class="erp-bill-out"></div>
+              </div>
+            </div>
+
+            <!-- ===== REPORTS ===== -->
+            <div class="adm-pane" id="paneReport" hidden>
+              <div class="adm-tabs erp-subtabs" role="tablist" aria-label="Report type">
+                <button type="button" class="adm-tab active" id="repTabDaily" role="tab" aria-selected="true">Daily</button>
+                <button type="button" class="adm-tab" id="repTabProject" role="tab" aria-selected="false">Project-wise</button>
+                <button type="button" class="adm-tab" id="repTabPainter" role="tab" aria-selected="false">Painter-wise</button>
+              </div>
+              <div class="erp-card" id="erpReportOut"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="container">
+        <div class="footer-grid">
+          <div>
+            <h4>Company</h4>
+            <ul>
+              <li><a href="./about.html">About Us</a></li>
+              <li><a href="./contact.html">Contact</a></li>
+              <li><a href="./privacy.html">Privacy Policy</a></li>
+              <li><a href="./terms.html">Terms of Service</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Services</h4>
+            <ul>
+              <li><a href="./services.html">Interior Painting</a></li>
+              <li><a href="./services.html">Exterior Painting</a></li>
+              <li><a href="./services.html">Wall Putty</a></li>
+              <li><a href="./services.html">Texture Finishes</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Resources</h4>
+            <ul>
+              <li><a href="./portfolio.html">Portfolio</a></li>
+              <li><a href="./color-studio.html">Color Studio</a></li>
+              <li><a href="./team.html">Our Team</a></li>
+              <li><a href="./worklog.html">Work Log</a></li>
+              <li><a href="./erp.html">ERP</a></li>
+              <li><a href="./admin.html">Admin</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Get in Touch</h4>
+            <ul>
+              <li>📞 <a href="tel:+918825183628">+91 8825183628</a></li>
+              <li>✉️ <a href="mailto:gahonsh@gmail.com">gahonsh@gmail.com</a></li>
+              <li>📍 Upar Balalong, Arki, Khunti, Jharkhand, India - 835225</li>
+              <li><a href="https://wa.me/918825183628" target="_blank" rel="noreferrer">💬 WhatsApp</a></li>
+            </ul>
+          </div>
+        </div>
+        <p class="footer-bottom">© 2026 Painter Plus. All rights reserved. <a href="./privacy.html">Privacy</a> | <a href="./terms.html">Terms</a></p>
+      </div>
+    </footer>
+
+    <a href="https://wa.me/918825183628" class="whatsapp-float" target="_blank" rel="noreferrer">💬 WhatsApp</a>
+
+    <script src="./js/team.js" defer></script>
+    <script src="./js/worklog.js" defer></script>
+    <script src="./js/erp.js" defer></script>
+    <script src="./js/erp-page.js" defer></script>
+    <script src="./js/script.js" defer></script>
+  </body>
+</html>
