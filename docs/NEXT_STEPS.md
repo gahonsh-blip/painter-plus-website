@@ -206,3 +206,66 @@ what was logged, it does not measure the picture. That is the Color Studio /
 ---
 
 ## 9. Optional future improvements (continued)
+
+---
+
+## 10. ERP hardening & automated browser checks (done — 2026-10-18)
+
+A fourth pass over the ERP/work-log data flow, plus a way to re-run the browser
+self-tests automatically. Full detail is in `docs/BUG_AUDIT.md` §25–§28.
+
+- **Bug 25 — a project rate change re-billed an approved day.** An approval's
+  fingerprint only covered the *day's own* rates, so changing the linked
+  project's rate changed the money but kept the sign-off. `effectiveRates()` is
+  now the single source of truth for "which rate applies" and feeds both the
+  costing and the fingerprint, so any project-costing change withdraws the
+  approval.
+- **Bug 26 — portfolio-merge injection.** Admin-typed project fields reached
+  `portfolio.html` unescaped (photo URL broke out of the `<img>` attribute; the
+  description fields were raw HTML; the hover image was concatenated into a CSS
+  `url()`). Every field now goes through `esc()`, and `--pf-img` is set through
+  the CSSOM with quotes/parens/backslashes stripped.
+- **Bug 27 — a failed save claimed success.** The storage helpers already
+  swallowed a blocked/full write; now they *return* whether it landed, and every
+  mutator returns `{ ok:false, error: STORAGE_ERROR }` so the UI can say so.
+- **Bug 28 — headless runner.** `tests/run-all-headless.sh` builds every
+  throwaway page, serves the repo once, drives headless Chromium and exits
+  non-zero on any FAIL. `tests/portfolio-selftest.js` +
+  `run-portfolio-selftest.sh` cover bug 26 and were shown to fail (9 FAILs) on
+  the pre-fix code.
+
+Verification: `node` suites green (erp 58, gallery 24, measure 16,
+photo-studio 50) and `bash tests/run-all-headless.sh` →
+**ALL BROWSER CHECKS PASSED**. Service-worker cache bumped `v21` → `v22`.
+
+### Sixth pass (2026-10-18) — ERP reporting + Color Studio
+
+Nine more bugs, all reproduced before fixing; see `docs/BUG_AUDIT.md` §29–37.
+
+- **Bug 29 — crew ids in reports.** The work log stores `crew` as the member
+  **id**; the ERP printed it raw, so reports showed `ramesh-kumar` and split one
+  person (id vs legacy name) into two rows. `PPERP.crewIdentity()`/`crewName()`
+  resolve through `PPTeam`; the painter report groups by identity.
+- **Bug 30 — "awaiting approval" counted open days.** The KPI money swept in
+  days still being edited and disagreed with its own subtitle. Days now split
+  `approved` / `pending` (submitted) / `open` / `rejected`; only submitted days
+  are pending, and the dashboard gained an "Open (in progress)" KPI.
+- **Bug 31 — invoice printed `₹0/sq ft`.** `billedRateInfo()` now quotes the rate
+  the work was actually costed at (project rate, else day rate).
+- **Bug 32 — a day billed under two projects.** `dayMatchesProject` no longer
+  falls through to a name match when a `projectId` is present.
+- **Bug 33 — Color Studio swatch never highlighted.** `hexToRgb` now parses the
+  browser's `rgb(...)`; a saved palette colour highlights its swatch again.
+- **Bug 34 — same-millisecond project-id collision.** `uniqueProjectId()` loops
+  until the id is free.
+- **Bug 35 — `billTotal()` dropped paint.** It now returns `totals.total`.
+- **Bug 36 — decorative image on the SW-install path.** `sw.js` precaches
+  per-asset so one missing file cannot reject the whole install.
+- **Bug 37 — work-log summary printed the crew id.** It now shows the name.
+
+Verification: `node tests/erp.test.js` **64/64** (six new regressions + seven
+existing tests updated to the corrected bucket model), gallery 24, measure 16,
+photo-studio 50, and `bash tests/run-all-headless.sh` →
+**ALL BROWSER CHECKS PASSED**. The Color Studio and ERP fixes were each confirmed
+in real headless Chromium (`activeSwatches` 0 → 1; the KPI and Painter report now
+agree and show names). Service-worker cache bumped `v23` → `v24`.

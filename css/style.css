@@ -1757,6 +1757,9 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 .wl-measure-tools .btn-ghost { border: 1.5px solid var(--border); }
 .wl-measure-tools button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .wl-measure-calib { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wl-calib-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.wl-presets-label { font-size: .8rem; font-weight: 600; color: var(--text-light); }
+.wl-calib-presets .btn-ghost { border: 1.5px solid var(--border); }
 .wl-measure-out {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
   padding: 10px 14px; border-radius: 10px;

@@ -244,7 +244,8 @@
     wrap.querySelectorAll('[data-del]').forEach((b) => {
       b.addEventListener('click', () => {
         if (!confirm('Remove this photo from your gallery?')) return;
-        G.remove(member.id, b.dataset.del);
+        const r = G.remove(member.id, b.dataset.del);
+        if (!r.ok) { flashEditor(r.error, true); return; }
         renderEditorGallery(); renderGallery(); renderRecord();
       });
     });

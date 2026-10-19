@@ -182,10 +182,14 @@ test('THE RULE: only approved days count toward the bill', () => {
 test('THE RULE: pending work is reported but billed at zero', () => {
   seedWorld();
   const b = E.billFor('sharma-house');
-  // 50 submitted (pending) + 25 open = 75 sq ft, ₹900 of unbilled labour.
-  assert.strictEqual(b.pending.count, 2);
-  assert.strictEqual(b.pending.sqft, 75);
-  assert.strictEqual(b.pending.labour, 900);
+  // Only the 11th is submitted-but-unapproved: 50 sq ft, ₹600 of pending money.
+  assert.strictEqual(b.pending.count, 1);
+  assert.strictEqual(b.pending.sqft, 50);
+  assert.strictEqual(b.pending.labour, 600);
+  // The 12th is still OPEN (being edited) — its own bucket, not "pending".
+  assert.strictEqual(b.open.count, 1);
+  assert.strictEqual(b.open.sqft, 25);
+  assert.strictEqual(b.open.labour, 300);
   assert.notStrictEqual(b.pending.labour, b.totals.labour);
 });
 test('THE RULE: approving a pending day moves it into the bill', () => {
@@ -195,7 +199,10 @@ test('THE RULE: approving a pending day moves it into the bill', () => {
   const after = E.billFor('sharma-house');
   assert.strictEqual(after.totals.sqft, 150);
   assert.strictEqual(after.totals.labour, 1800);
-  assert.strictEqual(after.pending.count, 1);
+  // The 11th is now approved, so nothing submitted remains pending; the 12th
+  // is still open.
+  assert.strictEqual(after.pending.count, 0);
+  assert.strictEqual(after.open.count, 1);
 });
 test('THE RULE: a rejected day is billed at zero and not pending', () => {
   seedWorld();
@@ -204,7 +211,9 @@ test('THE RULE: a rejected day is billed at zero and not pending', () => {
   assert.strictEqual(b.totals.labour, 1200);
   assert.strictEqual(b.rejected.count, 1);
   assert.strictEqual(b.rejected.sqft, 50);
-  assert.strictEqual(b.pending.count, 1); // only the open day
+  // Nothing submitted-but-unapproved remains; the open day is not "pending".
+  assert.strictEqual(b.pending.count, 0);
+  assert.strictEqual(b.open.count, 1);
 });
 test('THE RULE: an empty project bills zero', () => {
   seedWorld();
@@ -358,7 +367,9 @@ test('the invoice names what was left out', () => {
   seedWorld();
   const txt = E.invoiceText('sharma-house');
   assert.ok(/NOT INCLUDED \(awaiting approval\)/.test(txt));
-  assert.ok(txt.indexOf('₹900') >= 0, 'expected the pending amount called out');
+  assert.ok(txt.indexOf('₹600') >= 0, 'expected the pending amount called out');
+  // The still-open day is called out separately, not as pending.
+  assert.ok(/NOT INCLUDED \(still open, not submitted\)/.test(txt));
 });
 test('an invoice with nothing approved says so', () => {
   seedWorld();
@@ -412,7 +423,8 @@ test('project report splits approved from pending', () => {
   const rows = E.reportByProject();
   const sharma = rows.find((r) => r.project.id === 'sharma-house');
   assert.strictEqual(sharma.approved.sqft, 100);
-  assert.strictEqual(sharma.pending.sqft, 75);
+  assert.strictEqual(sharma.pending.sqft, 50); // submitted, not approved
+  assert.strictEqual(sharma.open.sqft, 25);     // still being edited
   const verma = rows.find((r) => r.project.id === 'verma-flat');
   assert.strictEqual(verma.pending.sqft, 80);
 });
@@ -443,7 +455,11 @@ test('overview totals the whole operation', () => {
   assert.strictEqual(o.approvedSqft, 100);
   assert.strictEqual(o.approvedLabour, 1200);
   assert.strictEqual(o.pendingDays, 2);     // 11th + 13th are submitted, not approved
-  assert.strictEqual(o.unbilledLabour, 1700); // 2900 - 1200
+  assert.strictEqual(o.openDays, 1);        // the 12th is still open
+  // Awaiting approval = the two submitted-but-unapproved days (₹600 + ₹800);
+  // the open day (₹300) is work-in-progress, not pending.
+  assert.strictEqual(o.unbilledLabour, 1400);
+  assert.strictEqual(o.openLabour, 300);
 });
 
 // ============================================================
@@ -513,11 +529,148 @@ test('REG: a rejected day is not counted as pending', () => {
   E.rejectDay('2026-10-11', 'Gahonsh', 'blurry');
   const o = E.overview();
   assert.strictEqual(o.rejectedLabour, 600);   // 50 sq ft × ₹12
-  assert.strictEqual(o.pendingDays, 1);        // only the open 12th
-  // Unbilled is the open day (₹300) plus Verma's submitted-but-pending day
-  // (₹800) — the rejected ₹600 must NOT be in here.
-  assert.strictEqual(o.unbilledLabour, 1100);
+  assert.strictEqual(o.pendingDays, 1);        // only Verma's submitted day
+  // Awaiting approval = Verma's submitted-but-pending day (₹800) only — the
+  // rejected ₹600 and the open ₹300 must NOT be in here.
+  assert.strictEqual(o.unbilledLabour, 800);
+  assert.strictEqual(o.openLabour, 300);
 });
+
+// ============================================================
+// REGRESSIONS — second pass (bugs 1–9, see docs/BUG_AUDIT.md)
+// ============================================================
+
+// Bug 5: a day whose projectId points at project A but whose free-text name
+// equalled project B's name matched BOTH, so one day's work was billed under
+// two projects. An explicit id must be authoritative.
+test('REG: a day with a projectId matches only that project', () => {
+  E._setStore(memStore({
+    painterPlusWorkLog: JSON.stringify({
+      '2026-10-10': {
+        date: '2026-10-10', projectId: 'a', project: 'Site B', crew: 'R',
+        status: 'submitted', rate: 12, coverage: 130, coats: 2,
+        entries: [{ id: 'e1', area: 'wall', sqft: 100 }]
+      }
+    }),
+    painterPlusERP: JSON.stringify({
+      projects: [
+        { id: 'a', name: 'Site A', rate: 12, coverage: 130, coats: 2, status: 'active' },
+        { id: 'b', name: 'Site B', rate: 12, coverage: 130, coats: 2, status: 'active' }
+      ],
+      approvals: { '2026-10-10': { status: 'approved', by: 'x', at: 'x' } }, bills: {}
+    })
+  }));
+  const day = E.readWorkLog()['2026-10-10'];
+  assert.strictEqual(E.dayMatchesProject(day, E.getProject('a')), true, 'must match its own project');
+  assert.strictEqual(E.dayMatchesProject(day, E.getProject('b')), false, 'must NOT also match the name-twin');
+  assert.strictEqual(E.billFor('a').totals.sqft, 100);
+  assert.strictEqual(E.billFor('b').totals.sqft, 0, 'the other project must not be billed for this day');
+});
+
+// Bug 7: two projects with the same name saved in the same millisecond shared
+// an id, so the second overwrote the first.
+test('REG: two same-name projects get distinct ids', () => {
+  seedWorld();
+  const a = E.saveProject({ name: 'Twin Site', rate: 10 });
+  const b = E.saveProject({ name: 'Twin Site', rate: 20 });
+  assert.notStrictEqual(a.project.id, b.project.id, 'ids must be unique even in the same ms');
+  const twins = E.listProjects().filter((p) => p.name === 'Twin Site');
+  assert.strictEqual(twins.length, 2, 'both projects must survive');
+});
+
+// Bug 8: billTotal() returned labour only, dropping the paint cost.
+test('REG: billTotal includes the paint cost', () => {
+  seedWorld();
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 12, paintRate: 200 });
+  const b = E.billFor('sharma-house');
+  assert.ok(b.totals.paintCost > 0, 'the day must carry a paint cost');
+  assert.strictEqual(E.billTotal('sharma-house'), b.totals.total, 'billTotal must equal labour + paint');
+  assert.ok(E.billTotal('sharma-house') > b.totals.labour, 'billTotal must exceed labour alone');
+});
+
+// Bug 3: the invoice printed the project's blank ₹0 rate (and project coats)
+// while billing the day's real rate.
+test('REG: the invoice quotes the rate the work was billed at', () => {
+  E._setStore(memStore({
+    painterPlusWorkLog: JSON.stringify({
+      '2026-10-20': {
+        date: '2026-10-20', projectId: 'p1', project: 'Site A', crew: 'R',
+        status: 'submitted', rate: 12, coverage: 130, coats: 3,
+        entries: [{ id: 'e1', area: 'wall', sqft: 100 }]
+      }
+    }),
+    painterPlusERP: JSON.stringify({
+      // The project leaves its rate AND coats unset, so the day's own values
+      // are what the costing actually uses.
+      projects: [{ id: 'p1', name: 'Site A', rate: 0, coverage: 0, coats: 0, status: 'active' }],
+      approvals: { '2026-10-20': { status: 'approved', by: 'x', at: 'x' } }, bills: {}
+    })
+  }));
+  const txt = E.invoiceText('p1');
+  assert.ok(!/Labour rate:\s*₹0/.test(txt), 'the invoice must not quote a ₹0 rate next to real labour');
+  assert.ok(/Labour rate:\s*₹12/.test(txt), 'expected the day rate ₹12');
+  assert.ok(/day rate/.test(txt), 'expected the day-rate note');
+  assert.ok(/\(3 coats\)/.test(txt), 'expected the day coat count, not the project default');
+  assert.strictEqual(E.billFor('p1').totals.labour, 1200);
+});
+
+// Bug 1: the painter/daily reports printed the stored crew id ("ramesh-kumar")
+// instead of the member's name, and split one person into two rows. Resolve
+// through PPTeam when it is loaded.
+test('REG: the painter report shows a name, not the crew id, and merges the two forms', () => {
+  const vm = require('vm');
+  const fs = require('fs');
+  const path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'js', 'erp.js'), 'utf8');
+  const store = {
+    painterPlusWorkLog: JSON.stringify({
+      // modern form: crew = member id
+      '2026-10-10': { date: '2026-10-10', projectId: 'p1', project: 'P1', crew: 'ramesh-kumar', status: 'submitted', rate: 12, coverage: 130, coats: 2, entries: [{ id: 'e1', sqft: 100 }] },
+      // legacy form: crew = typed name, same person
+      '2026-10-11': { date: '2026-10-11', projectId: 'p1', project: 'P1', crew: 'Ramesh Kumar', status: 'submitted', rate: 12, coverage: 130, coats: 2, entries: [{ id: 'e2', sqft: 50 }] }
+    }),
+    painterPlusERP: JSON.stringify({ projects: [{ id: 'p1', name: 'P1', rate: 12, coverage: 130, coats: 2, status: 'active' }], approvals: {}, bills: {} })
+  };
+  const win = {
+    localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
+    PPTeam: {
+      get: (id) => (id === 'ramesh-kumar' ? { id: 'ramesh-kumar', name: 'Ramesh Kumar' } : null),
+      list: () => [{ id: 'ramesh-kumar', name: 'Ramesh Kumar' }]
+    }
+  };
+  const sandbox = { window: win, console };
+  sandbox.globalThis = sandbox;
+  vm.createContext(sandbox);
+  vm.runInContext(src, sandbox);
+  const P = win.PPERP;
+  const rows = P.reportByPainter();
+  assert.strictEqual(rows.length, 1, 'the id and the legacy name must collapse into ONE row');
+  assert.strictEqual(rows[0].crew, 'Ramesh Kumar', 'the report must show the name, not the id');
+  assert.strictEqual(rows[0].days, 2);
+  assert.strictEqual(rows[0].sqft, 150);
+  // And the daily report shows the name too.
+  const daily = P.reportDaily();
+  assert.ok(daily.every((r) => r.crew === 'Ramesh Kumar'), 'daily report must resolve the crew name');
+});
+
+// Bug 2: "awaiting approval" counted days that were never submitted, so the
+// dashboard advertised work-in-progress as pending revenue and the KPI's own
+// subtitle disagreed with its money.
+test('REG: awaiting approval excludes open days and agrees with its count', () => {
+  seedWorld();
+  const o = E.overview();
+  const b = E.billFor('sharma-house');
+  // Submitted-but-unapproved days: 11th (₹600) + Verma 13th (₹800) = ₹1400.
+  assert.strictEqual(o.unbilledLabour, 1400);
+  // The KPI money (unbilledLabour) counts exactly pendingDays days.
+  assert.strictEqual(o.pendingDays, 2);
+  // The open day is separated out, and the bill's pending bucket holds only
+  // the submitted day — dashboard and bill now agree.
+  assert.strictEqual(o.openLabour, 300);
+  assert.strictEqual(b.pending.count, 1);
+  assert.strictEqual(b.open.count, 1);
+});
+
 
 // ============================================================
 // STORAGE SAFETY
@@ -526,12 +679,59 @@ test('a blocked store does not throw', () => {
   E._setStore({ getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } });
   assert.doesNotThrow(() => E.listProjects());
   assert.doesNotThrow(() => E.overview());
-  assert.strictEqual(E.saveProject({ name: 'X' }).ok, true); // in-memory write is best-effort
+  // A write that cannot persist must be reported, not silently claimed as saved.
+  const res = E.saveProject({ name: 'X' });
+  assert.strictEqual(res.ok, false);
+  assert.ok(/storage/i.test(res.error));
 });
 test('corrupt stored JSON falls back to empty', () => {
   E._setStore(memStore({ painterPlusERP: 'not json{{{' }));
   assert.deepStrictEqual(E.listProjects(), []);
   assert.strictEqual(E.overview().projects, 0);
+});
+
+// ============================================================
+// REGRESSIONS — pricing + persistence (see docs/BUG_AUDIT.md)
+// ============================================================
+
+// Bug: a project's rate/coverage/paint-rate could be changed AFTER a day was
+// approved. The signature only covered the day's own rates, so the old
+// sign-off kept billing the approved day at the NEW project rate with no
+// re-approval. The signature must include the effective (project) rates.
+test('REG: changing the project rate withdraws an approved day', () => {
+  seedWorld();
+  E.approveDay('2026-10-10', 'Gahonsh');
+  assert.strictEqual(E.billFor('sharma-house').totals.labour, 1200); // 100 × 12
+  // The owner raises the project rate from ₹12 to ₹50.
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 50, coverage: 130, coats: 2 });
+  assert.strictEqual(E.approvalOf('2026-10-10').status, 'pending', 'a project-rate change must re-open the sign-off');
+  assert.strictEqual(E.billFor('sharma-house').totals.labour, 0, 'the old approval must not bill the new rate');
+});
+test('REG: changing the project paint rate withdraws an approved day', () => {
+  seedWorld();
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 12, paintRate: 200 });
+  E.approveDay('2026-10-10', 'Gahonsh');
+  assert.ok(E.billFor('sharma-house').totals.total > 1200);
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 12, paintRate: 400 });
+  assert.strictEqual(E.approvalOf('2026-10-10').status, 'pending', 'a project paint-rate change must re-open the sign-off');
+});
+test('REG: re-approving after a project-rate change bills the new rate', () => {
+  seedWorld();
+  E.approveDay('2026-10-10', 'Gahonsh');
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 50, coverage: 130, coats: 2 });
+  E.approveDay('2026-10-10', 'Gahonsh');
+  assert.strictEqual(E.approvalOf('2026-10-10').status, 'approved');
+  assert.strictEqual(E.billFor('sharma-house').totals.labour, 5000); // 100 × 50
+});
+
+// Bug: a save whose localStorage write failed (quota/blocked) still reported
+// ok:true, so the UI said "saved" while nothing was stored.
+test('REG: a failed write is reported, not silently swallowed', () => {
+  E._setStore({ getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); } });
+  const res = E.saveProject({ name: 'Doomed', rate: 10 });
+  assert.strictEqual(res.ok, false, 'a save that did not persist must not report ok');
+  assert.ok(/storage/i.test(res.error), 'expected a storage error message');
+  assert.strictEqual(E.listProjects().length, 0);
 });
 
 // ============================================================

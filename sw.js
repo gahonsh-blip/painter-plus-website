@@ -1,4 +1,4 @@
-const CACHE_NAME = 'painter-plus-v20';
+const CACHE_NAME = 'painter-plus-v24';
 const BASE_PATH = self.location.pathname.replace(/\/[^/]*$/, '/');
 const ASSETS = [
   `${BASE_PATH}`,
@@ -31,15 +31,25 @@ const ASSETS = [
   `${BASE_PATH}js/erp.js`,
   `${BASE_PATH}js/erp-page.js`,
   `${BASE_PATH}manifest.json`,
-  `${BASE_PATH}images/og-image.svg`,
   `${BASE_PATH}images/icon-192.png`,
   `${BASE_PATH}images/icon-512.png`,
   `${BASE_PATH}images/icon-maskable-512.png`
 ];
 
+// Precache each asset independently. `cache.addAll()` is all-or-nothing: one
+// missing file (a decorative social image, a renamed asset) rejects the whole
+// install, so the service worker never activates and the site loses offline
+// support entirely. Caching one at a time means a single bad URL is skipped
+// instead of taking the whole install down.
+function precache(cache) {
+  return Promise.all(ASSETS.map((url) =>
+    cache.add(url).catch(() => null)
+  ));
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then(precache).then(() => self.skipWaiting())
   );
 });
 

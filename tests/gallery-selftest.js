@@ -36,7 +36,14 @@
     document.body.appendChild(pre);
   }
 
-  if (sessionStorage.getItem('gallerySelftestSeeded') !== '1') {
+  // Seed unless the gallery already holds the fixtures. Checking the data
+  // (not a session flag) means a re-run after the empty-state test re-seeds
+  // instead of running against an empty store.
+  const seededNow = (() => {
+    try { return (localStorage.getItem('painterPlusGallery') || '').indexOf('Living room repaint') !== -1; }
+    catch (e) { return false; }
+  })();
+  if (!seededNow) {
     try {
       localStorage.setItem('painterPlusTeam', JSON.stringify([
         { id: 'gahonsh', name: 'Gahonsh', role: 'head', startYear: '2015' },
@@ -65,6 +72,7 @@
     const grid = $('cgGrid');
     const cards = grid ? grid.querySelectorAll('.cg-card') : [];
     check(cards.length === 2, 'both crew photos render as cards (got ' + cards.length + ')');
+    check($('cgEmpty').hidden, 'the empty message is hidden while photos exist');
 
     const gridText = grid ? grid.textContent.replace(/\s+/g, ' ') : '';
     check(gridText.indexOf('Living room repaint') !== -1, 'a card shows its title');

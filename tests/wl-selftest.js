@@ -49,6 +49,11 @@
 
   async function run() {
     try {
+      // Start from a clean store: this harness asserts on an initially empty
+      // history ("No days logged"), which leftover fixtures from other
+      // harnesses would otherwise break.
+      try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+
       // Unlock
       document.getElementById('wlPass').value = 'painter123';
       document.getElementById('wlUnlock').click();
@@ -74,6 +79,19 @@
         log('FAIL photo did not load into canvas (' + canvas.width + 'x' + canvas.height + ')'); return done();
       }
       log('ok photo loaded ' + canvas.width + 'x' + canvas.height);
+
+      // Standard-size preset fills the scale fields in one tap.
+      const doorBtn = document.querySelector('#wlCalibPresets [data-w="3"][data-h="7"]');
+      if (doorBtn) {
+        doorBtn.click();
+        await sleep(30);
+        const pw = document.getElementById('wlCalibW').value, ph = document.getElementById('wlCalibH').value;
+        log('door preset filled scale: ' + pw + '×' + ph + ' ft');
+        if (pw === '3' && ph === '7') log('ok scale preset fills known size');
+        else log('FAIL scale preset did not fill');
+      } else {
+        log('FAIL scale preset buttons missing');
+      }
 
       // Set scale: tap the 4 corners of the known 10 x 6 ft wall
       document.getElementById('wlCalibBtn').click();

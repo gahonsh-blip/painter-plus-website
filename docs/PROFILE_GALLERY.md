@@ -170,8 +170,8 @@ URL; open it and read the `ok …` / `FAIL …` lines at the bottom:
 
 ```bash
 bash tests/run-profile-selftest.sh 8132   # 25 checks — record + claim + edit + gallery + lightbox
-bash tests/run-gallery-selftest.sh 8133   # 19 checks — cards, attribution, filters, lightbox, empty state
-bash tests/run-team-selftest.sh    8134   #  8 checks — derived stats on roster cards
+bash tests/run-gallery-selftest.sh 8133   # 21 checks — cards, attribution, filters, lightbox, empty state
+bash tests/run-team-selftest.sh    8134   #  9 checks — derived stats on roster cards
 ```
 
 All three suites report **RESULT: ALL OK**. The profile suite confirms the

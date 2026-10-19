@@ -95,6 +95,15 @@
     return p ? p.name : '';
   }
 
+  // The labour rate the bill was actually costed at, as a display string. The
+  // project's rate when set, else the day rate(s) used (so a project left at
+  // ₹0 shows "₹12 / sq ft (day rate)", not a misleading ₹0).
+  function rateLabel(b) {
+    const ri = b.rateInfo || {};
+    if (ri.mixed) return 'per day (see lines)';
+    return E.money(ri.rate) + ' / sq ft' + (ri.fromDay ? ' (day rate)' : '');
+  }
+
   // ============================================================
   // DASHBOARD
   // ============================================================
@@ -114,6 +123,7 @@
         kpi('Approved & billable', E.money(o.approvedTotal), E.fmtSqft(o.approvedSqft) + ' approved', 'ok') +
         kpi('Awaiting approval', E.money(o.unbilledLabour), o.pendingDays + ' day(s) submitted', 'warn') +
         (o.rejectedSqft ? kpi('Rejected', E.money(o.rejectedLabour), E.fmtSqft(o.rejectedSqft) + ' needs rework', 'bad') : '') +
+        (o.openDays ? kpi('Open (in progress)', E.money(o.openLabour), o.openDays + ' day(s) not submitted') : '') +
         kpi('Paint needed', E.fmtLitres(o.approvedLitres), o.approvedPaintCost ? E.money(o.approvedPaintCost) + ' material' : 'approved work') +
         kpi('Total measured', E.fmtSqft(o.sqft), o.days + ' day(s) logged') +
         kpi('Projects', String(o.projects), o.projects === 1 ? 'project' : 'projects');
@@ -174,8 +184,8 @@
             ' · ' + esc(p.status) + '</span>' +
         '</div>' +
         '<div class="erp-row-actions">' +
-          '<button class="erp-mini" data-edit="' + escAttr(p.id) + '">✏️ Edit</button>' +
-          '<button class="erp-mini erp-danger" data-del="' + escAttr(p.id) + '">🗑 Delete</button>' +
+          '<button type="button" class="erp-mini" data-edit="' + escAttr(p.id) + '">✏️ Edit</button>' +
+          '<button type="button" class="erp-mini erp-danger" data-del="' + escAttr(p.id) + '">🗑 Delete</button>' +
         '</div>';
       ul.appendChild(li);
     });
@@ -238,7 +248,8 @@
       const id = del.getAttribute('data-del');
       const p = E.getProject(id);
       if (p && confirm('Delete "' + p.name + '" and its invoices? This cannot be undone.')) {
-        E.removeProject(id);
+        const r = E.removeProject(id);
+        if (!r.ok) alert(r.error);
         renderProjects();
         refreshProjectSelects();
         renderDashboard();
@@ -256,7 +267,9 @@
     Object.keys(wl).sort().reverse().forEach((date) => {
       const day = wl[date];
       const a = E.approvalOf(date, data);
-      const proj = day.projectId ? E.getProject(day.projectId) : null;
+      // Resolve the project the same way billing does (id first, then name) so
+      // the figure the Owner approves is the figure that gets billed.
+      const proj = E.projectForDay(day, data);
       const name = proj ? proj.name : (day.project || '—');
       const c = E.dayCosting(day, proj);
       const row = { date: date, day: day, approval: a, project: name, costing: c };
@@ -272,10 +285,10 @@
         '<li class="erp-row">' +
           '<div class="erp-row-main"><strong>' + esc(r.date) + ' · ' + esc(r.project) + '</strong>' +
             '<span class="erp-row-sub">' + esc(E.fmtSqft(r.costing.sqft)) + ' · ' +
-            esc(E.money(r.costing.labour)) + (r.day.crew ? ' · ' + esc(r.day.crew) : '') + '</span></div>' +
+            esc(E.money(r.costing.labour)) + (r.day.crew ? ' · ' + esc(E.crewName(r.day.crew)) : '') + '</span></div>' +
           '<div class="erp-row-actions">' +
-            '<button class="erp-mini erp-ok" data-approve="' + escAttr(r.date) + '">✅ Approve</button>' +
-            '<button class="erp-mini erp-danger" data-reject="' + escAttr(r.date) + '">⛔ Reject</button>' +
+            '<button type="button" class="erp-mini erp-ok" data-approve="' + escAttr(r.date) + '">✅ Approve</button>' +
+            '<button type="button" class="erp-mini erp-danger" data-reject="' + escAttr(r.date) + '">⛔ Reject</button>' +
           '</div>' +
         '</li>').join('');
       if (empty) empty.hidden = waiting.length > 0;
@@ -290,7 +303,7 @@
             '<span class="erp-row-sub">' + esc(E.fmtSqft(r.costing.sqft)) + ' · ' +
             esc(E.money(r.costing.labour)) + (r.approval.by ? ' · by ' + esc(r.approval.by) : '') + '</span></div>' +
           '<div class="erp-row-side">' + approvalBadge(r.approval.status) +
-            '<button class="erp-mini" data-reopen="' + escAttr(r.date) + '">↩ Undo</button>' +
+            '<button type="button" class="erp-mini" data-reopen="' + escAttr(r.date) + '">↩ Undo</button>' +
           '</div>' +
         '</li>').join('');
       if (dempty) dempty.hidden = decided.length > 0;
@@ -323,9 +336,10 @@
     const un = e.target.closest('[data-reopen]');
     if (!un) return;
     const date = un.getAttribute('data-reopen');
-    const data = E.read();
-    delete data.approvals[date];
-    E.write(data);
+    // Use the API rather than writing storage by hand, so a full/blocked
+    // store is reported instead of leaving the UI out of sync with storage.
+    const r = E.clearApproval(date);
+    if (!r.ok) alert(r.error);
     renderApprovals(); renderDashboard();
   });
 
@@ -375,6 +389,11 @@
         esc(E.fmtSqft(b.rejected.sqft)) + '. Not billed.</div>'
       : '';
 
+    const openNote = (b.open && b.open.count)
+      ? '<div class="erp-callout"><strong>' + b.open.count + ' day(s) still open</strong> — ' +
+        esc(E.fmtSqft(b.open.sqft)) + '. Not submitted yet, so not billed.</div>'
+      : '';
+
     const bills = b.bills.length
       ? '<ul class="erp-list">' + b.bills.map((x) =>
           '<li class="erp-row"><div class="erp-row-main"><strong>' + esc(x.no) + '</strong>' +
@@ -383,7 +402,7 @@
               (x.litres ? ' · ' + esc(E.fmtLitres(x.litres)) + ' paint' : '') +
               (x.note ? ' · ' + esc(x.note) : '') + '</span></div>' +
             '<div class="erp-row-side"><span>' + esc(E.money(x.amount)) + '</span>' +
-            '<button class="erp-mini erp-danger" data-delbill="' + escAttr(x.id) + '">🗑</button></div></li>').join('') +
+            '<button type="button" class="erp-mini erp-danger" data-delbill="' + escAttr(x.id) + '">🗑</button></div></li>').join('') +
           '</ul>'
       : '<p class="erp-empty">No invoices raised for this project yet.</p>';
 
@@ -395,13 +414,13 @@
       lines +
       '<div class="erp-bill-total">' +
         '<div><span>Approved area</span><strong>' + esc(E.fmtSqft(b.totals.sqft)) + '</strong></div>' +
-        '<div><span>Labour rate</span><strong>' + esc(E.money(b.project.rate)) + ' / sq ft</strong></div>' +
+        '<div><span>Labour rate</span><strong>' + esc(rateLabel(b)) + '</strong></div>' +
         '<div><span>Labour total</span><strong>' + esc(E.money(b.totals.labour)) + '</strong></div>' +
         '<div><span>Paint needed</span><strong>' + esc(E.fmtLitres(b.totals.litres)) + '</strong></div>' +
         (b.totals.paintCost ? '<div><span>Paint cost</span><strong>' + esc(E.money(b.totals.paintCost)) + '</strong></div>' : '') +
         '<div class="erp-grand"><span>' + (b.totals.paintCost ? 'Grand total' : 'Total due') + '</span><strong>' + esc(E.money(b.totals.total)) + '</strong></div>' +
       '</div>' +
-      pendingNote + rejectedNote +
+      pendingNote + rejectedNote + openNote +
       '<div class="erp-actions">' +
         '<button class="btn-primary" id="erpRaiseBill" type="button">🧾 Record this bill</button>' +
         '<button class="btn-secondary" id="erpCopyInvoice" type="button">📋 Copy invoice</button>' +
@@ -411,7 +430,7 @@
     const raise = $('erpRaiseBill');
     if (raise) raise.addEventListener('click', () => {
       if (!b.totals.total) { alert('Nothing approved to bill yet.'); return; }
-      E.addBill(id, {
+      const r = E.addBill(id, {
         amount: b.totals.total,
         sqft: b.totals.sqft,
         litres: b.totals.litres,
@@ -419,6 +438,7 @@
         paintCost: b.totals.paintCost,
         note: b.totals.paintCost ? 'Approved work + paint' : 'Approved work'
       });
+      if (!r.ok) alert(r.error);
       renderBilling();
     });
     const copy = $('erpCopyInvoice');
@@ -463,7 +483,8 @@
   if (billOut) billOut.addEventListener('click', (e) => {
     const d = e.target.closest('[data-delbill]');
     if (!d) return;
-    E.removeBill(billSel.value, d.getAttribute('data-delbill'));
+    const r = E.removeBill(billSel.value, d.getAttribute('data-delbill'));
+    if (!r.ok) alert(r.error);
     renderBilling();
   });
 

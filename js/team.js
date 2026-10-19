@@ -141,9 +141,14 @@
   }
 
   function write(members) {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(members)); } catch { /* storage full/blocked */ }
+    let ok = true;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(members)); }
+    catch { ok = false; }
     emit();
+    return ok;
   }
+
+  const STORAGE_ERROR = 'Could not save — this browser\'s storage is full or blocked. Your change was not stored.';
 
   function emit() {
     document.dispatchEvent(new CustomEvent('ppteam:change'));
@@ -208,7 +213,7 @@
     } else {
       members.push(clean);
     }
-    write(members);
+    if (!write(members)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, member: clean };
   }
 
@@ -238,7 +243,7 @@
     if (LEAD_ROLE_IDS.includes(target.role) && countLeads(members) === 1) {
       return { ok: false, error: 'The last Owner/Head cannot be removed. Promote someone else first.' };
     }
-    write(members.filter(m => m.id !== id));
+    if (!write(members.filter(m => m.id !== id))) return { ok: false, error: STORAGE_ERROR };
     return { ok: true };
   }
 
@@ -323,7 +328,7 @@
   }
 
   window.PPTeam = {
-    STORE_KEY, LEGACY_PROFILE_KEY, SESSION_KEY, CLAIM_KEY, PASSCODE, OWNER_ID,
+    STORE_KEY, LEGACY_PROFILE_KEY, SESSION_KEY, CLAIM_KEY, PASSCODE, OWNER_ID, STORAGE_ERROR,
     ROLES, ROLE_IDS, MANAGER_ROLE_IDS, LEAD_ROLE_IDS,
     roleOf, roleRank, list, get, head, save, setRole, remove,
     countLeads, countHeads, wouldStrandLeads,

@@ -124,7 +124,8 @@
       await sleep(80);
       let bill = txt('erpBillOut');
       check(bill.indexOf('₹0') !== -1, 'bill total is ₹0 before approval (the rule)');
-      check(bill.indexOf('2 day(s) awaiting approval') !== -1, 'unapproved work is shown but excluded');
+      check(bill.indexOf('1 day(s) awaiting approval') !== -1, 'the submitted day is shown as awaiting approval');
+      check(bill.indexOf('1 day(s) still open') !== -1, 'the open day is shown in its own bucket, not as pending');
 
       // ---- 7. approve the submitted day ----
       document.querySelector('#tabApprove').click();
@@ -144,8 +145,8 @@
       bill = txt('erpBillOut');
       check(bill.indexOf('₹960') !== -1, 'bill total is ₹960 after approval (80 sq ft × ₹12)');
       check(bill.indexOf('80 sq ft') !== -1, 'bill shows 80 sq ft approved');
-      check(bill.indexOf('20 sq ft') !== -1, 'pending 20 sq ft is still listed separately');
-      check(bill.indexOf('₹240') !== -1, 'pending 20 sq ft × ₹12 = ₹240 shown as not included');
+      check(bill.indexOf('20 sq ft') !== -1, 'the open 20 sq ft is still listed separately');
+      check(bill.indexOf('1 day(s) still open') !== -1, 'the open day is called out, not counted as pending');
 
       // ---- 9. record the bill ----
       const raise = $('erpRaiseBill');
@@ -171,7 +172,8 @@
       document.querySelector('#repTabPainter').click();
       await sleep(80);
       rep = txt('erpReportOut');
-      check(rep.indexOf('gahonsh') !== -1, 'painter report attributes the day to gahonsh');
+      check(rep.indexOf('Gahonsh') !== -1, 'painter report shows the crew NAME, not the id');
+      check(rep.indexOf('gahonsh') === -1, 'painter report does not leak the raw member id');
 
       // ---- 11. reject a day and prove it never bills ----
       seedDay('2026-10-12', 'Sharma House', proj.id, 100, 10, 'gahonsh'); // 1000 sq ft
@@ -185,12 +187,19 @@
       check(E.money(960) === '₹960', 'money format: ' + E.money(960));
 
       // ---- 13. paint quantity + material cost reach the bill ----
-      // Give the project a paint rate, then re-open billing: the day that was
-      // ₹960 of labour must now also carry a material cost and a grand total.
+      // Give the project a paint rate. That is a costing change, so the
+      // approval that covered the old costing is withdrawn (bug 25) — the day
+      // must be re-approved before it can bill again. This proves a project
+      // rate change can never silently re-bill an already-approved day.
       const E2 = window.PPERP;
       const p2 = E2.getProject(proj.id);
       p2.paintRate = 200;
       E2.saveProject(p2);
+      check(E2.approvalOf('2026-10-10').status === 'pending',
+        'a project paint-rate change withdraws the approval (bug 25)');
+      check(E2.billFor(proj.id).totals.total === 0, 'the unapproved day is not billed at the new rate');
+      // Re-approve the day so the new costing is signed off.
+      E2.approveDay('2026-10-10', 'gahonsh');
       document.querySelector('#tabBill').click();
       await sleep(80);
       $('erpBillProject').value = proj.id;
