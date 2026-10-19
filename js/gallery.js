@@ -78,11 +78,15 @@
   }
   function writeRaw(data) {
     const s = backing();
-    if (s) { try { s.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) { /* full/blocked */ } }
+    let ok = true;
+    if (s) { try { s.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) { ok = false; } }
     if (root && root.document) {
       try { root.document.dispatchEvent(new CustomEvent('ppgallery:change')); } catch (e) { /* no CustomEvent */ }
     }
+    return ok;
   }
+
+  const STORAGE_ERROR = 'Could not save — this browser\'s storage is full or blocked. Your change was not stored.';
 
   // ============================================================
   // ITEM SHAPE (pure)
@@ -145,19 +149,19 @@
     if (!d[memberId]) d[memberId] = [];
     const idx = d[memberId].findIndex((x) => x.id === clean.id);
     if (idx >= 0) d[memberId][idx] = clean; else d[memberId].push(clean);
-    if (data === undefined) writeRaw(d);
+    if (data === undefined && !writeRaw(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, item: clean, data: d };
   }
   function remove(memberId, id, data) {
     const d = data || readRaw();
     if (d[memberId]) d[memberId] = d[memberId].filter((x) => x.id !== id);
-    if (data === undefined) writeRaw(d);
+    if (data === undefined && !writeRaw(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, data: d };
   }
   function removeAll(memberId, data) {
     const d = data || readRaw();
     delete d[memberId];
-    if (data === undefined) writeRaw(d);
+    if (data === undefined && !writeRaw(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, data: d };
   }
 
@@ -408,7 +412,7 @@
   }
 
   return {
-    STORE_KEY, WORKLOG_KEY, ERP_KEY, TEAM_KEY,
+    STORE_KEY, WORKLOG_KEY, ERP_KEY, TEAM_KEY, STORAGE_ERROR,
     num, fmtSqft, fmtCount, year,
     read: readRaw, write: writeRaw, _setStore,
     blankItem, normaliseItem, sortItems, makeId,

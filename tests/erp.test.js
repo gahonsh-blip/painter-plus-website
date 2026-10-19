@@ -526,12 +526,59 @@ test('a blocked store does not throw', () => {
   E._setStore({ getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } });
   assert.doesNotThrow(() => E.listProjects());
   assert.doesNotThrow(() => E.overview());
-  assert.strictEqual(E.saveProject({ name: 'X' }).ok, true); // in-memory write is best-effort
+  // A write that cannot persist must be reported, not silently claimed as saved.
+  const res = E.saveProject({ name: 'X' });
+  assert.strictEqual(res.ok, false);
+  assert.ok(/storage/i.test(res.error));
 });
 test('corrupt stored JSON falls back to empty', () => {
   E._setStore(memStore({ painterPlusERP: 'not json{{{' }));
   assert.deepStrictEqual(E.listProjects(), []);
   assert.strictEqual(E.overview().projects, 0);
+});
+
+// ============================================================
+// REGRESSIONS — pricing + persistence (see docs/BUG_AUDIT.md)
+// ============================================================
+
+// Bug: a project's rate/coverage/paint-rate could be changed AFTER a day was
+// approved. The signature only covered the day's own rates, so the old
+// sign-off kept billing the approved day at the NEW project rate with no
+// re-approval. The signature must include the effective (project) rates.
+test('REG: changing the project rate withdraws an approved day', () => {
+  seedWorld();
+  E.approveDay('2026-10-10', 'Gahonsh');
+  assert.strictEqual(E.billFor('sharma-house').totals.labour, 1200); // 100 × 12
+  // The owner raises the project rate from ₹12 to ₹50.
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 50, coverage: 130, coats: 2 });
+  assert.strictEqual(E.approvalOf('2026-10-10').status, 'pending', 'a project-rate change must re-open the sign-off');
+  assert.strictEqual(E.billFor('sharma-house').totals.labour, 0, 'the old approval must not bill the new rate');
+});
+test('REG: changing the project paint rate withdraws an approved day', () => {
+  seedWorld();
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 12, paintRate: 200 });
+  E.approveDay('2026-10-10', 'Gahonsh');
+  assert.ok(E.billFor('sharma-house').totals.total > 1200);
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 12, paintRate: 400 });
+  assert.strictEqual(E.approvalOf('2026-10-10').status, 'pending', 'a project paint-rate change must re-open the sign-off');
+});
+test('REG: re-approving after a project-rate change bills the new rate', () => {
+  seedWorld();
+  E.approveDay('2026-10-10', 'Gahonsh');
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 50, coverage: 130, coats: 2 });
+  E.approveDay('2026-10-10', 'Gahonsh');
+  assert.strictEqual(E.approvalOf('2026-10-10').status, 'approved');
+  assert.strictEqual(E.billFor('sharma-house').totals.labour, 5000); // 100 × 50
+});
+
+// Bug: a save whose localStorage write failed (quota/blocked) still reported
+// ok:true, so the UI said "saved" while nothing was stored.
+test('REG: a failed write is reported, not silently swallowed', () => {
+  E._setStore({ getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); } });
+  const res = E.saveProject({ name: 'Doomed', rate: 10 });
+  assert.strictEqual(res.ok, false, 'a save that did not persist must not report ok');
+  assert.ok(/storage/i.test(res.error), 'expected a storage error message');
+  assert.strictEqual(E.listProjects().length, 0);
 });
 
 // ============================================================

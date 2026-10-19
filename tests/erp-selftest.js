@@ -185,12 +185,19 @@
       check(E.money(960) === '₹960', 'money format: ' + E.money(960));
 
       // ---- 13. paint quantity + material cost reach the bill ----
-      // Give the project a paint rate, then re-open billing: the day that was
-      // ₹960 of labour must now also carry a material cost and a grand total.
+      // Give the project a paint rate. That is a costing change, so the
+      // approval that covered the old costing is withdrawn (bug 25) — the day
+      // must be re-approved before it can bill again. This proves a project
+      // rate change can never silently re-bill an already-approved day.
       const E2 = window.PPERP;
       const p2 = E2.getProject(proj.id);
       p2.paintRate = 200;
       E2.saveProject(p2);
+      check(E2.approvalOf('2026-10-10').status === 'pending',
+        'a project paint-rate change withdraws the approval (bug 25)');
+      check(E2.billFor(proj.id).totals.total === 0, 'the unapproved day is not billed at the new rate');
+      // Re-approve the day so the new costing is signed off.
+      E2.approveDay('2026-10-10', 'gahonsh');
       document.querySelector('#tabBill').click();
       await sleep(80);
       $('erpBillProject').value = proj.id;

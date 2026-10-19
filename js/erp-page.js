@@ -238,7 +238,8 @@
       const id = del.getAttribute('data-del');
       const p = E.getProject(id);
       if (p && confirm('Delete "' + p.name + '" and its invoices? This cannot be undone.')) {
-        E.removeProject(id);
+        const r = E.removeProject(id);
+        if (!r.ok) alert(r.error);
         renderProjects();
         refreshProjectSelects();
         renderDashboard();
@@ -323,9 +324,10 @@
     const un = e.target.closest('[data-reopen]');
     if (!un) return;
     const date = un.getAttribute('data-reopen');
-    const data = E.read();
-    delete data.approvals[date];
-    E.write(data);
+    // Use the API rather than writing storage by hand, so a full/blocked
+    // store is reported instead of leaving the UI out of sync with storage.
+    const r = E.clearApproval(date);
+    if (!r.ok) alert(r.error);
     renderApprovals(); renderDashboard();
   });
 
@@ -411,7 +413,7 @@
     const raise = $('erpRaiseBill');
     if (raise) raise.addEventListener('click', () => {
       if (!b.totals.total) { alert('Nothing approved to bill yet.'); return; }
-      E.addBill(id, {
+      const r = E.addBill(id, {
         amount: b.totals.total,
         sqft: b.totals.sqft,
         litres: b.totals.litres,
@@ -419,6 +421,7 @@
         paintCost: b.totals.paintCost,
         note: b.totals.paintCost ? 'Approved work + paint' : 'Approved work'
       });
+      if (!r.ok) alert(r.error);
       renderBilling();
     });
     const copy = $('erpCopyInvoice');
@@ -463,7 +466,8 @@
   if (billOut) billOut.addEventListener('click', (e) => {
     const d = e.target.closest('[data-delbill]');
     if (!d) return;
-    E.removeBill(billSel.value, d.getAttribute('data-delbill'));
+    const r = E.removeBill(billSel.value, d.getAttribute('data-delbill'));
+    if (!r.ok) alert(r.error);
     renderBilling();
   });
 

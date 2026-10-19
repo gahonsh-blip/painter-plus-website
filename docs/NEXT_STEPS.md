@@ -206,3 +206,34 @@ what was logged, it does not measure the picture. That is the Color Studio /
 ---
 
 ## 9. Optional future improvements (continued)
+
+---
+
+## 10. ERP hardening & automated browser checks (done — 2026-10-18)
+
+A fourth pass over the ERP/work-log data flow, plus a way to re-run the browser
+self-tests automatically. Full detail is in `docs/BUG_AUDIT.md` §25–§28.
+
+- **Bug 25 — a project rate change re-billed an approved day.** An approval's
+  fingerprint only covered the *day's own* rates, so changing the linked
+  project's rate changed the money but kept the sign-off. `effectiveRates()` is
+  now the single source of truth for "which rate applies" and feeds both the
+  costing and the fingerprint, so any project-costing change withdraws the
+  approval.
+- **Bug 26 — portfolio-merge injection.** Admin-typed project fields reached
+  `portfolio.html` unescaped (photo URL broke out of the `<img>` attribute; the
+  description fields were raw HTML; the hover image was concatenated into a CSS
+  `url()`). Every field now goes through `esc()`, and `--pf-img` is set through
+  the CSSOM with quotes/parens/backslashes stripped.
+- **Bug 27 — a failed save claimed success.** The storage helpers already
+  swallowed a blocked/full write; now they *return* whether it landed, and every
+  mutator returns `{ ok:false, error: STORAGE_ERROR }` so the UI can say so.
+- **Bug 28 — headless runner.** `tests/run-all-headless.sh` builds every
+  throwaway page, serves the repo once, drives headless Chromium and exits
+  non-zero on any FAIL. `tests/portfolio-selftest.js` +
+  `run-portfolio-selftest.sh` cover bug 26 and were shown to fail (9 FAILs) on
+  the pre-fix code.
+
+Verification: `node` suites green (erp 58, gallery 24, measure 16,
+photo-studio 50) and `bash tests/run-all-headless.sh` →
+**ALL BROWSER CHECKS PASSED**. Service-worker cache bumped `v21` → `v22`.

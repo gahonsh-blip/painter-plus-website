@@ -37,21 +37,29 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 12. **Phantom empty day — FIXED.** Typing then clearing a project on an entry-less date still wrote a day, which showed up in the work-log history as a `0 sq ft` day. `persistDayMeta()` now skips (and removes) such empty shells. See §16.
 
-13. **Real square feet from the photo — ADDED.** The work log could only take a typed length × height; the "square feet from the photo" feature was not implemented (the old photo system had no polygon/measure code and no Firebase — the data lives in `localStorage`). `js/measure.js` now measures a tapped polygon with perspective correction (4-corner calibration → homography → shoelace), and the day carries a labour rate and paint coverage so the area turns into a labour cost and a paint estimate. Geometry is unit-tested in `tests/measure.test.js`.
+13. **Project-rate change re-billed an approved day — FIXED.** An approval carries a `sig` fingerprint of the day's cost, but it only covered the *day's own* rates. Changing the linked **project's** rate (or paint rate) changed the money while the old sign-off survived, so the day billed the new rate with no re-approval. `effectiveRates(day, project)` is now the one source of truth for "which rate applies", and `daySignature()` fingerprints it, so any project-costing change withdraws the approval. See §25.
 
-14. **ERP saves silently did nothing in the browser — FIXED.** `js/erp.js` used the UMD wrapper `(function (root, factory) { const api = factory(); … })(window, function () { … })`, but the factory body reached for `root` (to get `window.localStorage`) and `root` was never passed in, so it was `undefined`. Node tests passed because they inject an in-memory store via `_setStore`, which short-circuits before `root` is touched; in a real browser every `saveProject`/`approveDay`/`addBill` reported `ok: true` yet persisted nothing, because `backing()` returned `null`. The factory now receives `root` (`factory(root)`, `function (root) { … }`), and `tests/erp.test.js` loads the file in a browser-like `vm` context to prove a save reaches `window.localStorage`. `js/measure.js` and `js/photo-studio.js` share the wrapper shape but never reference `root`, so they were unaffected.
+14. **Portfolio-merge injection — FIXED.** `portfolio.html` merges admin-added projects from `localStorage`. A photo URL like `x" onerror="…` broke out of the `<img src="…">` attribute and ran; the `challenge`/`solution`/`result` fields were raw HTML; and the hover image was concatenated into `style="--pf-img:url('…')"`. Every field now goes through `esc()`, and `--pf-img` is set via the CSSOM with quotes/parens/backslashes stripped. See §26.
 
-15. **Stale approval — FIXED.** An approved day kept its approval after being reopened and edited, so the bill counted the new measurements under the old sign-off. An approval now stores a `sig` fingerprint of the day it signed; `approvalOf()` reports `pending` when the day no longer matches, and `reopenDay()` calls `PPERP.clearApproval()`. See §17.
+15. **A failed save reported success — FIXED.** `write()`/`writeAll()`/`writeRaw()` swallowed the exception (correct) but the mutators ignored the returned boolean and reported `ok:true` even when nothing was stored. The storage helpers now return whether the write landed, and every mutator returns `{ ok:false, error: STORAGE_ERROR }` on failure; the page scripts surface it. See §27.
 
-16. **Invoice id collision — FIXED.** `addBill()` used `Date.now()` alone, so two bills raised in the same millisecond shared an id and deleting one deleted both. The id now appends a random suffix. See §18.
+16. **No headless browser test runner — ADDED.** The `run-*.sh` scripts only printed a URL for a human. `tests/run-all-headless.sh` builds every throwaway page, serves once, drives headless Chromium and exits non-zero on any FAIL. See §28.
 
-17. **Invoice number reuse — FIXED.** The number came from `list.length`, so deleting `PP-001` made the next bill `PP-002` again. `nextBillNo()` now returns one past the highest number ever used. See §19.
+17. **Real square feet from the photo — ADDED.** The work log could only take a typed length × height; the "square feet from the photo" feature was not implemented (the old photo system had no polygon/measure code and no Firebase — the data lives in `localStorage`). `js/measure.js` now measures a tapped polygon with perspective correction (4-corner calibration → homography → shoelace), and the day carries a labour rate and paint coverage so the area turns into a labour cost and a paint estimate. Geometry is unit-tested in `tests/measure.test.js`.
 
-18. **Rejected work counted as pending — FIXED.** `overview()` folded rejected labour into `unbilledLabour`, so the dashboard advertised rejected money as awaiting approval. It now reports `rejectedSqft` / `rejectedLabour` separately. See §20.
+18. **ERP saves silently did nothing in the browser — FIXED.** `js/erp.js` used the UMD wrapper `(function (root, factory) { const api = factory(); … })(window, function () { … })`, but the factory body reached for `root` (to get `window.localStorage`) and `root` was never passed in, so it was `undefined`. Node tests passed because they inject an in-memory store via `_setStore`, which short-circuits before `root` is touched; in a real browser every `saveProject`/`approveDay`/`addBill` reported `ok: true` yet persisted nothing, because `backing()` returned `null`. The factory now receives `root` (`factory(root)`, `function (root) { … }`), and `tests/erp.test.js` loads the file in a browser-like `vm` context to prove a save reaches `window.localStorage`. `js/measure.js` and `js/photo-studio.js` share the wrapper shape but never reference `root`, so they were unaffected.
 
-19. **Blank project rate zeroed the day's labour — FIXED.** `dayCosting()` used `project ? num(project.rate) : num(day.rate)`, so a project whose *Labour rate* was left blank (normalises to `rate: 0`) discarded the rate the crew had entered on the day — a ₹1,200 day billed as ₹0 the moment it was linked to a rate-less project. It now falls back with `(project && num(project.rate)) || num(day && day.rate)`, exactly as `coverage`/`coats` already did. See §21.
+19. **Stale approval — FIXED.** An approved day kept its approval after being reopened and edited, so the bill counted the new measurements under the old sign-off. An approval now stores a `sig` fingerprint of the day it signed; `approvalOf()` reports `pending` when the day no longer matches, and `reopenDay()` calls `PPERP.clearApproval()`. See §17.
 
-20. **ERP vs work log paint divergence — FIXED.** The work log computes litres via `PPMeasure.paintLitres()`; the ERP hardcoded its own `× 1.1`. They agreed only while the shared wastage default stayed `0.1`. `PPERP.dayCosting()` now delegates to `PPMeasure.paintLitres()` (with an identical fallback for Node), so the two can never quote different quantities. See §22.
+20. **Invoice id collision — FIXED.** `addBill()` used `Date.now()` alone, so two bills raised in the same millisecond shared an id and deleting one deleted both. The id now appends a random suffix. See §18.
+
+21. **Invoice number reuse — FIXED.** The number came from `list.length`, so deleting `PP-001` made the next bill `PP-002` again. `nextBillNo()` now returns one past the highest number ever used. See §19.
+
+22. **Rejected work counted as pending — FIXED.** `overview()` folded rejected labour into `unbilledLabour`, so the dashboard advertised rejected money as awaiting approval. It now reports `rejectedSqft` / `rejectedLabour` separately. See §20.
+
+23. **Blank project rate zeroed the day's labour — FIXED.** `dayCosting()` used `project ? num(project.rate) : num(day.rate)`, so a project whose *Labour rate* was left blank (normalises to `rate: 0`) discarded the rate the crew had entered on the day — a ₹1,200 day billed as ₹0 the moment it was linked to a rate-less project. It now falls back with `(project && num(project.rate)) || num(day && day.rate)`, exactly as `coverage`/`coats` already did. See §21.
+
+24. **ERP vs work log paint divergence — FIXED.** The work log computes litres via `PPMeasure.paintLitres()`; the ERP hardcoded its own `× 1.1`. They agreed only while the shared wastage default stayed `0.1`. `PPERP.dayCosting()` now delegates to `PPMeasure.paintLitres()` (with an identical fallback for Node), so the two can never quote different quantities. See §22.
 
 
 **Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`). And a UMD wrapper must actually pass its global into the factory: `factory()` with a body that uses `root` passes in Node (where the in-memory store hides it) and fails silently in the browser.
@@ -394,12 +402,16 @@ node --check js/script.js
 # Pure unit tests (no dependencies)
 node tests/gallery.test.js && node tests/erp.test.js && node tests/measure.test.js && node tests/photo-studio.test.js
 
-# Browser self-tests (open the printed URL, read the ok/FAIL lines)
+# Browser self-tests, headless — builds every page, runs chromium, exits non-zero on any FAIL
+bash tests/run-all-headless.sh 8170
+
+# Browser self-tests (interactive: open the printed URL, read the ok/FAIL lines)
 bash tests/run-profile-selftest.sh 8132
 bash tests/run-gallery-selftest.sh 8133
 bash tests/run-team-selftest.sh 8134
 bash tests/run-erp-selftest.sh 8135
 bash tests/run-wl-selftest.sh 8136
+bash tests/run-portfolio-selftest.sh 8138
 bash tests/run-page-sweep.sh 8137   # every page, uncaught-JS-error sweep
 
 # Local preview

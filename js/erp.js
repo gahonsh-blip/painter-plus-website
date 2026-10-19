@@ -105,6 +105,11 @@
 
   function _setStore(obj) { memStore = obj || null; }
 
+  // Shown when a real save could not be persisted. The browser drops the
+  // write silently when storage is full or blocked, so the UI must say so
+  // instead of pretending the change was saved.
+  const STORAGE_ERROR = 'Could not save — this browser\'s storage is full or blocked. Your change was not stored.';
+
   function read() {
     let data = null;
     try { data = JSON.parse(rawGet(STORE_KEY)); } catch (e) { data = null; }
@@ -140,15 +145,28 @@
     return { count: entries.length, sqft: sqft };
   }
 
+  // The rates a day is actually costed at: the project's when set, else the
+  // day's own. Shared by dayCosting and daySignature so a change to either
+  // source is caught by the approval fingerprint (see daySignature).
+  function effectiveRates(day, project) {
+    return {
+      // A project's rate overrides the day's own, but a project left at ₹0 is
+      // "not set yet", not "free" — falling back to the day's rate keeps the
+      // labour the crew already entered from being silently zeroed.
+      rate: (project && num(project.rate)) || num(day && day.rate),
+      coverage: (project && num(project.coverage)) || num(day && day.coverage) || DEFAULTS.coverage,
+      coats: (project && num(project.coats)) || num(day && day.coats) || DEFAULTS.coats,
+      paintRate: (project && num(project.paintRate)) || num(day && day.paintRate) || 0
+    };
+  }
+
   function dayCosting(day, project) {
     const t = dayTotals(day);
-    // A project's rate overrides the day's own, but a project left at ₹0 is
-    // "not set yet", not "free" — falling back to the day's rate keeps the
-    // labour the crew already entered from being silently zeroed.
-    const rate = (project && num(project.rate)) || num(day && day.rate);
-    const coverage = (project && num(project.coverage)) || num(day && day.coverage) || DEFAULTS.coverage;
-    const coats = (project && num(project.coats)) || num(day && day.coats) || DEFAULTS.coats;
-    const paintRate = (project && num(project.paintRate)) || num(day && day.paintRate) || 0;
+    const r = effectiveRates(day, project);
+    const rate = r.rate;
+    const coverage = r.coverage;
+    const coats = r.coats;
+    const paintRate = r.paintRate;
     const litres = paintLitres(t.sqft, { coats: coats, coverage: coverage });
     const paintCost = litres * paintRate;
     return {
@@ -230,7 +248,7 @@
     if (!p.id) p.id = slugId(p.name);
     const idx = d.projects.findIndex((x) => x.id === p.id);
     if (idx >= 0) d.projects[idx] = p; else d.projects.push(p);
-    if (data === undefined) write(d);
+    if (data === undefined && !write(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, project: p, data: d };
   }
 
@@ -238,7 +256,7 @@
     const d = data || read();
     d.projects = d.projects.filter((p) => p.id !== id);
     if (d.bills) delete d.bills[id];
-    if (data === undefined) write(d);
+    if (data === undefined && !write(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, data: d };
   }
 
@@ -284,11 +302,23 @@
     // they are honoured as-is so old data keeps working.)
     if (a.sig) {
       const day = readWorkLog()[date];
-      if (!canApprove(day) || daySignature(day) !== a.sig) {
+      const project = projectForDay(day, d);
+      if (!canApprove(day) || daySignature(day, project) !== a.sig) {
         return { status: 'pending', by: '', at: '', note: '', stale: true };
       }
     }
     return a;
+  }
+
+  // The project a day belongs to (by id first, then by name), or null.
+  function projectForDay(day, data) {
+    const d = data || read();
+    if (!day) return null;
+    if (day.projectId) {
+      const p = d.projects.find((x) => x.id === day.projectId);
+      if (p) return p;
+    }
+    return d.projects.find((p) => dayMatchesProject(day, p)) || null;
   }
 
   function canApprove(day) {
@@ -312,18 +342,23 @@
       // approvalOf) until it is reviewed again. Without this, an approved day
       // could be edited after approval and the OLD sign-off would still bill
       // the NEW amount.
-      sig: daySignature(day)
+      sig: daySignature(day, projectForDay(day, d))
     };
-    if (data === undefined) write(d);
+    if (data === undefined && !write(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, approval: d.approvals[date], data: d };
   }
 
   // A fingerprint of everything that affects a day's cost. Compared at read
   // time so an edited-after-approval day reverts to pending automatically.
-  function daySignature(day) {
+  // The *effective* rates are included — not just the day's own — so a change
+  // to the linked project's rate, coverage or paint rate also withdraws the
+  // sign-off, instead of silently re-billing the approved day at the new rate.
+  function daySignature(day, project) {
     const t = dayTotals(day);
-    const parts = [t.sqft, t.count, num(day && day.rate), num(day && day.coverage), num(day && day.coats), num(day && day.paintRate)];
-    parts.push((day && day.projectId) || '');
+    const p = project || null;
+    const r = effectiveRates(day, p);
+    const parts = [t.sqft, t.count, r.rate, r.coverage, r.coats, r.paintRate];
+    parts.push((day && day.projectId) || '', (p && p.id) || '');
     (day && day.entries || []).forEach((e) => parts.push(e.id || '', num(e.sqft), num(e.w), num(e.h)));
     return parts.join('|');
   }
@@ -336,7 +371,7 @@
   function clearApproval(date, data) {
     const d = data || read();
     if (d.approvals[date]) delete d.approvals[date];
-    if (data === undefined) write(d);
+    if (data === undefined && !write(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, data: d };
   }
 
@@ -434,7 +469,7 @@
       createdAt: new Date().toISOString()
     };
     list.push(e);
-    if (data === undefined) write(d);
+    if (data === undefined && !write(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, bill: e, data: d };
   }
 
@@ -453,7 +488,7 @@
   function removeBill(projectId, billId, data) {
     const d = data || read();
     if (d.bills[projectId]) d.bills[projectId] = d.bills[projectId].filter((b) => b.id !== billId);
-    if (data === undefined) write(d);
+    if (data === undefined && !write(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, data: d };
   }
 
@@ -611,8 +646,8 @@
     // numbers
     num, money, fmtSqft, fmtLitres,
     // store
-    read, write, _setStore,
-    readWorkLog, dayTotals, dayCosting, paintLitres,
+    read, write, _setStore, STORAGE_ERROR,
+    readWorkLog, dayTotals, dayCosting, paintLitres, effectiveRates, projectForDay,
     // projects
     blankProject, normaliseProject, listProjects, getProject, saveProject, removeProject,
     // linking

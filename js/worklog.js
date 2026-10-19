@@ -84,6 +84,7 @@
   }
 
   // ----- storage (guarded: private mode / blocked storage must not crash) -----
+  const STORAGE_ERROR = 'Could not save — this browser\'s storage is full or blocked. Your change was not stored.';
   function readAll() {
     try {
       const raw = JSON.parse(localStorage.getItem(STORE_KEY));
@@ -116,7 +117,7 @@
   function saveDay(day) {
     const days = readAll();
     days[day.date] = day;
-    writeAll(days);
+    if (!writeAll(days)) return { ok: false, error: STORAGE_ERROR, day: day };
     emit();
     return day;
   }
@@ -128,7 +129,7 @@
     const days = readAll();
     if (!Object.prototype.hasOwnProperty.call(days, date)) return { ok: false };
     delete days[date];
-    writeAll(days);
+    if (!writeAll(days)) return { ok: false, error: STORAGE_ERROR };
     emit();
     return { ok: true };
   }
@@ -208,7 +209,8 @@
     if (entry.rate !== undefined) day.rate = num(entry.rate);
     if (entry.coverage !== undefined) day.coverage = num(entry.coverage) || DEFAULTS.coverage;
     if (entry.coats !== undefined) day.coats = num(entry.coats) || DEFAULTS.coats;
-    saveDay(day);
+    const saved = saveDay(day);
+    if (saved && saved.ok === false) return saved;
     return { ok: true, day: day, entry: e };
   }
 
@@ -216,7 +218,8 @@
     const day = getDay(date);
     if (day.status === 'submitted') return { ok: false, error: 'This day is already submitted. Reopen it to make changes.' };
     day.entries = day.entries.filter(x => x.id !== id);
-    saveDay(day);
+    const saved = saveDay(day);
+    if (saved && saved.ok === false) return saved;
     return { ok: true, day: day };
   }
 
@@ -226,7 +229,8 @@
     day.status = 'submitted';
     day.submittedAt = new Date().toISOString();
     day.submittedBy = by || '';
-    saveDay(day);
+    const saved = saveDay(day);
+    if (saved && saved.ok === false) return saved;
     return { ok: true, day: day };
   }
   function reopenDay(date) {
@@ -234,7 +238,8 @@
     day.status = 'open';
     day.submittedAt = '';
     day.submittedBy = '';
-    saveDay(day);
+    const saved = saveDay(day);
+    if (saved && saved.ok === false) return saved;
     // Reopening withdraws any ERP approval: the numbers are about to change,
     // so the old sign-off must not survive to bill the new figures. The ERP
     // also guards this by comparing the day's signature, but clearing here
@@ -626,7 +631,8 @@
         render();
         return;
       }
-      PPWorkLog.saveDay(day);
+      const saved = PPWorkLog.saveDay(day);
+      if (saved && saved.ok === false) hint(saved.error, true);
       render();
     }
 

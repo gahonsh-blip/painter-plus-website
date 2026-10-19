@@ -3,15 +3,19 @@
 Full-site scan of every page, stylesheet, script and PWA asset. Each entry lists
 the symptom, the root cause, the fix, and how the fix was verified.
 
-Date of audit: 2026-10-16 (third pass 2026-10-18)
+Date of audit: 2026-10-16 (third pass 2026-10-18, fourth pass 2026-10-18)
 Scope: all 14 HTML pages, 10 JS files, `css/style.css`, `manifest.json`, `sw.js`,
 `robots.txt`, `sitemap.xml`, `_headers`.
 
-Three passes. The first fixed 9 bugs; the second targeted bug *types* the first
+Four passes. The first fixed 9 bugs; the second targeted bug *types* the first
 did not (storage failures, CSP, data consistency, HTML validity, links, a11y) and
 found 5 more — including a second instance of the same "one unguarded call kills
 the whole file" failure shape. The third pass reviewed the ERP/work-log data flow
 and found 4 more, the worst being an approval that outlived the work it signed off.
+The fourth pass hardened the ERP costing model (a project-rate change must
+withdraw an approval), closed an injection hole in the portfolio merge, made a
+failed storage write report itself instead of claiming success, and added a
+headless runner so every browser self-test can be re-run automatically.
 
 ## Summary
 
@@ -41,6 +45,10 @@ and found 4 more, the worst being an approval that outlived the work it signed o
 | 22 | Medium | The ERP and the work log could quote different paint quantities | Fixed |
 | 23 | Low | Bug 7's `<button type>` fix missed JS-generated buttons | Fixed |
 | 24 | Low | Profile self-test failed on a shared tab (test-isolation, not a site bug) | Fixed |
+| 25 | **High** | A project rate change silently re-billed an already-approved day | Fixed |
+| 26 | **High** | Admin project fields could inject markup/handlers into the portfolio | Fixed |
+| 27 | Medium | A failed localStorage write reported `ok:true` ("ok:true is a LIE") | Fixed |
+| 28 | Low | No headless way to run the browser self-tests | Fixed |
 
 ---
 
@@ -464,6 +472,111 @@ the tab. Re-running it in the same (previously contaminated) tab now reports
 
 ---
 
+## 25. High — a project rate change silently re-billed an already-approved day
+
+**Symptom.** Approve a day, then raise the linked **project's** labour rate. The
+day stayed `approved` and the bill immediately re-costed at the *new* rate, with
+no fresh approval. Reproduced against the real module: *"after approve bill
+labour 1200 → after project rate change to 50, bill labour 5000, approval still
+'approved'"*.
+
+**Root cause.** An approval carries a `sig` fingerprint of the day's cost
+(bug 17), compared at read time so an edited day reverts to pending. But
+`daySignature()` only fingerprinted the **day's own** rates. When the ERP costs
+a day it uses the **project's** rate when set (else the day's own), so changing
+the project rate changed the money while leaving the fingerprint — and therefore
+the approval — intact.
+
+**Fix.** Added `effectiveRates(day, project)` — the single source of truth for
+"which rate applies" (project rate if set, else the day's) — and used it in both
+`dayCosting()` and `daySignature()`. The signature now covers the *effective*
+rate, coverage, coats and paint rate, plus the linked project id, so any change
+to the project's costing withdraws the sign-off. `setApproval` computes the
+signature with the project in hand.
+
+**Verification.** Four new node regressions: changing the project rate (or paint
+rate) flips an approved day back to `pending` and drops it from the bill, and
+re-approving bills the new rate. The ERP browser self-test now asserts the same
+in a real page (`a project paint-rate change withdraws the approval (bug 25)`).
+
+---
+
+## 26. High — admin project fields could inject markup into the portfolio
+
+**Symptom.** `admin.html` stores projects in `localStorage`; `portfolio.html`
+merges them into the grid on load. A photo URL like `x" onerror="…` broke out of
+the `<img src="…">` attribute and ran a live handler. Free-text fields
+(`challenge` / `solution` / `result`) were interpolated as raw HTML, and the
+hover image was written straight into a `style="--pf-img:url('…')"` attribute, so
+a quote could escape the `url()`.
+
+**Root cause.** The merge in `js/script.js` escaped only the title and tag with
+`esc()` and left `src`, the description fields and the CSS `url()` unescaped.
+`esc()` (shared, line 546) does escape quotes, but it was not applied to every
+value, and a CSS custom property must not be built by string-concatenating an
+untrusted URL into an attribute at all.
+
+**Fix.** Every field in the card now goes through `esc()` — including `src`,
+the `challenge`/`solution`/`result` text and the meta line. The `--pf-img` value
+is set through the CSSOM (`media.style.setProperty('--pf-img', 'url("…")')`)
+with quotes, parens, backslashes and newlines stripped from the URL, so it can
+never close the `url()` early.
+
+**Verification.** New `tests/portfolio-selftest.js` (+ `run-portfolio-selftest.sh`)
+seeds a hostile project *before* `script.js` runs and drives the real page:
+12/12 checks pass — the payload does not execute, no element or handler is
+injected, the typed `<img>` shows as text, and the `--pf-img` token has exactly
+its two wrapping quotes with an inert inner value. Reverting the fix makes the
+same test report 9 FAILs, proving it catches the bug.
+
+---
+
+## 27. Medium — a failed save reported success ("ok:true is a LIE")
+
+**Symptom.** When the localStorage write failed (quota full, or storage
+blocked), the module still returned `{ ok: true }`. The UI showed "saved" while
+nothing was stored. Reproduced: *"ok:true is a LIE: nothing was written;
+projects after save: 0"*.
+
+**Root cause.** `write()` / `writeAll()` / `writeRaw()` already swallowed the
+exception (correct — a blocked store must not crash), but the mutators ignored
+the boolean they returned and reported success unconditionally.
+
+**Fix.** The storage helpers now **return** whether the write reached storage,
+and every mutator that performs a real save returns
+`{ ok: false, error: STORAGE_ERROR }` when it did not: `saveProject`,
+`removeProject`, `setApproval`, `clearApproval`, `addBill`, `removeBill`
+(`js/erp.js`); `addEntry`, `removeEntry`, `submitDay`, `reopenDay`, `removeDay`,
+`saveDay` (`js/worklog.js`); `save`, `remove` (`js/team.js`); `add`, `remove`,
+`clear` (`js/gallery.js`). The page scripts surface the error
+(`alert` / `flashEditor` / `hint`), and the ERP "Undo" button now calls
+`clearApproval()` instead of writing storage by hand.
+
+**Verification.** New node regressions assert `ok:false` with a storage message
+when the store throws, and the previous "blocked store" tests (which asserted
+the old `ok:true` behaviour) were corrected. All node suites green
+(`erp` 58, `gallery` 24, `measure` 16, `photo-studio` 50).
+
+---
+
+## 28. Low — no headless way to run the browser self-tests
+
+**Symptom.** Every browser self-test (`run-wl-selftest.sh`, `run-erp-selftest.sh`,
+the sweep, …) only printed a URL for a human to open. CI and an agent had no way
+to run them, so "verified in a browser" could not be reproduced automatically.
+
+**Fix.** Added `tests/run-all-headless.sh`: it builds every throwaway page the
+same way the interactive runners do, serves the repo root once, drives headless
+Chromium (`--dump-dom`), extracts each `ok` / `FAIL` block and exits non-zero if
+any page fails. Added `tests/portfolio-selftest.js` and
+`tests/run-portfolio-selftest.sh` for bug 26.
+
+**Verification.** `bash tests/run-all-headless.sh` →
+**ALL BROWSER CHECKS PASSED** (work log, ERP, work-log→ERP, team, gallery,
+profile, paint-my-photo, portfolio injection, full-site sweep 15/15 clean).
+
+---
+
 ## Second-pass audit — categories checked and clean
 
 The follow-up pass covered bug *types* the first pass did not:
@@ -585,3 +698,23 @@ The follow-up pass covered bug *types* the first pass did not:
 28. Service-worker cache bumped `painter-plus-v20` → `v21` so returning
     visitors get the corrected scripts.
 
+
+### Fifth pass (2026-10-18)
+
+29. `node tests/erp.test.js` — **58/58 pass**, including four new regressions for
+    bug 25 (a project rate or paint-rate change withdraws an approved day; the
+    withdrawn day is not billed; re-approving bills the new rate) and one for
+    bug 27 (a failed write reports `ok:false`, not a false `ok:true`).
+30. `node tests/gallery.test.js` **24/24**, `measure.test.js` **16/16**,
+    `photo-studio.test.js` **50/50** — green after the storage-error change.
+31. `node --check` on every JS file — all parse.
+32. `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED**: work log,
+    ERP (**34/34**, now including *a project paint-rate change withdraws the
+    approval*), work-log→ERP, team, gallery, profile, paint-my-photo, portfolio
+    injection (**12/12**) and the full-site sweep (**15/15 pages clean**).
+33. The new portfolio injection test was run against the *pre-fix* `js/script.js`
+    and reported **9 FAILs** (the payload executed, handlers and elements were
+    injected, the `url()` token broke out) — proving the test catches bug 26, not
+    just that the fixed code happens to pass.
+34. Service-worker cache bumped `painter-plus-v21` → `v22` so returning visitors
+    get the corrected scripts.

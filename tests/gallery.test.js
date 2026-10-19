@@ -230,7 +230,10 @@ test('a blocked store does not throw', () => {
   G._setStore({ getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } });
   assert.doesNotThrow(() => G.list('x'));
   assert.doesNotThrow(() => G.workRecord('x'));
-  assert.strictEqual(G.add('x', { title: 'ok' }).ok, true);
+  // A write that cannot persist must be reported, not silently claimed as saved.
+  const res = G.add('x', { title: 'ok' });
+  assert.strictEqual(res.ok, false);
+  assert.ok(/storage/i.test(res.error));
 });
 test('corrupt stored JSON falls back to empty', () => {
   G._setStore(memStore({ painterPlusGallery: 'not json{{{' }));

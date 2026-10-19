@@ -138,12 +138,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.dataset.user = '1';
                 const img = p.image || '';
                 const meta = [p.location && '📍 ' + p.location, p.year, p.finish].filter(Boolean).join(' · ');
-                const desc = [p.challenge && '<strong>Challenge:</strong> ' + p.challenge,
-                              p.solution && '<strong>Solution:</strong> ' + p.solution,
-                              p.result && '<strong>Result:</strong> ' + p.result].filter(Boolean).join('<br>');
+                // These fields are free text typed in admin.html; escape each
+                // one so a stray < or " cannot inject markup into the card.
+                const desc = [p.challenge && '<strong>Challenge:</strong> ' + esc(p.challenge),
+                              p.solution && '<strong>Solution:</strong> ' + esc(p.solution),
+                              p.result && '<strong>Result:</strong> ' + esc(p.result)].filter(Boolean).join('<br>');
                 card.innerHTML =
-                    '<div class="pf-media"' + (img ? ' style="--pf-img:url(\'' + img.replace(/'/g, "\\'") + '\')"' : '') + '>' +
-                      '<img class="pf-img" loading="lazy" src="' + (img || '') + '" alt="' + esc(p.title) + '" />' +
+                    '<div class="pf-media">' +
+                      '<img class="pf-img" loading="lazy" src="' + esc(img) + '" alt="' + esc(p.title) + '" />' +
                       '<span class="pf-badge user">' + esc(capital(p.category || 'interior')) + '</span>' +
                       (p.tag ? '<span class="pf-tag">' + esc(p.tag) + '</span>' : '') +
                     '</div>' +
@@ -152,6 +154,12 @@ document.addEventListener('DOMContentLoaded', () => {
                       (meta ? '<p class="pf-meta">' + esc(meta) + '</p>' : '') +
                       (desc ? '<p>' + desc + '</p>' : '<p>Added via admin.</p>') +
                     '</div>';
+                // The hover wipe reads --pf-img; set it through the CSSOM so a
+                // quote or paren in the URL cannot break out of url("…").
+                if (img) {
+                    const media = card.querySelector('.pf-media');
+                    if (media) media.style.setProperty('--pf-img', 'url("' + img.replace(/["'()\\\n\r]/g, '') + '")');
+                }
                 pfGridMerge.appendChild(card);
             });
             // observe the new cards so the reveal observer picks them up
