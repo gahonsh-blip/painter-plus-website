@@ -229,9 +229,17 @@ pure-geometry half (no DOM, unit-testable in Node) and a browser editor half.
   the work log silently falls back to plain length × height entry.
 - Workflow in the UI: choose a photo → **Set scale** (tap 4 corners, type the
   known size) → **Draw area** (tap the painted surface) → **Use this measurement**.
-- Tests: `node tests/measure.test.js` covers the shoelace, flat calibration and
-  perspective recovery (a skewed photo of a 10×6 ft wall must still measure
-  60 sq ft), plus the costing maths.
+- Tests: `node tests/measure.test.js` (16 checks) covers the shoelace, flat
+  calibration and perspective recovery (a skewed photo of a 10×8 ft wall must
+  still measure 80 sq ft), plus the costing maths. The browser harness
+  `tests/run-wl-selftest.sh` drives the real work-log editor end to end (load a
+  synthetic perspective photo → tap calibration corners → tap the area → save),
+  and asserts the measured square feet, labour and paint figures.
+- **Storage is `localStorage`, not Firestore.** There is no Firebase or any
+  backend — this is a deliberately backend-less static site. Keys:
+  `painterPlusWorkLog`, `painterPlusERP`, `painterPlusGallery`, `painterPlusTeam`.
+  Beware of external documents claiming a Firestore store or a "minimum 5 photos
+  before submit" rule; neither exists (see `docs/PHOTO_AREA_MEASUREMENT.md`).
 
 ## ERP — `erp.html` + `js/erp.js` (`window.PPERP`) + `js/erp-page.js`
 
