@@ -57,7 +57,7 @@ ok  paint litres for 80 sq ft, 2 coats, 130 coverage, 10% wastage
 ## 2. पेंटर इसे कहाँ इस्तेमाल करता है (Work Log)
 
 `worklog.html` के "Add a photo entry" खंड में असली एडिटर लगा है
-(`js/worklog.js:368`, `PPMeasure.createEditor`):
+(`js/worklog.js:373`, `PPMeasure.createEditor`):
 
 - **📏 Set scale** → चार कैलिब्रेशन कोने टैप करें।
 - **✏️ Draw area** → मापने वाला हिस्सा टैप करें। वर्गफुट लाइव दिखता है
@@ -65,7 +65,7 @@ ok  paint litres for 80 sq ft, 2 coats, 130 coverage, 10% wastage
 - **✔ Use this measurement** → माप को एंट्री में डाल देता है (`method: "measured"`)।
 
 हर एंट्री `measure: { calib, points, canvas }` के साथ सेव होती है
-(`js/worklog.js:26-27`), ताकि एडिट करने पर माप दोबारा खुल जाए। दिन के सभी एंट्री
+(`js/worklog.js:27`), ताकि एडिट करने पर माप दोबारा खुल जाए। दिन के सभी एंट्री
 एक **running total** में जुड़ते हैं।
 
 ## 3. Square Feet से मजदूरी और पेंट (मौजूद है)
@@ -74,7 +74,7 @@ ok  paint litres for 80 sq ft, 2 coats, 130 coverage, 10% wastage
 - पेंट लीटर = `(area × coats / coverage) × (1 + wastage)`, डिफ़ॉल्ट
   coverage 130 sq ft/L प्रति कोट, 2 कोट, +10% wastage — `paintLitres()`
   (`js/measure.js:137`)।
-- ERP इन्हें प्रोजेक्ट, बिलिंग और रिपोर्ट से जोड़ता है — `js/erp.js:143-161`
+- ERP इन्हें प्रोजेक्ट, बिलिंग और रिपोर्ट से जोड़ता है — `js/erp.js:163-180`
   (`sqft`, `litres`, `paintCost`, `labour`, `total`)।
 
 ## 4. सेव कहाँ होता है (Firestore नहीं)
@@ -155,8 +155,8 @@ Paint estimate (2 coats · 130 sq ft/L) 0.5 L*।
 |------|--------|
 | homography + shoelace से वर्गफुट | `js/measure.js:40,112,118` |
 | तिरछी फोटो भी सही मापती है | `tests/measure.test.js` (16/16 पास) |
-| Work Log में लाइव एडिटर | `js/worklog.js:368`, `worklog.html:120-149` |
-| मजदूरी + पेंट की गणना | `js/measure.js:137,148`, `js/erp.js:143-161` |
+| Work Log में लाइव एडिटर | `js/worklog.js:373`, `worklog.html:127-148` |
+| मजदूरी + पेंट की गणना | `js/measure.js:137,148`, `js/erp.js:163-180` |
 | सेव `localStorage` में (Firestore नहीं) | `js/worklog.js:36`, `js/erp.js:47` |
 | "5 फोटो" नियम का अभाव | पूरे कोड में `grep` शून्य परिणाम |
 | एंड-टू-एंड ब्राउज़र टेस्ट | `tests/run-wl-selftest.sh` (11/11 पास) |
