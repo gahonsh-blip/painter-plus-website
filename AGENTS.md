@@ -430,12 +430,41 @@ python3 -m http.server 8000
 Deploys run via `.github/workflows/static.yml` on every push to `main`, which
 uploads the repo root to GitHub Pages (`build_type: workflow`).
 
-**Known blocker (as of 2026-10-16):** the `gahonsh-blip` account is **locked due
-to a billing issue**, so no Actions runner will start — every deploy run since
-2026-09-18 fails in ~4s with 0 steps and the annotation *"The job was not started
-because your account is locked due to a billing issue."* The live site is
-therefore frozen at its 2026-08-15 build. This is an account-level setting, not a
-code problem: fix the billing issue at <https://github.com/settings/billing>, then
-re-run the workflow (Actions → *Deploy static content to Pages* → *Re-run*).
-Until then, merging to `main` is enough — the site updates on the next successful
-deploy.
+**Known blocker (verified 2026-10-19):** the `gahonsh-blip` account is **locked
+due to a billing issue**, so no Actions runner will start — every deploy run since
+2026-09-18 fails in ~3s with 0 steps and GitHub's own annotation *"The job was not
+started because your account is locked due to a billing issue."* The live site is
+therefore frozen at its 2026-08-15 build (`last-modified: Sat, 15 Aug 2026`), and
+`erp.html` / `gallery.html` return 404 live although they exist in the repo.
+
+This is an account-level lock, **not a code problem** — nothing in this repository
+can fix it. It is also **not** a workflow/Pages misconfiguration: the workflow is
+valid, the repo is public, and Pages is set to `build_type: workflow` on `main`.
+
+**Why the billing page can look clean while the account is still locked.** A lock
+is raised when a **payment authorization hold fails** — most often when a Copilot
+free trial ends and the card is declined. Once `billing.lock` is set, GitHub
+refuses to start hosted runners *even for a public repo on the Free plan with
+$0 usage and 0 minutes consumed*. So "Payment history: —" and "$0 billable" are
+consistent with a lock, not proof against one. (Same symptom reported in
+community discussions #184077, #188932, #208297, #176249.)
+
+**Fix path (account owner only):**
+1. Settings → Billing and plans → Payment information: remove any frozen/invalid
+   card, then add a valid one. If the page will not save, contact your bank to
+   approve GitHub's authorization hold.
+2. Settings → Billing and plans → Budgets: make sure the Actions budget is not
+   pinned to $0 with "Stop usage" (that alone blocks Actions).
+3. If the lock persists, open <https://support.github.com> → category *Billing*,
+   include the username, this repo, the failed-run link, the exact error
+   *"authorization hold failed"* + *"account is locked due to a billing issue"*,
+   and note you are on the Free plan with no balance owed, so Support can clear
+   `billing.lock`.
+4. After the lock clears, re-run the workflow (Actions → *Deploy static content
+   to Pages* → *Re-run all jobs*) or push a trivial commit to `main`.
+
+**Workarounds that do NOT help:** switching Pages to *Deploy from a branch* — that
+still runs on GitHub's Actions infrastructure and hits the same lock. Until the
+lock clears, merging to `main` is enough — the site updates on the next successful
+deploy. A local preview (`python3 -m http.server 8000`) or another host (Netlify /
+Cloudflare Pages) can serve the site meanwhile.

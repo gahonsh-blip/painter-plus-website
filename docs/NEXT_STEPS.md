@@ -269,3 +269,26 @@ photo-studio 50, and `bash tests/run-all-headless.sh` →
 **ALL BROWSER CHECKS PASSED**. The Color Studio and ERP fixes were each confirmed
 in real headless Chromium (`activeSwatches` 0 → 1; the KPI and Painter report now
 agree and show names). Service-worker cache bumped `v23` → `v24`.
+
+### Deploy status (verified 2026-10-19)
+
+The merge to `main` succeeded, but **deploy is still blocked by the account's
+billing lock** — not by code. Proof pulled from GitHub's own API today:
+
+- The deploy job for merge commit `1c92b32` (run #31) failed in **3 s with 0
+  steps** and the annotation *"The job was not started because your account is
+  locked due to a billing issue."*
+- The live site's `last-modified` is **Sat, 15 Aug 2026** (frozen), and both
+  `erp.html` and `gallery.html` return **404** live though they exist in the repo.
+- The repo is public, Pages is `build_type: workflow` on `main`, and the workflow
+  is valid — so this is **not** a workflow/Pages misconfiguration.
+
+The lock is raised by a **failed payment authorization hold** (typically a Copilot
+trial ending with a declined card), so it persists even on the Free plan with $0
+usage and 0 minutes — a clean billing page does not rule it out. Only the account
+owner can clear it: Billing → Payment information (remove the frozen card, add a
+valid one), check the Actions budget is not pinned to $0, then — if it persists —
+open a Billing ticket at <https://support.github.com>. After it clears, re-run the
+workflow or push a trivial commit. Switching Pages to *Deploy from a branch* will
+**not** help: that still uses GitHub's Actions infrastructure. Full detail in
+`AGENTS.md` → *Deploy*.

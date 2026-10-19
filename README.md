@@ -87,6 +87,16 @@ painter-plus-website/
 
 The deploy workflow runs automatically on every push to `main`.
 
+> ⚠️ **Deploy is currently blocked by an account billing lock.** Every push
+> since 2026-09-18 fails at the runner stage (0 steps) with GitHub's annotation
+> *"The job was not started because your account is locked due to a billing
+> issue."* The live site is frozen at its 2026-08-15 build. This is an
+> **account-level** setting — the workflow and Pages config are correct — and only
+> the account owner can clear it (Billing → Payment information, or GitHub
+> Support). Full fix path in `AGENTS.md` → *Deploy*. Until then,
+> `python3 -m http.server 8000` serves the site locally, and everything merged to
+> `main` deploys on the next successful run.
+
 ## 🔗 Path convention (resolved)
 
 The unresolved merge left two URL-path conventions in the files. This is now settled:

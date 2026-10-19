@@ -792,8 +792,15 @@ The follow-up pass covered bug *types* the first pass did not:
   remain.
 - **Missing PWA icons** — `images/icon-192.png`, `icon-512.png` and
   `icon-maskable-512.png` all exist and are valid PNGs of the right size.
-- **Pages deploy failure** — caused by a GitHub billing lock on the account, not
-  by site code. Nothing in this repository can fix it.
+- **Pages deploy failure** — caused by a GitHub **account billing lock**, not by
+  site code. Verified 2026-10-19: the deploy job for the merge commit
+  `1c92b32` failed in 3s with 0 steps, and GitHub's own annotation reads *"The job
+  was not started because your account is locked due to a billing issue."* The
+  live site is frozen at its 2026-08-15 build and `erp.html` / `gallery.html` 404
+  live though they exist in the repo. The lock comes from a failed payment
+  authorization hold, so it persists even on the Free plan with $0 usage; only the
+  account owner (via Billing settings or GitHub Support) can clear it. Nothing in
+  this repository can fix it. See `AGENTS.md` → *Deploy* for the full fix path.
 
 ## How the fixes were verified
 
