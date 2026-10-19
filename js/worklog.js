@@ -254,7 +254,17 @@
     const c = costing(day);
     const lines = ['Painter Plus daily work log — ' + day.date];
     if (day.project) lines.push('Project: ' + day.project);
-    if (day.crew) lines.push('Crew: ' + day.crew);
+    if (day.crew) {
+      // The picker stores a member id; show the person's name in the copyable
+      // report, falling back to the stored value if the roster is not loaded.
+      let name = day.crew;
+      const T = window.PPTeam;
+      if (T && T.get) {
+        const m = T.get(day.crew);
+        if (m && m.name) name = m.name;
+      }
+      lines.push('Crew: ' + name);
+    }
     lines.push('Photos: ' + t.count);
     lines.push('Total area: ' + fmt(t.sqft));
     const bd = breakdown(day);

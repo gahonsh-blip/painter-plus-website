@@ -124,7 +124,8 @@
       await sleep(80);
       let bill = txt('erpBillOut');
       check(bill.indexOf('₹0') !== -1, 'bill total is ₹0 before approval (the rule)');
-      check(bill.indexOf('2 day(s) awaiting approval') !== -1, 'unapproved work is shown but excluded');
+      check(bill.indexOf('1 day(s) awaiting approval') !== -1, 'the submitted day is shown as awaiting approval');
+      check(bill.indexOf('1 day(s) still open') !== -1, 'the open day is shown in its own bucket, not as pending');
 
       // ---- 7. approve the submitted day ----
       document.querySelector('#tabApprove').click();
@@ -144,8 +145,8 @@
       bill = txt('erpBillOut');
       check(bill.indexOf('₹960') !== -1, 'bill total is ₹960 after approval (80 sq ft × ₹12)');
       check(bill.indexOf('80 sq ft') !== -1, 'bill shows 80 sq ft approved');
-      check(bill.indexOf('20 sq ft') !== -1, 'pending 20 sq ft is still listed separately');
-      check(bill.indexOf('₹240') !== -1, 'pending 20 sq ft × ₹12 = ₹240 shown as not included');
+      check(bill.indexOf('20 sq ft') !== -1, 'the open 20 sq ft is still listed separately');
+      check(bill.indexOf('1 day(s) still open') !== -1, 'the open day is called out, not counted as pending');
 
       // ---- 9. record the bill ----
       const raise = $('erpRaiseBill');
@@ -171,7 +172,8 @@
       document.querySelector('#repTabPainter').click();
       await sleep(80);
       rep = txt('erpReportOut');
-      check(rep.indexOf('gahonsh') !== -1, 'painter report attributes the day to gahonsh');
+      check(rep.indexOf('Gahonsh') !== -1, 'painter report shows the crew NAME, not the id');
+      check(rep.indexOf('gahonsh') === -1, 'painter report does not leak the raw member id');
 
       // ---- 11. reject a day and prove it never bills ----
       seedDay('2026-10-12', 'Sharma House', proj.id, 100, 10, 'gahonsh'); // 1000 sq ft

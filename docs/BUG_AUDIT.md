@@ -3,11 +3,11 @@
 Full-site scan of every page, stylesheet, script and PWA asset. Each entry lists
 the symptom, the root cause, the fix, and how the fix was verified.
 
-Date of audit: 2026-10-16 (third pass 2026-10-18, fourth pass 2026-10-18)
-Scope: all 14 HTML pages, 10 JS files, `css/style.css`, `manifest.json`, `sw.js`,
+Date of audit: 2026-10-16 (third pass 2026-10-18, fourth pass 2026-10-18, sixth pass 2026-10-18)
+Scope: all 15 HTML pages, 12 JS files, `css/style.css`, `manifest.json`, `sw.js`,
 `robots.txt`, `sitemap.xml`, `_headers`.
 
-Four passes. The first fixed 9 bugs; the second targeted bug *types* the first
+Six passes. The first fixed 9 bugs; the second targeted bug *types* the first
 did not (storage failures, CSP, data consistency, HTML validity, links, a11y) and
 found 5 more — including a second instance of the same "one unguarded call kills
 the whole file" failure shape. The third pass reviewed the ERP/work-log data flow
@@ -15,7 +15,12 @@ and found 4 more, the worst being an approval that outlived the work it signed o
 The fourth pass hardened the ERP costing model (a project-rate change must
 withdraw an approval), closed an injection hole in the portfolio merge, made a
 failed storage write report itself instead of claiming success, and added a
-headless runner so every browser self-test can be re-run automatically.
+headless runner so every browser self-test can be re-run automatically. The sixth
+pass reviewed the ERP billing/reporting path and the Color Studio picker and found
+9 more — the crew **id** leaking into every report (and splitting one person into
+two rows), "awaiting approval" money that included days still being edited, an
+invoice that quoted ₹0 next to a real total, one day billed under two projects,
+and a colour swatch that never highlighted.
 
 ## Summary
 
@@ -49,6 +54,15 @@ headless runner so every browser self-test can be re-run automatically.
 | 26 | **High** | Admin project fields could inject markup/handlers into the portfolio | Fixed |
 | 27 | Medium | A failed localStorage write reported `ok:true` ("ok:true is a LIE") | Fixed |
 | 28 | Low | No headless way to run the browser self-tests | Fixed |
+| 29 | **High** | Reports printed the crew **id** and split one person into two rows | Fixed |
+| 30 | **High** | "Awaiting approval" counted days that were never submitted | Fixed |
+| 31 | Medium | Invoice printed "Labour rate: ₹0" next to a real total | Fixed |
+| 32 | Medium | A day was billed under two projects at once | Fixed |
+| 33 | Medium | Color Studio never highlighted the active swatch | Fixed |
+| 34 | Low | Two same-name projects in the same millisecond collided | Fixed |
+| 35 | Low | `billTotal()` dropped the paint cost | Fixed |
+| 36 | Low | A decorative social image was on the critical PWA-install path | Fixed |
+| 37 | Low | The work-log copyable summary printed the crew id | Fixed |
 
 ---
 
@@ -577,6 +591,168 @@ profile, paint-my-photo, portfolio injection, full-site sweep 15/15 clean).
 
 ---
 
+## Sixth pass (2026-10-18) — ERP data-consistency and reporting
+
+A focused review of the ERP billing/reporting path and the Color Studio colour
+picker. Nine bugs, all reproduced against the real modules or a real headless
+page before being fixed. The two most consequential are the crew **id** shown in
+reports (bug 29) and "awaiting approval" money that included days still being
+edited (bug 30).
+
+## 29. High — reports printed the crew's member **id**, and split one person in two
+
+**Symptom.** The Painter report and the Daily report showed `ramesh-kumar`
+instead of `Ramesh Kumar`. Reproduced in a real headless `erp.html`:
+*"Painter report crew column: ramesh-kumar days=2 sqft=140"*. A day that stored
+a legacy typed name (`"Ramesh Kumar"`) and one that stored the modern id
+(`"ramesh-kumar"`) for the **same person** appeared as two separate rows
+(`[{crew:"ramesh-kumar",days:1},{crew:"Ramesh Kumar",days:1}]`).
+
+**Root cause.** `js/worklog.js` stores `crew` as the team member's **id** (the
+`#wlCrew` option value), but `reportByPainter` / `reportDaily` / `bucketDays`
+printed the raw stored value and never resolved it through `PPTeam`.
+
+**Fix.** Added `crewIdentity(value)` / `crewName(value)` to `js/erp.js`: resolve
+by id first, then by exact name, through `window.PPTeam` when it is loaded, and
+group the painter report by that identity. All report and invoice call sites
+(`reportByPainter`, `reportDaily`, `bucketDays`, `invoiceText`), the ERP
+Approvals row and the work-log copyable summary now show the name. Falls back to
+the raw value if the roster is unavailable, so nothing disappears.
+
+**Verification.** New node regression loads `erp.js` in a `vm` with a stub
+`PPTeam` and proves an id day and a name day collapse into **one** row named
+`Ramesh Kumar`; the ERP browser self-test now asserts the report shows
+`Gahonsh` and does **not** contain `gahonsh`.
+
+## 30. High — "Awaiting approval" counted days that were never submitted
+
+**Symptom.** With one submitted day (100 sq ft) and one **open** day (40 sq ft),
+the dashboard advertised `₹1,680` of "awaiting approval" money while its own
+subtitle read "1 day(s) submitted", and the bill callout said "2 day(s)
+awaiting approval, 140 sq ft". The dashboard and the bill disagreed.
+
+**Root cause.** `overview().unbilledLabour` was `labour − approved − rejected`,
+so it swept in **open** days (still being edited). `bucketDays` pushed every
+non-approved, non-rejected day into `pending`, mixing open and submitted work.
+
+**Fix.** Split the buckets: only **submitted** days go to `pending`; open days
+go to a new `open` bucket (exposed as `billFor().open` and
+`overview().openDays/openSqft/openLabour`). `unbilledLabour` is now the sum of
+the pending bucket, so it agrees with `pendingDays`. The ERP dashboard gained an
+"Open (in progress)" KPI and the billing page an open-days callout.
+
+**Verification.** New node regression asserts `unbilledLabour === 1400` (the two
+submitted days only), `openLabour === 300`, and that the bill's `pending.count`
+(1) and `open.count` (1) are separate. The ERP browser self-test now expects
+"1 day(s) awaiting approval" + "1 day(s) still open".
+
+## 31. Medium — the invoice printed "Labour rate: ₹0 per sq ft" next to a real total
+
+**Symptom.** A project with an unset (₹0) rate but a day rate of ₹12 produced an
+invoice reading *"Labour rate: ₹0 per sq ft"* / *"Labour total: ₹1,200"*, and the
+coat count came from the project, not the day. Reproduced against the module.
+
+**Root cause.** The costing correctly falls back to the day rate
+(`effectiveRates`), but `invoiceText` printed `project.rate` and `project.coats`
+unconditionally.
+
+**Fix.** Added `billedRateInfo(project, rows)` to `js/erp.js` — the single
+rate/coverage/coats the approved work was costed at, flagging `fromDay` and
+`mixed` — and used it in `invoiceText` and the ERP billing summary (new
+`rateLabel()` helper). An unset project rate now quotes the day rate with a
+"(day rate)" note; genuinely mixed day rates say "per day (see lines)".
+
+**Verification.** New node regression with a ₹0 project rate and a ₹12 day rate:
+the invoice contains `Labour rate: ₹12` and "day rate", never `₹0`, and quotes
+the day's `(3 coats)`.
+
+## 32. Medium — a day was billed under **two** projects at once
+
+**Symptom.** A day whose `projectId` pointed at Site A but whose free-text
+`project` name equalled Site B's name matched **both**: *"day matches A? true /
+day matches B? true"*, and each project's bill showed the same 100 sq ft / ₹1,200.
+
+**Root cause.** `dayMatchesProject` returned `true` on an id match, then **fell
+through** to the name match instead of stopping — so a name-twin also matched.
+
+**Fix.** When a day carries a `projectId`, that id is now authoritative: the
+function returns `day.projectId === project.id` and never falls through to a
+name match. The legacy name path still applies to days with no id.
+
+**Verification.** New node regression: a day with `projectId:'a'` and
+`project:'Site B'` matches A (`true`) and **not** B (`false`); billing A shows
+100 sq ft and billing B shows 0.
+
+## 33. Medium — the Color Studio never highlighted the active swatch
+
+**Symptom.** In a real headless `color-studio.html`, after restoring a saved
+scheme whose surface colour was the palette red `#c0392b`, `customHex=#C0392B`
+but `activeSwatches=0` — no swatch was highlighted.
+
+**Root cause.** `hexToRgb` parsed only `#rrggbb`, but `markActiveSwatch` feeds it
+the browser's computed `el.style.backgroundColor`, which is always
+`"rgb(232, 227, 216)"`. The regex failed, so `hexToRgb` returned its hard-coded
+fallback `[230,227,216]` → `#e6e3d8`, which can never equal a palette colour, so
+`markActiveSwatch(null)` never matched anything.
+
+**Fix.** `hexToRgb` now parses `rgb()` / `rgba()` as well as `#rgb` / `#rrggbb`.
+
+**Verification.** The same headless probe now reports `activeSwatches=1`.
+
+## 34. Low — two same-name projects saved in the same millisecond collided
+
+**Symptom.** Saving `Test Site` twice within one millisecond produced the same
+id (`test-site-mvf1bo7i`); the second `saveProject` overwrote the first, leaving
+only one project.
+
+**Root cause.** `slugId` is `name + '-' + Date.now().toString(36)` with no
+uniqueness check.
+
+**Fix.** Added `uniqueProjectId(name, projects)`: it loops until the id is not
+already in use, appending a short random suffix if needed.
+
+**Verification.** New node regression saves two `Twin Site` projects and asserts
+distinct ids and that both survive.
+
+## 35. Low — `billTotal()` dropped the paint cost
+
+**Symptom.** `billTotal()` returned `totals.labour` only, ignoring the material
+cost, while the module's rule is that a bill is labour **+** paint.
+
+**Fix.** `billTotal()` now returns `totals.total`.
+
+**Verification.** New node regression with a paint rate: `billTotal ===
+totals.total` and `> totals.labour`.
+
+## 36. Low — a decorative social image was on the critical PWA-install path
+
+**Symptom.** `sw.js` precached with `cache.addAll(ASSETS)`, which is
+all-or-nothing. `images/og-image.svg` (a social-sharing meta image, not part of
+the app shell) was in the list, so if it were ever missing or renamed the whole
+install would reject and the site would silently lose offline support.
+
+**Root cause.** An all-or-nothing precache that included a non-essential asset.
+
+**Fix.** Replaced `cache.addAll` with a per-asset `precache()` that swallows a
+single failure (`cache.add(url).catch(() => null)`), and dropped the decorative
+`og-image.svg` from the shell list. Bumped the cache name to `painter-plus-v24`.
+
+**Verification.** `node --check sw.js`; the full-site sweep and the headless
+runner still pass, and every remaining cached asset exists.
+
+## 37. Low — the work-log copyable summary printed the crew id
+
+**Symptom.** **Copy summary** on `worklog.html` wrote `Crew: gahonsh` (the id)
+rather than the person's name.
+
+**Fix.** `PPWorkLog.summary()` now resolves the crew through `PPTeam.get` and
+prints the name, falling back to the stored value.
+
+**Verification.** Covered by the work-log and work-log→ERP headless self-tests
+(which drive the real page and assert on the rendered text).
+
+---
+
 ## Second-pass audit — categories checked and clean
 
 The follow-up pass covered bug *types* the first pass did not:
@@ -718,3 +894,30 @@ The follow-up pass covered bug *types* the first pass did not:
     just that the fixed code happens to pass.
 34. Service-worker cache bumped `painter-plus-v21` → `v22` so returning visitors
     get the corrected scripts.
+
+### Sixth pass (2026-10-18)
+
+35. `node tests/erp.test.js` — **64/64 pass**. Seven existing tests were updated
+    to the corrected bucket model (open days are no longer "pending"), and six
+    new regressions were added for bugs 29–35: the crew id collapses to a name
+    and merges the legacy form (loaded in a `vm` with a stub `PPTeam`), awaiting
+    approval excludes open days, the invoice quotes the billed rate, a day with a
+    `projectId` matches only that project, same-name projects get distinct ids,
+    and `billTotal` includes paint.
+36. `node tests/gallery.test.js` **24/24**, `measure.test.js` **16/16**,
+    `photo-studio.test.js` **50/50** — green.
+37. `node --check` on every JS file and `sw.js` — all parse.
+38. `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED**: work log,
+    ERP (now asserting *the report shows `Gahonsh`, not `gahonsh`* and *the open
+    day is called out, not counted as pending*), work-log→ERP, team, gallery,
+    profile, paint-my-photo (**30/30**), portfolio injection (**12/12**) and the
+    full-site sweep (**15/15 pages clean**).
+39. The Color Studio swatch fix was verified in real headless Chromium: the probe
+    went from `activeSwatches=0` (pre-fix) to `activeSwatches=1` (post-fix) for a
+    palette colour restored from storage.
+40. The ERP fixes were verified in real headless Chromium: the KPI now reads
+    *"Awaiting approval money = 1200, sub = 1 day(s) submitted"* with the bill
+    callout agreeing (*"1 day(s) awaiting approval, 100 sq ft, ₹1,200"*), and the
+    Painter report shows *"Ramesh Kumar days=2 sqft=140"* with no id leak.
+41. Service-worker cache bumped `painter-plus-v23` → `v24` (the precache also
+    moved to per-asset, bug 36).

@@ -95,6 +95,15 @@
     return p ? p.name : '';
   }
 
+  // The labour rate the bill was actually costed at, as a display string. The
+  // project's rate when set, else the day rate(s) used (so a project left at
+  // ₹0 shows "₹12 / sq ft (day rate)", not a misleading ₹0).
+  function rateLabel(b) {
+    const ri = b.rateInfo || {};
+    if (ri.mixed) return 'per day (see lines)';
+    return E.money(ri.rate) + ' / sq ft' + (ri.fromDay ? ' (day rate)' : '');
+  }
+
   // ============================================================
   // DASHBOARD
   // ============================================================
@@ -114,6 +123,7 @@
         kpi('Approved & billable', E.money(o.approvedTotal), E.fmtSqft(o.approvedSqft) + ' approved', 'ok') +
         kpi('Awaiting approval', E.money(o.unbilledLabour), o.pendingDays + ' day(s) submitted', 'warn') +
         (o.rejectedSqft ? kpi('Rejected', E.money(o.rejectedLabour), E.fmtSqft(o.rejectedSqft) + ' needs rework', 'bad') : '') +
+        (o.openDays ? kpi('Open (in progress)', E.money(o.openLabour), o.openDays + ' day(s) not submitted') : '') +
         kpi('Paint needed', E.fmtLitres(o.approvedLitres), o.approvedPaintCost ? E.money(o.approvedPaintCost) + ' material' : 'approved work') +
         kpi('Total measured', E.fmtSqft(o.sqft), o.days + ' day(s) logged') +
         kpi('Projects', String(o.projects), o.projects === 1 ? 'project' : 'projects');
@@ -257,7 +267,9 @@
     Object.keys(wl).sort().reverse().forEach((date) => {
       const day = wl[date];
       const a = E.approvalOf(date, data);
-      const proj = day.projectId ? E.getProject(day.projectId) : null;
+      // Resolve the project the same way billing does (id first, then name) so
+      // the figure the Owner approves is the figure that gets billed.
+      const proj = E.projectForDay(day, data);
       const name = proj ? proj.name : (day.project || '—');
       const c = E.dayCosting(day, proj);
       const row = { date: date, day: day, approval: a, project: name, costing: c };
@@ -273,7 +285,7 @@
         '<li class="erp-row">' +
           '<div class="erp-row-main"><strong>' + esc(r.date) + ' · ' + esc(r.project) + '</strong>' +
             '<span class="erp-row-sub">' + esc(E.fmtSqft(r.costing.sqft)) + ' · ' +
-            esc(E.money(r.costing.labour)) + (r.day.crew ? ' · ' + esc(r.day.crew) : '') + '</span></div>' +
+            esc(E.money(r.costing.labour)) + (r.day.crew ? ' · ' + esc(E.crewName(r.day.crew)) : '') + '</span></div>' +
           '<div class="erp-row-actions">' +
             '<button type="button" class="erp-mini erp-ok" data-approve="' + escAttr(r.date) + '">✅ Approve</button>' +
             '<button type="button" class="erp-mini erp-danger" data-reject="' + escAttr(r.date) + '">⛔ Reject</button>' +
@@ -377,6 +389,11 @@
         esc(E.fmtSqft(b.rejected.sqft)) + '. Not billed.</div>'
       : '';
 
+    const openNote = (b.open && b.open.count)
+      ? '<div class="erp-callout"><strong>' + b.open.count + ' day(s) still open</strong> — ' +
+        esc(E.fmtSqft(b.open.sqft)) + '. Not submitted yet, so not billed.</div>'
+      : '';
+
     const bills = b.bills.length
       ? '<ul class="erp-list">' + b.bills.map((x) =>
           '<li class="erp-row"><div class="erp-row-main"><strong>' + esc(x.no) + '</strong>' +
@@ -397,13 +414,13 @@
       lines +
       '<div class="erp-bill-total">' +
         '<div><span>Approved area</span><strong>' + esc(E.fmtSqft(b.totals.sqft)) + '</strong></div>' +
-        '<div><span>Labour rate</span><strong>' + esc(E.money(b.project.rate)) + ' / sq ft</strong></div>' +
+        '<div><span>Labour rate</span><strong>' + esc(rateLabel(b)) + '</strong></div>' +
         '<div><span>Labour total</span><strong>' + esc(E.money(b.totals.labour)) + '</strong></div>' +
         '<div><span>Paint needed</span><strong>' + esc(E.fmtLitres(b.totals.litres)) + '</strong></div>' +
         (b.totals.paintCost ? '<div><span>Paint cost</span><strong>' + esc(E.money(b.totals.paintCost)) + '</strong></div>' : '') +
         '<div class="erp-grand"><span>' + (b.totals.paintCost ? 'Grand total' : 'Total due') + '</span><strong>' + esc(E.money(b.totals.total)) + '</strong></div>' +
       '</div>' +
-      pendingNote + rejectedNote +
+      pendingNote + rejectedNote + openNote +
       '<div class="erp-actions">' +
         '<button class="btn-primary" id="erpRaiseBill" type="button">🧾 Record this bill</button>' +
         '<button class="btn-secondary" id="erpCopyInvoice" type="button">📋 Copy invoice</button>' +

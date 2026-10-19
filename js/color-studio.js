@@ -223,8 +223,17 @@
   let coverage = 100; // 0 = original, 100 = fully chosen
 
   // --- Colour helpers ---
+  // Accepts "#rgb", "#rrggbb" AND the browser's computed "rgb(r, g, b)" form.
+  // markActiveSwatch reads el.style.backgroundColor, which the browser always
+  // reports as "rgb(...)", so parsing only "#rrggbb" made every swatch match
+  // the fallback colour and none of them ever highlighted.
   function hexToRgb(hex) {
-    const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+    const s = String(hex == null ? "" : hex).trim();
+    const rgb = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(s);
+    if (rgb) return [parseInt(rgb[1], 10), parseInt(rgb[2], 10), parseInt(rgb[3], 10)];
+    let h = s.replace(/^#/, "");
+    if (/^[0-9a-f]{3}$/i.test(h)) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    const m = /^([0-9a-f]{6})$/i.exec(h);
     if (!m) return [230, 227, 216];
     const v = parseInt(m[1], 16);
     return [(v >> 16) & 255, (v >> 8) & 255, v & 255];

@@ -237,3 +237,35 @@ self-tests automatically. Full detail is in `docs/BUG_AUDIT.md` §25–§28.
 Verification: `node` suites green (erp 58, gallery 24, measure 16,
 photo-studio 50) and `bash tests/run-all-headless.sh` →
 **ALL BROWSER CHECKS PASSED**. Service-worker cache bumped `v21` → `v22`.
+
+### Sixth pass (2026-10-18) — ERP reporting + Color Studio
+
+Nine more bugs, all reproduced before fixing; see `docs/BUG_AUDIT.md` §29–37.
+
+- **Bug 29 — crew ids in reports.** The work log stores `crew` as the member
+  **id**; the ERP printed it raw, so reports showed `ramesh-kumar` and split one
+  person (id vs legacy name) into two rows. `PPERP.crewIdentity()`/`crewName()`
+  resolve through `PPTeam`; the painter report groups by identity.
+- **Bug 30 — "awaiting approval" counted open days.** The KPI money swept in
+  days still being edited and disagreed with its own subtitle. Days now split
+  `approved` / `pending` (submitted) / `open` / `rejected`; only submitted days
+  are pending, and the dashboard gained an "Open (in progress)" KPI.
+- **Bug 31 — invoice printed `₹0/sq ft`.** `billedRateInfo()` now quotes the rate
+  the work was actually costed at (project rate, else day rate).
+- **Bug 32 — a day billed under two projects.** `dayMatchesProject` no longer
+  falls through to a name match when a `projectId` is present.
+- **Bug 33 — Color Studio swatch never highlighted.** `hexToRgb` now parses the
+  browser's `rgb(...)`; a saved palette colour highlights its swatch again.
+- **Bug 34 — same-millisecond project-id collision.** `uniqueProjectId()` loops
+  until the id is free.
+- **Bug 35 — `billTotal()` dropped paint.** It now returns `totals.total`.
+- **Bug 36 — decorative image on the SW-install path.** `sw.js` precaches
+  per-asset so one missing file cannot reject the whole install.
+- **Bug 37 — work-log summary printed the crew id.** It now shows the name.
+
+Verification: `node tests/erp.test.js` **64/64** (six new regressions + seven
+existing tests updated to the corrected bucket model), gallery 24, measure 16,
+photo-studio 50, and `bash tests/run-all-headless.sh` →
+**ALL BROWSER CHECKS PASSED**. The Color Studio and ERP fixes were each confirmed
+in real headless Chromium (`activeSwatches` 0 → 1; the KPI and Painter report now
+agree and show names). Service-worker cache bumped `v23` → `v24`.

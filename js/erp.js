@@ -231,6 +231,18 @@
     return (base || 'project') + '-' + Date.now().toString(36);
   }
 
+  // A fresh id that is guaranteed not to collide with an existing project.
+  // `slugId` alone is `name + '-' + Date.now()`, so two projects saved with the
+  // same name inside the same millisecond (a double-tap, a fast script) would
+  // share an id and the second save would silently overwrite the first.
+  function uniqueProjectId(name, projects) {
+    let id = slugId(name);
+    while ((projects || []).some((p) => p && p.id === id)) {
+      id = slugId(name) + '-' + Math.random().toString(36).slice(2, 5);
+    }
+    return id;
+  }
+
   function listProjects(data) {
     const d = data || read();
     return d.projects.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -245,7 +257,7 @@
     const d = data || read();
     const p = normaliseProject(project);
     if (!p.name) return { ok: false, error: 'Enter a project name.' };
-    if (!p.id) p.id = slugId(p.name);
+    if (!p.id) p.id = uniqueProjectId(p.name, d.projects);
     const idx = d.projects.findIndex((x) => x.id === p.id);
     if (idx >= 0) d.projects[idx] = p; else d.projects.push(p);
     if (data === undefined && !write(d)) return { ok: false, error: STORAGE_ERROR };
@@ -269,7 +281,12 @@
   // ============================================================
   function dayMatchesProject(day, project) {
     if (!day || !project) return false;
-    if (day.projectId && day.projectId === project.id) return true;
+    // When a day carries an explicit project id, that id is authoritative — it
+    // must match, and nothing else counts. Falling through to a name match when
+    // the id is set (and simply belongs to another project) let one day match
+    // TWO projects at once if its free-text name happened to equal the other
+    // project's name, so the same measured area was billed under both.
+    if (day.projectId) return day.projectId === project.id;
     const a = String(day.project || '').trim().toLowerCase();
     const b = String(project.name || '').trim().toLowerCase();
     return !!a && a === b;
@@ -284,6 +301,34 @@
     });
     return out.sort((a, b) => String(a.date).localeCompare(String(b.date)));
   }
+
+  // A work-log day stores its crew as the member's ID (see js/worklog.js,
+  // #wlCrew option values), but older days stored a free-typed name. Turn
+  // either into a stable identity + a human name, so the reports never print a
+  // machine id like "ramesh-kumar" and the two forms of the same person do not
+  // split into two rows. Prefers the roster (PPTeam) when it is loaded; falls
+  // back to the raw value so nothing disappears if the roster is unavailable.
+  function crewIdentity(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return { key: 'Unassigned', name: 'Unassigned' };
+    const T = root && root.PPTeam;
+    if (T && typeof T.get === 'function') {
+      try {
+        // Match by id first (the modern form)…
+        let m = T.get(raw);
+        // …then by exact name (a legacy day stored a name, not an id).
+        if (!m && typeof T.list === 'function') {
+          const low = raw.toLowerCase();
+          m = T.list().find((x) => String(x.name || '').trim().toLowerCase() === low);
+        }
+        if (m) return { key: m.id || raw, name: m.name || raw };
+      } catch (e) { /* roster unavailable — fall back to the raw value */ }
+    }
+    return { key: raw, name: raw };
+  }
+
+  // The display name for a stored crew value (id or legacy name).
+  function crewName(value) { return crewIdentity(value).name; }
 
   // ============================================================
   // APPROVALS
@@ -385,12 +430,12 @@
   function bucketDays(project, data, worklog) {
     const d = data || read();
     const days = daysForProject(project, worklog);
-    const approved = [], pending = [], rejected = [];
+    const approved = [], pending = [], open = [], rejected = [];
     days.forEach((day) => {
       const a = approvalOf(day.date, d);
       const row = {
         date: day.date,
-        crew: day.crew || '',
+        crew: crewName(day.crew),
         status: day.status,
         approval: a.status,
         approvedBy: a.by || '',
@@ -398,9 +443,14 @@
       };
       if (a.status === 'approved' && day.status === 'submitted') approved.push(row);
       else if (a.status === 'rejected') rejected.push(row);
-      else pending.push(row);
+      // A day still being edited (not final-submitted) is NOT awaiting
+      // approval — its numbers can still change, so it belongs in its own
+      // bucket. Counting it as "pending" advertised work-in-progress money as
+      // if an Owner/Head had something to sign off.
+      else if (day.status === 'submitted') pending.push(row);
+      else open.push(row);
     });
-    return { approved: approved, pending: pending, rejected: rejected, all: days };
+    return { approved: approved, pending: pending, open: open, rejected: rejected, all: days };
   }
 
   function sumRows(rows) {
@@ -415,6 +465,38 @@
     return out;
   }
 
+  // The single rate/coverage/coats a bill was costed at, for the invoice
+  // summary. Approved rows all share the project's rates when the project sets
+  // them; when the project leaves a rate blank the day's own rate is used, so
+  // the summary must quote that (and say so) rather than printing the project's
+  // ₹0 next to a non-zero labour total.
+  function billedRateInfo(project, rows, worklog) {
+    const p = project || {};
+    const wl = worklog || readWorkLog();
+    if (num(p.rate)) {
+      return {
+        rate: num(p.rate), coverage: num(p.coverage) || DEFAULTS.coverage,
+        coats: num(p.coats) || DEFAULTS.coats, paintRate: num(p.paintRate),
+        fromDay: false
+      };
+    }
+    // Project rate is unset — quote the day rate(s) actually billed.
+    const rates = [];
+    (rows || []).forEach((r) => {
+      const day = wl[r.date];
+      if (day) rates.push(num(day.rate));
+    });
+    const distinct = rates.filter((v, i) => rates.indexOf(v) === i);
+    const day0 = (rows && rows.length) ? wl[rows[0].date] : null;
+    const r0 = day0 ? effectiveRates(day0, project) : { coverage: DEFAULTS.coverage, coats: DEFAULTS.coats, paintRate: 0 };
+    return {
+      rate: distinct.length === 1 ? distinct[0] : 0,
+      mixed: distinct.length > 1,
+      coverage: r0.coverage, coats: r0.coats, paintRate: r0.paintRate,
+      fromDay: true
+    };
+  }
+
   // The bill: APPROVED work only. `draft` carries everything not yet
   // approved so the page can show it without it reaching the total.
   function billFor(projectId, data, worklog) {
@@ -424,15 +506,23 @@
     const b = bucketDays(project, d, worklog);
     const approved = sumRows(b.approved);
     const pending = sumRows(b.pending);
+    const open = sumRows(b.open);
     const rejected = sumRows(b.rejected);
+    // The rates the APPROVED work was actually costed at. The project's when
+    // set, else the days' own (see effectiveRates) — so the invoice quotes the
+    // rate that produced the money instead of the project's blank ₹0.
+    const rateInfo = billedRateInfo(project, b.approved, worklog);
     return {
       ok: true,
       project: project,
+      rateInfo: rateInfo,
       lines: b.approved,
       pendingLines: b.pending,
+      openLines: b.open,
       rejectedLines: b.rejected,
       totals: approved,
       pending: pending,
+      open: open,
       rejected: rejected,
       // Explicit so no caller can accidentally bill unapproved work.
       billableSqft: approved.sqft,
@@ -445,9 +535,13 @@
   }
 
   // Alias kept for readability at call sites that only want the number.
+  // Returns the FULL amount owed for approved work — labour plus paint — to
+  // match the module's own rule that a bill is labour + material. (It used to
+  // return labour only, so any caller of this alias silently dropped the paint
+  // cost.)
   function billTotal(projectId, data, worklog) {
     const b = billFor(projectId, data, worklog);
-    return b.ok ? b.totals.labour : 0;
+    return b.ok ? b.totals.total : 0;
   }
 
   function addBill(projectId, entry, data) {
@@ -515,12 +609,14 @@
     }
     lines.push('');
     lines.push('Total area:   ' + fmtSqft(b.totals.sqft));
-    lines.push('Labour rate:  ' + money(b.project.rate) + ' per sq ft');
+    const ri = b.rateInfo || {};
+    lines.push('Labour rate:  ' + (ri.mixed ? 'per day (see lines above)' : money(ri.rate)) +
+      (ri.fromDay ? ' per sq ft (day rate)' : ' per sq ft'));
     lines.push('Labour total: ' + money(b.totals.labour));
-    lines.push('Paint needed: ' + fmtLitres(b.totals.litres) + ' (' + b.project.coats + ' coats)');
+    lines.push('Paint needed: ' + fmtLitres(b.totals.litres) + ' (' + ri.coats + ' coats)');
     if (b.totals.paintCost) {
       lines.push('Paint cost:   ' + fmtLitres(b.totals.litres) + ' × ' +
-        money(b.project.paintRate) + '/L = ' + money(b.totals.paintCost));
+        money(ri.paintRate) + '/L = ' + money(b.totals.paintCost));
     }
     lines.push('GRAND TOTAL:  ' + money(b.totals.total));
     if (b.pending.count) {
@@ -528,6 +624,11 @@
       lines.push('NOT INCLUDED (awaiting approval): ' +
         b.pending.count + ' day(s), ' + fmtSqft(b.pending.sqft) +
         ', ' + money(b.pending.labour));
+    }
+    if (b.open && b.open.count) {
+      lines.push('');
+      lines.push('NOT INCLUDED (still open, not submitted): ' +
+        b.open.count + ' day(s), ' + fmtSqft(b.open.sqft));
     }
     return lines.join('\n');
   }
@@ -549,7 +650,9 @@
         date: date,
         project: byName ? byName.name : (day.project || '—'),
         projectId: byName ? byName.id : '',
-        crew: day.crew || '',
+        // A human name, never the stored member id.
+        crew: crewName(day.crew),
+        crewId: (day.crew && crewIdentity(day.crew).key !== 'Unassigned') ? crewIdentity(day.crew).key : '',
         status: day.status,
         approval: a.status,
         sqft: c.sqft,
@@ -571,6 +674,7 @@
         project: p,
         approved: sumRows(b.approved),
         pending: sumRows(b.pending),
+        open: sumRows(b.open),
         rejected: sumRows(b.rejected)
       };
     });
@@ -583,8 +687,12 @@
     const map = {};
     Object.keys(wl).forEach((date) => {
       const day = wl[date];
-      const who = day.crew || 'Unassigned';
-      if (!map[who]) map[who] = { crew: who, days: 0, sqft: 0, labour: 0, litres: 0, paintCost: 0, approvedSqft: 0, approvedLabour: 0, approvedLitres: 0, approvedPaintCost: 0 };
+      // Group by the person's identity, not the raw stored value, so an id and
+      // a legacy name for the same crew member collapse into one row and the
+      // report shows a human name instead of "ramesh-kumar".
+      const ident = crewIdentity(day.crew);
+      const who = ident.key;
+      if (!map[who]) map[who] = { crew: ident.name, crewId: who === 'Unassigned' ? '' : who, days: 0, sqft: 0, labour: 0, litres: 0, paintCost: 0, approvedSqft: 0, approvedLabour: 0, approvedLitres: 0, approvedPaintCost: 0 };
       const project = d.projects.find((p) => dayMatchesProject(day, p)) || null;
       const c = dayCosting(day, project);
       const a = approvalOf(date, d);
@@ -609,7 +717,9 @@
     const daily = reportDaily(d, worklog);
     let sqft = 0, labour = 0, litres = 0, paintCost = 0;
     let approvedSqft = 0, approvedLabour = 0, approvedLitres = 0, approvedPaintCost = 0;
-    let pendingCount = 0, rejectedSqft = 0, rejectedLabour = 0;
+    let pendingCount = 0, pendingSqft = 0, pendingLabour = 0;
+    let openCount = 0, openSqft = 0, openLabour = 0;
+    let rejectedSqft = 0, rejectedLabour = 0;
     daily.forEach((r) => {
       sqft += r.sqft; labour += r.labour; litres += r.litres; paintCost += r.paintCost;
       if (r.approval === 'approved' && r.status === 'submitted') {
@@ -619,7 +729,11 @@
       // A rejected day is not awaiting approval — it needs rework, and its
       // area must not be advertised as pending money.
       else if (r.approval === 'rejected') { rejectedSqft += r.sqft; rejectedLabour += r.labour; }
-      else if (r.status === 'submitted') pendingCount++;
+      // Awaiting approval means: final-submitted, and no decision yet. A day
+      // still OPEN is being edited, so its money is work-in-progress, not
+      // pending revenue — it goes in its own bucket.
+      else if (r.status === 'submitted') { pendingCount++; pendingSqft += r.sqft; pendingLabour += r.labour; }
+      else { openCount++; openSqft += r.sqft; openLabour += r.labour; }
     });
     return {
       projects: d.projects.length,
@@ -635,9 +749,17 @@
       approvedPaintCost: approvedPaintCost,
       approvedTotal: approvedLabour + approvedPaintCost,
       pendingDays: pendingCount,
+      pendingSqft: pendingSqft,
+      pendingLabour: pendingLabour,
+      openDays: openCount,
+      openSqft: openSqft,
+      openLabour: openLabour,
       rejectedSqft: rejectedSqft,
       rejectedLabour: rejectedLabour,
-      unbilledLabour: labour - approvedLabour - rejectedLabour
+      // Money measured but not yet approved. Excludes OPEN days (still being
+      // edited) and rejected days (needs rework) — only submitted-awaiting
+      // work is "pending", so this now agrees with pendingDays.
+      unbilledLabour: pendingLabour
     };
   }
 
@@ -648,6 +770,7 @@
     // store
     read, write, _setStore, STORAGE_ERROR,
     readWorkLog, dayTotals, dayCosting, paintLitres, effectiveRates, projectForDay,
+    crewIdentity, crewName, uniqueProjectId,
     // projects
     blankProject, normaliseProject, listProjects, getProject, saveProject, removeProject,
     // linking

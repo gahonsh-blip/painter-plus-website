@@ -259,8 +259,12 @@ and rejected work never reaches a bill total, plus regression tests for the
 fixes: an approval is bound to the measurements it signed (editing an approved
 day withdraws it), invoice ids stay unique, a deleted invoice number is never
 reused, rejected work is not counted as pending, a blank project rate never
-zeroes the day's labour, and the ERP quotes the same paint litres as
-`js/measure.js`.
+zeroes the day's labour, the ERP quotes the same paint litres as
+`js/measure.js`, only final-submitted days count as "awaiting approval" (open
+days are their own bucket), a day with a `projectId` is billed under exactly one
+project, same-name projects get distinct ids, the invoice quotes the rate the
+work was actually billed at, the painter report shows a crew **name** and merges
+an id with a legacy name, and `billTotal()` includes the paint cost.
 
 ## 🎨 Customisation
 
