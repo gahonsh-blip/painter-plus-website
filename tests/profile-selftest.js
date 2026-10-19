@@ -44,7 +44,15 @@
   const params = new URLSearchParams(location.search);
   const MEMBER = params.get('id') || 'ramesh-kumar';
 
-  const seeded = sessionStorage.getItem('profileSelftestSeeded') === '1';
+  // Seed unless the work-log fixture is already present. Checking the data
+  // (not a session flag) means a re-run after a test that cleared the store
+  // re-seeds instead of running against an empty store.
+  const seeded = (() => {
+    try {
+      const wl = localStorage.getItem('painterPlusWorkLog') || '';
+      return wl.indexOf('Profile Test Site') !== -1 && !sessionStorage.getItem('ppClaimedMember');
+    } catch (e) { return false; }
+  })();
   if (!seeded) {
     try {
       localStorage.removeItem('painterPlusWorkLog');
@@ -66,7 +74,7 @@
     // shares that project with Suresh.
     const worklog = {
       '2026-10-10': {
-        date: '2026-10-10', project: 'Sharma House', projectId: 'sharma-house',
+        date: '2026-10-10', project: 'Profile Test Site', projectId: 'profile-test-site',
         crew: 'ramesh-kumar', status: 'submitted',
         entries: [
           { id: 'e1', area: 'wall', label: 'Wall', sqft: 100, method: 'measured', photo: '', crew: 'ramesh-kumar' },
@@ -74,7 +82,7 @@
         ]
       },
       '2026-10-11': {
-        date: '2026-10-11', project: 'Sharma House', projectId: 'sharma-house',
+        date: '2026-10-11', project: 'Profile Test Site', projectId: 'profile-test-site',
         crew: 'ramesh-kumar', status: 'open',
         entries: [{ id: 'e3', area: 'wall', label: 'Wall', w: 5, h: 4, sqft: 20, method: 'manual', photo: '', crew: 'ramesh-kumar' }]
       }
@@ -82,7 +90,7 @@
     try { localStorage.setItem('painterPlusWorkLog', JSON.stringify(worklog)); } catch (e) {}
     try {
       localStorage.setItem('painterPlusERP', JSON.stringify({
-        projects: [{ id: 'sharma-house', name: 'Sharma House', rate: 12, coats: 2, coverage: 130, status: 'active' }],
+        projects: [{ id: 'profile-test-site', name: 'Profile Test Site', rate: 12, coats: 2, coverage: 130, status: 'active' }],
         approvals: {}, bills: {}
       }));
     } catch (e) {}
@@ -108,7 +116,7 @@
     check(recText.indexOf((nowYear - 2018) + '+') !== -1,
       'years on the tools derives from the declared start year (' + (nowYear - 2018) + '+)');
     check(recText.indexOf('120 sq ft') !== -1, 'area painted is derived (100 + 20 = 120 sq ft)');
-    check(recText.indexOf('Sharma House') !== -1, 'project name is resolved through the ERP');
+    check(recText.indexOf('Profile Test Site') !== -1, 'project name is resolved through the ERP');
     check(recText.indexOf('Co-workers') !== -1, 'co-workers figure is shown (shared project)');
 
     const r = G.workRecord(MEMBER);

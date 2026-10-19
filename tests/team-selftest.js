@@ -34,7 +34,17 @@
     document.body.appendChild(pre);
   }
 
-  if (sessionStorage.getItem('teamSelftestSeeded') !== '1') {
+  // Seed unless all fixtures are already present. Checking the data (not a
+  // session flag) means a re-run after a test that cleared the store re-seeds
+  // instead of running against an empty store.
+  const seededNow = (() => {
+    try {
+      const wl = localStorage.getItem('painterPlusWorkLog') || '';
+      const gal = localStorage.getItem('painterPlusGallery') || '';
+      return wl.indexOf('Sunrise Villa') !== -1 && gal.indexOf('Team fixture photo') !== -1;
+    } catch (e) { return false; }
+  })();
+  if (!seededNow) {
     try {
       localStorage.setItem('painterPlusTeam', JSON.stringify([
         { id: 'gahonsh', name: 'Gahonsh', role: 'head', startYear: '2015', title: 'Head & Founder' },
@@ -42,16 +52,16 @@
         { id: 'suresh-mahto', name: 'Suresh Mahto', role: 'painter', title: 'Painter' }
       ]));
       localStorage.setItem('painterPlusWorkLog', JSON.stringify({
-        '2026-10-10': { date: '2026-10-10', project: 'Sharma House', projectId: 'sharma-house', crew: 'ramesh-kumar', status: 'submitted',
+        '2026-10-10': { date: '2026-10-10', project: 'Sunrise Villa', projectId: 'sunrise-villa', crew: 'ramesh-kumar', status: 'submitted',
           entries: [ { id: 'e1', area: 'wall', label: 'Wall', sqft: 100, crew: 'ramesh-kumar' } ] },
-        '2026-10-11': { date: '2026-10-11', project: 'Sharma House', projectId: 'sharma-house', crew: 'ramesh-kumar', status: 'open',
+        '2026-10-11': { date: '2026-10-11', project: 'Sunrise Villa', projectId: 'sunrise-villa', crew: 'ramesh-kumar', status: 'open',
           entries: [ { id: 'e2', area: 'wall', label: 'Wall', sqft: 20, crew: 'ramesh-kumar' } ] }
       }));
       localStorage.setItem('painterPlusERP', JSON.stringify({
-        projects: [{ id: 'sharma-house', name: 'Sharma House' }], approvals: {}, bills: {}
+        projects: [{ id: 'sunrise-villa', name: 'Sunrise Villa' }], approvals: {}, bills: {}
       }));
       localStorage.setItem('painterPlusGallery', JSON.stringify({
-        'ramesh-kumar': [{ id: 'g1', title: 'Living room', photo: 'https://example.com/a.jpg', sqft: 120, at: '2026-10-10T09:00:00Z' }]
+        'ramesh-kumar': [{ id: 'g1', title: 'Team fixture photo', photo: 'https://example.com/a.jpg', sqft: 120, at: '2026-10-10T09:00:00Z' }]
       }));
     } catch (e) {}
     sessionStorage.setItem('teamSelftestSeeded', '1');
