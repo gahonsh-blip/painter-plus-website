@@ -488,6 +488,19 @@
     if (calibWEl) calibWEl.addEventListener('input', applyCalibSize);
     if (calibHEl) calibHEl.addEventListener('input', applyCalibSize);
 
+    // Standard-size shortcuts for the scale rectangle: the painter taps a door,
+    // window, tile or brick whose real size is known, so the scale is right
+    // without measuring by hand. See docs/PHOTO_AREA_MEASUREMENT.md §7.
+    const calibPresetsEl = $('wlCalibPresets');
+    if (calibPresetsEl) calibPresetsEl.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-w][data-h]');
+      if (!b) return;
+      if (calibWEl) calibWEl.value = b.dataset.w;
+      if (calibHEl) calibHEl.value = b.dataset.h;
+      applyCalibSize();
+      hint('Scale set to ' + b.dataset.w + '×' + b.dataset.h + ' ft — now tap its four corners.');
+    });
+
     // ----- add / edit entry -----
     function resetForm() {
       editingId = null;

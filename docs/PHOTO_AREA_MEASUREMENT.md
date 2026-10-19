@@ -59,7 +59,8 @@ ok  paint litres for 80 sq ft, 2 coats, 130 coverage, 10% wastage
 `worklog.html` के "Add a photo entry" खंड में असली एडिटर लगा है
 (`js/worklog.js:373`, `PPMeasure.createEditor`):
 
-- **📏 Set scale** → चार कैलिब्रेशन कोने टैप करें।
+- **📏 Set scale** → चार कैलिब्रेशन कोने टैप करें। आसानी के लिए **Common sizes**
+  बटन (दरवाज़ा 3×7, खिड़की 4×4, टाइल 2×2, ईंट 1×1) एक टैप में नाप भर देते हैं।
 - **✏️ Draw area** → मापने वाला हिस्सा टैप करें। वर्गफुट लाइव दिखता है
   (`#wlMeasuredSqft`)।
 - **✔ Use this measurement** → माप को एंट्री में डाल देता है (`method: "measured"`)।
@@ -100,12 +101,14 @@ ok  paint litres for 80 sq ft, 2 coats, 130 coverage, 10% wastage
 
 `tests/run-wl-selftest.sh` एक असली पेज बनाकर चलाता है: क्रू लॉगिन खोलता है, एक
 सिंथेटिक तिरछी फोटो (10×6 फीट दीवार) लोड करता है, कैलिब्रेशन कोने और एरिया टैप
-करता है, एंट्री सेव करता है। असली ब्राउज़र में परिणाम (11/11 पास):
+करता है, एंट्री सेव करता है। असली ब्राउज़र में परिणाम (12/12 पास):
 
 ```
 ok unlock
 ok no phantom day from rate alone
 ok photo loaded 800x500
+door preset filled scale: 3×7 ft
+ok scale preset fills known size
 full wall measured: 60 sq ft (expected 60 sq ft)
 ok full-wall area
 half wall measured: 30.1 (expected ~30 sq ft)
@@ -143,8 +146,11 @@ Paint estimate (2 coats · 130 sq ft/L) 0.5 L*।
 
 1. **माप को साझा करना** — ताकि पेंटर का लॉग Owner तक पहुँचे (कोई छोटा बैकएंड या
    निर्यात/आयात, क्योंकि अभी कोई सर्वर नहीं)।
-2. **कैलिब्रेशन बेहतर करना** — ज्ञात आयत चुनने के लिए रेडीमेड विकल्प (मानक दरवाज़ा
-   ~7×3 फीट, ईंट, टाइल) ताकि Scale सही लगे।
+2. ~~**कैलिब्रेशन बेहतर करना** — ज्ञात आयत चुनने के लिए रेडीमेड विकल्प (मानक दरवाज़ा
+   ~7×3 फीट, ईंट, टाइल) ताकि Scale सही लगे।~~ **हो गया (2026-10-18)** — Work Log
+   में **Common sizes** बटन जोड़े (दरवाज़ा 3×7, खिड़की 4×4, टाइल 2×2, ईंट 1×1) जो
+   एक टैप में `#wlCalibW` / `#wlCalibH` भर देते हैं। ब्राउज़र टेस्ट
+   (`tests/wl-selftest.js`) इसे साबित करता है: *ok scale preset fills known size*।
 3. **त्रुटि-सीमा दिखाना** — माप के साथ "±X%" और एक पुष्टि कदम।
 4. **ERP में जोड़ना** — मापा क्षेत्रफल से मजदूरी/पेंट पहले से जुड़ा है; इसे
    Projects, Billing, Reports की स्क्रीन पर और साफ़ दिखाना।
@@ -156,7 +162,8 @@ Paint estimate (2 coats · 130 sq ft/L) 0.5 L*।
 | homography + shoelace से वर्गफुट | `js/measure.js:40,112,118` |
 | तिरछी फोटो भी सही मापती है | `tests/measure.test.js` (16/16 पास) |
 | Work Log में लाइव एडिटर | `js/worklog.js:373`, `worklog.html:127-148` |
+| Scale के लिए रेडीमेड नाप बटन | `worklog.html:143-149`, `js/worklog.js:491-502` |
 | मजदूरी + पेंट की गणना | `js/measure.js:137,148`, `js/erp.js:163-180` |
 | सेव `localStorage` में (Firestore नहीं) | `js/worklog.js:36`, `js/erp.js:47` |
 | "5 फोटो" नियम का अभाव | पूरे कोड में `grep` शून्य परिणाम |
-| एंड-टू-एंड ब्राउज़र टेस्ट | `tests/run-wl-selftest.sh` (11/11 पास) |
+| एंड-टू-एंड ब्राउज़र टेस्ट | `tests/run-wl-selftest.sh` (12/12 पास) |
