@@ -18,7 +18,9 @@ PORT="${1:-8130}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PAGE="$ROOT/_selftest.html"
 
-sed 's#<script src="./js/worklog.js" defer></script>#<script src="./js/worklog.js" defer></script>\n    <script src="./tests/wl-selftest.js" defer></script>#' \
+BUST="$(date +%s)"
+sed -e "s#\(src=\"\./js/[a-z-]*\.js\)\"#\1?v=$BUST\"#g" \
+    -e "s#<script src=\"./js/worklog.js?v=$BUST\" defer></script>#<script src=\"./js/worklog.js?v=$BUST\" defer></script>\n    <script src=\"./tests/wl-selftest.js?v=$BUST\" defer></script>#" \
   "$ROOT/worklog.html" > "$PAGE"
 
 cleanup() { rm -f "$PAGE"; }

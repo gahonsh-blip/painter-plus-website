@@ -49,6 +49,11 @@
 
   async function run() {
     try {
+      // Start from a clean store: this harness asserts on an initially empty
+      // history ("No days logged"), which leftover fixtures from other
+      // harnesses would otherwise break.
+      try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+
       // Unlock
       document.getElementById('wlPass').value = 'painter123';
       document.getElementById('wlUnlock').click();
