@@ -174,8 +174,8 @@
             ' · ' + esc(p.status) + '</span>' +
         '</div>' +
         '<div class="erp-row-actions">' +
-          '<button class="erp-mini" data-edit="' + escAttr(p.id) + '">✏️ Edit</button>' +
-          '<button class="erp-mini erp-danger" data-del="' + escAttr(p.id) + '">🗑 Delete</button>' +
+          '<button type="button" class="erp-mini" data-edit="' + escAttr(p.id) + '">✏️ Edit</button>' +
+          '<button type="button" class="erp-mini erp-danger" data-del="' + escAttr(p.id) + '">🗑 Delete</button>' +
         '</div>';
       ul.appendChild(li);
     });
@@ -274,8 +274,8 @@
             '<span class="erp-row-sub">' + esc(E.fmtSqft(r.costing.sqft)) + ' · ' +
             esc(E.money(r.costing.labour)) + (r.day.crew ? ' · ' + esc(r.day.crew) : '') + '</span></div>' +
           '<div class="erp-row-actions">' +
-            '<button class="erp-mini erp-ok" data-approve="' + escAttr(r.date) + '">✅ Approve</button>' +
-            '<button class="erp-mini erp-danger" data-reject="' + escAttr(r.date) + '">⛔ Reject</button>' +
+            '<button type="button" class="erp-mini erp-ok" data-approve="' + escAttr(r.date) + '">✅ Approve</button>' +
+            '<button type="button" class="erp-mini erp-danger" data-reject="' + escAttr(r.date) + '">⛔ Reject</button>' +
           '</div>' +
         '</li>').join('');
       if (empty) empty.hidden = waiting.length > 0;
@@ -290,7 +290,7 @@
             '<span class="erp-row-sub">' + esc(E.fmtSqft(r.costing.sqft)) + ' · ' +
             esc(E.money(r.costing.labour)) + (r.approval.by ? ' · by ' + esc(r.approval.by) : '') + '</span></div>' +
           '<div class="erp-row-side">' + approvalBadge(r.approval.status) +
-            '<button class="erp-mini" data-reopen="' + escAttr(r.date) + '">↩ Undo</button>' +
+            '<button type="button" class="erp-mini" data-reopen="' + escAttr(r.date) + '">↩ Undo</button>' +
           '</div>' +
         '</li>').join('');
       if (dempty) dempty.hidden = decided.length > 0;
@@ -383,7 +383,7 @@
               (x.litres ? ' · ' + esc(E.fmtLitres(x.litres)) + ' paint' : '') +
               (x.note ? ' · ' + esc(x.note) : '') + '</span></div>' +
             '<div class="erp-row-side"><span>' + esc(E.money(x.amount)) + '</span>' +
-            '<button class="erp-mini erp-danger" data-delbill="' + escAttr(x.id) + '">🗑</button></div></li>').join('') +
+            '<button type="button" class="erp-mini erp-danger" data-delbill="' + escAttr(x.id) + '">🗑</button></div></li>').join('') +
           '</ul>'
       : '<p class="erp-empty">No invoices raised for this project yet.</p>';
 

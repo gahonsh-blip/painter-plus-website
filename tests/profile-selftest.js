@@ -60,6 +60,10 @@
       localStorage.removeItem('painterPlusGallery');
       localStorage.removeItem('painterPlusTeam');
       sessionStorage.removeItem('ppClaimedMember');
+      // Clear any Owner/Head session left by another harness in this tab:
+      // isManager() would otherwise be true and the "This is me" button
+      // would (correctly) not render, failing this test on a shared tab.
+      sessionStorage.removeItem('ppAdminUnlocked');
     } catch (e) {}
 
     // Roster: one painter with a declared start year, one helper without.

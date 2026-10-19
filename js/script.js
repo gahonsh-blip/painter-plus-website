@@ -289,8 +289,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         roleOpts +
                       '</select>' +
                       '<a class="edit" href="./painter-profile.html?id=' + encodeURIComponent(m.id) + '">👤 Profile</a>' +
-                      '<button class="edit" data-id="' + esc(m.id) + '">✏️ Edit</button>' +
-                      '<button class="del" data-id="' + esc(m.id) + '">🗑</button>' +
+                      '<button type="button" class="edit" data-id="' + esc(m.id) + '">✏️ Edit</button>' +
+                      '<button type="button" class="del" data-id="' + esc(m.id) + '">🗑</button>' +
                     '</div>';
                 ul.appendChild(li);
             });
@@ -494,8 +494,8 @@ document.addEventListener('DOMContentLoaded', () => {
                       '<div class="adm-item-meta">' + esc([p.location, p.year, p.finish].filter(Boolean).join(' · ')) + '</div>' +
                     '</div>' +
                     '<div class="adm-item-actions">' +
-                      '<button class="edit" data-id="' + esc(p.id) + '">✏️ Edit</button>' +
-                      '<button class="del" data-id="' + esc(p.id) + '">🗑 Delete</button>' +
+                      '<button type="button" class="edit" data-id="' + esc(p.id) + '">✏️ Edit</button>' +
+                      '<button type="button" class="del" data-id="' + esc(p.id) + '">🗑 Delete</button>' +
                     '</div>';
                 ul.appendChild(li);
             });

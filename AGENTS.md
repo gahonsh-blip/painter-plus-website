@@ -351,8 +351,36 @@ stats were removed (`stat1..stat4` cleared in `js/team.js`) and replaced by this
 - Internal links and assets use **relative paths** (`./about.html`, `./css/style.css`) so they work both locally and under the `/painter-plus-website/` Pages prefix. Canonical, OG and sitemap URLs use the absolute live domain `https://gahonsh-blip.github.io/painter-plus-website/`.
 - Do not introduce a build step, bundler, or framework unless the owner asks.
 - Do not add new dependencies; there is no package manager in this project.
-- Preserve the PWA behavior (service worker + manifest) when editing.
+- Preserve the PWA behavior (service worker + manifest) when editing. **Bump
+  `CACHE_NAME` in `sw.js` whenever you change a cached asset** (`js/*.js`,
+  `css/style.css`) — otherwise the cache-first worker serves the old file and a
+  returning visitor never sees the fix.
 - After edits, run the verification checklist in `README.md` and `docs/NEXT_STEPS.md`.
+
+## Verification
+
+Prefer running code over inspection. Two layers:
+
+- **Node unit tests** (pure, no browser): `tests/*.test.js` — `node tests/erp.test.js` etc.
+- **Browser self-tests**: each `tests/run-*-selftest.sh` builds a throwaway copy
+  of a real page with the harness appended and serves it; open the printed URL
+  and read the `ok …` / `FAIL …` lines. `tests/run-page-sweep.sh` loads **every**
+  page in a reused iframe and reports uncaught JS errors per page.
+
+Caveats learned the hard way:
+
+- **Cache-bust the scripts in a harness.** The service worker is cache-first, so
+  a harness that loads `./js/x.js` unversioned can test stale code. The runners
+  append `?v=<timestamp>`; do the same in any new one.
+- **`sessionStorage` leaks between harnesses in one tab.** The Owner/Head gate
+  flag is `ppAdminUnlocked` and the self-service flag is `ppClaimedMember`. A
+  harness that asserts a *non-manager* view (e.g. the profile "This is me"
+  button) must clear `ppAdminUnlocked` first, or a prior ERP test in the same
+  tab makes `isManager()` true and the view renders differently.
+- **`type="button"` applies to JS-generated buttons too.** Adding a button in a
+  template string (`'<button class="x">…'`) must include `type="button"`; only
+  the static HTML was swept in the original fix.
+
 
 ## Useful commands
 
@@ -370,6 +398,9 @@ node tests/gallery.test.js && node tests/erp.test.js && node tests/measure.test.
 bash tests/run-profile-selftest.sh 8132
 bash tests/run-gallery-selftest.sh 8133
 bash tests/run-team-selftest.sh 8134
+bash tests/run-erp-selftest.sh 8135
+bash tests/run-wl-selftest.sh 8136
+bash tests/run-page-sweep.sh 8137   # every page, uncaught-JS-error sweep
 
 # Local preview
 python3 -m http.server 8000

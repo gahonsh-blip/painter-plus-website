@@ -39,6 +39,8 @@ and found 4 more, the worst being an approval that outlived the work it signed o
 | 20 | Low | Rejected work counted as "awaiting approval" on the dashboard | Fixed |
 | 21 | **High** | A blank project rate silently zeroed the day's labour (₹1,200 → ₹0) | Fixed |
 | 22 | Medium | The ERP and the work log could quote different paint quantities | Fixed |
+| 23 | Low | Bug 7's `<button type>` fix missed JS-generated buttons | Fixed |
+| 24 | Low | Profile self-test failed on a shared tab (test-isolation, not a site bug) | Fixed |
 
 ---
 
@@ -421,6 +423,47 @@ present and asserts the ERP's litres equal the measure module's.
 
 ---
 
+## 23. Low — bug 7's `<button type>` fix missed JS-generated buttons
+
+**Symptom.** Bug 7 added `type="button"` to every button in the static HTML, but
+the buttons the scripts *build* were overlooked: the admin roster's Edit/Delete
+buttons (`js/script.js`), and the ERP page's project Edit/Delete, Approve/Reject,
+Undo and invoice Delete buttons (`js/erp-page.js`). They relied on the default
+`type="submit"`.
+
+**Root cause.** The bug-7 scan only walked the `.html` files; the buttons are
+interpolated from JS template strings, so they never appeared in that scan.
+
+**Fix.** Added `type="button"` to all ten JS-generated buttons (4 in
+`js/script.js`, 6 in `js/erp-page.js`). The other `createElement('button')`
+call sites (`js/color-studio.js`, `js/worklog.js`) already set `.type`.
+
+**Verification.** A browser probe loads `admin.html` signed in, seeds a roster
+and counts every `<button>` in the rendered document: **21 buttons, 0 untyped**
+(before the fix the roster's four per-row buttons were untyped). The ERP and
+work-log browser self-tests still pass (32/32 and all checks).
+
+---
+
+## 24. Low — profile self-test failed on a shared tab (test-isolation)
+
+**Symptom.** `tests/run-profile-selftest.sh` reported
+`FAIL an unclaimed visitor sees a "This is me" button` when its page was opened
+in a tab where the ERP self-test had already run.
+
+**Root cause.** Not a site bug — a test-isolation bug. The ERP self-test signs
+in as Owner/Head, which sets the `ppAdminUnlocked` session flag. On the same
+tab the profile page then read `PPTeam.isManager()` as true and, correctly,
+rendered the Owner/Head editor instead of the "This is me" button. The profile
+harness cleared `ppClaimedMember` but not the head-session flag.
+
+**Fix.** The profile harness now also clears `ppAdminUnlocked` before seeding,
+so it always starts as an unclaimed visitor regardless of what ran before in
+the tab. Re-running it in the same (previously contaminated) tab now reports
+**RESULT: ALL OK**.
+
+---
+
 ## Second-pass audit — categories checked and clean
 
 The follow-up pass covered bug *types* the first pass did not:
@@ -511,3 +554,34 @@ The follow-up pass covered bug *types* the first pass did not:
 17. A page-load probe of all 14 pages — every page loads with no JS errors and
     no missing element ids.
 18. `node --check` on every JS file — all parse.
+
+### Fourth pass (2026-10-18)
+
+19. `node tests/erp.test.js` 54/54, `gallery.test.js` 24/24, `measure.test.js`
+    16/16, `photo-studio.test.js` 50/50 — all green.
+20. Real-browser full-site runtime sweep (`tests/run-page-sweep.sh`) — **15/15
+    pages load with zero uncaught JS errors** (about, admin, color-studio,
+    contact, erp, gallery, index, offline, painter-profile, portfolio, privacy,
+    services, team, terms, worklog).
+21. Real-browser ERP self-test — **32/32 checks pass** (project CRUD, the
+    approval rule, invoice numbering, the three reports, paint line + grand
+    total).
+22. Real-browser work-log self-test — all checks pass (scale calibration,
+    draw-area, measured badge, labour + paint in the totals and the summary,
+    submit locks / reopen, no phantom day).
+23. Real-browser profile self-test — **RESULT: ALL OK** (derived record 8+ yrs /
+    1 project / 120 sq ft / 1 co-worker, the claim flow, a profile save, a
+    gallery add with sq-ft caption, the lightbox, removal). Verified to pass even
+    on a tab previously used by the ERP self-test (bug 24 fix).
+24. Real-browser gallery self-test — **RESULT: ALL OK** (cards, attribution to
+    painter and project, both filters, newest-first, empty state).
+25. Real-browser team self-test — **RESULT: ALL OK** (derived stats match
+    `PPGallery.workRecord`; a member with no data shows no invented figures).
+26. Real-browser paint-my-photo self-test — **30/30 checks pass** (demo scenes,
+    repaint, gloss/stucco, corner selection, tap-to-fill, area readout, material
+    table, the quote link carrying the area).
+27. Button-type probe on the live `admin.html` — **21 buttons, 0 untyped**
+    (bug 23 fix).
+28. Service-worker cache bumped `painter-plus-v20` → `v21` so returning
+    visitors get the corrected scripts.
+
