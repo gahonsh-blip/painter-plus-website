@@ -111,9 +111,10 @@
     const k = $('erpKpis');
     if (k) {
       k.innerHTML =
-        kpi('Approved & billable', E.money(o.approvedLabour), E.fmtSqft(o.approvedSqft) + ' approved', 'ok') +
+        kpi('Approved & billable', E.money(o.approvedTotal), E.fmtSqft(o.approvedSqft) + ' approved', 'ok') +
         kpi('Awaiting approval', E.money(o.unbilledLabour), o.pendingDays + ' day(s) submitted', 'warn') +
         (o.rejectedSqft ? kpi('Rejected', E.money(o.rejectedLabour), E.fmtSqft(o.rejectedSqft) + ' needs rework', 'bad') : '') +
+        kpi('Paint needed', E.fmtLitres(o.approvedLitres), o.approvedPaintCost ? E.money(o.approvedPaintCost) + ' material' : 'approved work') +
         kpi('Total measured', E.fmtSqft(o.sqft), o.days + ' day(s) logged') +
         kpi('Projects', String(o.projects), o.projects === 1 ? 'project' : 'projects');
     }
@@ -142,9 +143,10 @@
         pl.innerHTML = '<ul class="erp-list">' + projects.map((r) =>
           '<li class="erp-row">' +
             '<div class="erp-row-main"><strong>' + esc(r.project.name) + '</strong>' +
-              '<span class="erp-row-sub">' + esc(E.money(r.project.rate)) + '/sq ft · ' + r.project.coats + ' coats</span></div>' +
-            '<div class="erp-row-side"><span>' + esc(E.money(r.approved.labour)) + '</span>' +
-              (r.pending.count ? '<span class="erp-row-sub">+' + esc(E.money(r.pending.labour)) + ' pending</span>' : '') + '</div>' +
+              '<span class="erp-row-sub">' + esc(E.money(r.project.rate)) + '/sq ft · ' + r.project.coats + ' coats' +
+                (r.project.paintRate ? ' · paint ' + esc(E.money(r.project.paintRate)) + '/L' : '') + '</span></div>' +
+            '<div class="erp-row-side"><span>' + esc(E.money(r.approved.total)) + '</span>' +
+              (r.pending.count ? '<span class="erp-row-sub">+' + esc(E.money(r.pending.total)) + ' pending</span>' : '') + '</div>' +
           '</li>').join('') + '</ul>';
       }
     }
@@ -167,7 +169,9 @@
         '<div class="erp-row-main">' +
           '<strong>' + esc(p.name) + '</strong>' +
           '<span class="erp-row-sub">' + (p.client ? esc(p.client) + ' · ' : '') +
-            esc(E.money(p.rate)) + '/sq ft · ' + p.coats + ' coats · ' + esc(p.status) + '</span>' +
+            esc(E.money(p.rate)) + '/sq ft · ' + p.coats + ' coats' +
+            (p.paintRate ? ' · paint ' + esc(E.money(p.paintRate)) + '/L' : '') +
+            ' · ' + esc(p.status) + '</span>' +
         '</div>' +
         '<div class="erp-row-actions">' +
           '<button class="erp-mini" data-edit="' + escAttr(p.id) + '">✏️ Edit</button>' +
@@ -187,6 +191,7 @@
       rate: ($('erpProjRate') || {}).value || 0,
       coats: ($('erpProjCoats') || {}).value || 2,
       coverage: ($('erpProjCoverage') || {}).value || 130,
+      paintRate: ($('erpProjPaintRate') || {}).value || 0,
       status: ($('erpProjStatus') || {}).value || 'active',
       note: ($('erpProjNote') || {}).value || ''
     };
@@ -202,6 +207,7 @@
     set('erpProjRate', p ? (p.rate || '') : '');
     set('erpProjCoats', p ? (p.coats || 2) : 2);
     set('erpProjCoverage', p ? (p.coverage || 130) : 130);
+    set('erpProjPaintRate', p ? (p.paintRate || '') : '');
     set('erpProjStatus', p ? p.status : 'active');
     set('erpProjNote', p ? p.note : '');
     const t = $('erpProjFormTitle');
@@ -347,12 +353,14 @@
     if (!b.ok) { out.innerHTML = '<p class="erp-empty">' + esc(b.error) + '</p>'; return; }
 
     const lines = b.lines.length
-      ? '<table class="erp-table"><thead><tr><th>Date</th><th>Crew</th><th>Area</th><th>Rate</th><th>Labour</th></tr></thead><tbody>' +
+      ? '<table class="erp-table"><thead><tr><th>Date</th><th>Crew</th><th>Area</th><th>Rate</th><th>Labour</th><th>Paint</th></tr></thead><tbody>' +
         b.lines.map((r) =>
           '<tr><td>' + esc(r.date) + '</td><td>' + esc(r.crew || '—') + '</td>' +
           '<td>' + esc(E.fmtSqft(r.costing.sqft)) + '</td>' +
           '<td>' + esc(E.money(r.costing.rate)) + '</td>' +
-          '<td>' + esc(E.money(r.costing.labour)) + '</td></tr>').join('') +
+          '<td>' + esc(E.money(r.costing.labour)) + '</td>' +
+          '<td>' + esc(E.fmtLitres(r.costing.litres)) +
+            (r.costing.paintCost ? ' · ' + esc(E.money(r.costing.paintCost)) : '') + '</td></tr>').join('') +
         '</tbody></table>'
       : '<p class="erp-empty">No approved work yet — approve a submitted day in the Approvals tab and it will appear here.</p>';
 
@@ -370,7 +378,10 @@
     const bills = b.bills.length
       ? '<ul class="erp-list">' + b.bills.map((x) =>
           '<li class="erp-row"><div class="erp-row-main"><strong>' + esc(x.no) + '</strong>' +
-            '<span class="erp-row-sub">' + esc(x.date) + (x.note ? ' · ' + esc(x.note) : '') + '</span></div>' +
+            '<span class="erp-row-sub">' + esc(x.date) +
+              (x.sqft ? ' · ' + esc(E.fmtSqft(x.sqft)) : '') +
+              (x.litres ? ' · ' + esc(E.fmtLitres(x.litres)) + ' paint' : '') +
+              (x.note ? ' · ' + esc(x.note) : '') + '</span></div>' +
             '<div class="erp-row-side"><span>' + esc(E.money(x.amount)) + '</span>' +
             '<button class="erp-mini erp-danger" data-delbill="' + escAttr(x.id) + '">🗑</button></div></li>').join('') +
           '</ul>'
@@ -385,8 +396,10 @@
       '<div class="erp-bill-total">' +
         '<div><span>Approved area</span><strong>' + esc(E.fmtSqft(b.totals.sqft)) + '</strong></div>' +
         '<div><span>Labour rate</span><strong>' + esc(E.money(b.project.rate)) + ' / sq ft</strong></div>' +
+        '<div><span>Labour total</span><strong>' + esc(E.money(b.totals.labour)) + '</strong></div>' +
         '<div><span>Paint needed</span><strong>' + esc(E.fmtLitres(b.totals.litres)) + '</strong></div>' +
-        '<div class="erp-grand"><span>Total due</span><strong>' + esc(E.money(b.totals.labour)) + '</strong></div>' +
+        (b.totals.paintCost ? '<div><span>Paint cost</span><strong>' + esc(E.money(b.totals.paintCost)) + '</strong></div>' : '') +
+        '<div class="erp-grand"><span>' + (b.totals.paintCost ? 'Grand total' : 'Total due') + '</span><strong>' + esc(E.money(b.totals.total)) + '</strong></div>' +
       '</div>' +
       pendingNote + rejectedNote +
       '<div class="erp-actions">' +
@@ -397,8 +410,15 @@
 
     const raise = $('erpRaiseBill');
     if (raise) raise.addEventListener('click', () => {
-      if (!b.totals.labour) { alert('Nothing approved to bill yet.'); return; }
-      E.addBill(id, { amount: b.totals.labour, sqft: b.totals.sqft, note: 'Approved work' });
+      if (!b.totals.total) { alert('Nothing approved to bill yet.'); return; }
+      E.addBill(id, {
+        amount: b.totals.total,
+        sqft: b.totals.sqft,
+        litres: b.totals.litres,
+        labour: b.totals.labour,
+        paintCost: b.totals.paintCost,
+        note: b.totals.paintCost ? 'Approved work + paint' : 'Approved work'
+      });
       renderBilling();
     });
     const copy = $('erpCopyInvoice');
@@ -456,32 +476,37 @@
     if (reportKind === 'project') {
       const rows = E.reportByProject();
       out.innerHTML = rows.length
-        ? '<table class="erp-table"><thead><tr><th>Project</th><th>Rate</th><th>Approved</th><th>Pending</th><th>Approved labour</th></tr></thead><tbody>' +
+        ? '<table class="erp-table"><thead><tr><th>Project</th><th>Rate</th><th>Approved</th><th>Pending</th><th>Paint</th><th>Approved total</th></tr></thead><tbody>' +
           rows.map((r) =>
             '<tr><td>' + esc(r.project.name) + '</td><td>' + esc(E.money(r.project.rate)) + '</td>' +
             '<td>' + esc(E.fmtSqft(r.approved.sqft)) + '</td>' +
             '<td>' + esc(E.fmtSqft(r.pending.sqft)) + '</td>' +
-            '<td><strong>' + esc(E.money(r.approved.labour)) + '</strong></td></tr>').join('') +
+            '<td>' + esc(E.fmtLitres(r.approved.litres)) + '</td>' +
+            '<td><strong>' + esc(E.money(r.approved.total)) + '</strong>' +
+              (r.approved.paintCost ? '<span class="erp-row-sub"> ' + esc(E.money(r.approved.labour)) + ' + ' + esc(E.money(r.approved.paintCost)) + ' paint</span>' : '') +
+            '</td></tr>').join('') +
           '</tbody></table>'
         : '<p class="erp-empty">No projects yet.</p>';
     } else if (reportKind === 'painter') {
       const rows = E.reportByPainter();
       out.innerHTML = rows.length
-        ? '<table class="erp-table"><thead><tr><th>Painter</th><th>Days</th><th>Measured</th><th>Approved</th><th>Approved labour</th></tr></thead><tbody>' +
+        ? '<table class="erp-table"><thead><tr><th>Painter</th><th>Days</th><th>Measured</th><th>Approved</th><th>Paint</th><th>Approved labour</th></tr></thead><tbody>' +
           rows.map((r) =>
             '<tr><td>' + esc(r.crew) + '</td><td>' + r.days + '</td>' +
             '<td>' + esc(E.fmtSqft(r.sqft)) + '</td>' +
             '<td>' + esc(E.fmtSqft(r.approvedSqft)) + '</td>' +
+            '<td>' + esc(E.fmtLitres(r.approvedLitres)) + '</td>' +
             '<td><strong>' + esc(E.money(r.approvedLabour)) + '</strong></td></tr>').join('') +
           '</tbody></table>'
         : '<p class="erp-empty">No work logged yet.</p>';
     } else {
       const rows = E.reportDaily();
       out.innerHTML = rows.length
-        ? '<table class="erp-table"><thead><tr><th>Date</th><th>Project</th><th>Crew</th><th>Area</th><th>Labour</th><th>Status</th></tr></thead><tbody>' +
+        ? '<table class="erp-table"><thead><tr><th>Date</th><th>Project</th><th>Crew</th><th>Area</th><th>Labour</th><th>Paint</th><th>Status</th></tr></thead><tbody>' +
           rows.map((r) =>
             '<tr><td>' + esc(r.date) + '</td><td>' + esc(r.project) + '</td><td>' + esc(r.crew || '—') + '</td>' +
             '<td>' + esc(E.fmtSqft(r.sqft)) + '</td><td>' + esc(E.money(r.labour)) + '</td>' +
+            '<td>' + esc(E.fmtLitres(r.litres)) + '</td>' +
             '<td>' + dayBadge(r.status) + ' ' + approvalBadge(r.approval) + '</td></tr>').join('') +
           '</tbody></table>'
         : '<p class="erp-empty">No days logged yet.</p>';

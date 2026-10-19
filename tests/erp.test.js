@@ -248,6 +248,102 @@ test('entries fall back to width × height when sqft is missing', () => {
 });
 
 // ============================================================
+// PAINT QUANTITY + MATERIAL COST (steps 5–6 of the ERP plan)
+// ============================================================
+test('a project left at ₹0 does not zero the day rate', () => {
+  seedWorld();
+  // Seed a project whose rate is unset, matching a day that carries its own.
+  E._setStore(memStore({
+    painterPlusWorkLog: JSON.stringify({
+      '2026-10-20': {
+        date: '2026-10-20', projectId: 'p1', project: 'Site A', crew: 'R',
+        status: 'submitted', rate: 15, coverage: 130, coats: 2,
+        entries: [{ id: 'e1', area: 'wall', sqft: 80 }]
+      }
+    }),
+    painterPlusERP: JSON.stringify({
+      projects: [{ id: 'p1', name: 'Site A', rate: 0, coverage: 130, coats: 2, status: 'active' }],
+      approvals: { '2026-10-20': { status: 'approved', by: 'x', at: 'x' } },
+      bills: {}
+    })
+  }));
+  const b = E.billFor('p1');
+  assert.strictEqual(b.totals.labour, 1200, 'the day rate must survive a blank project rate');
+});
+test('a project paint rate adds a material cost to the day', () => {
+  seedWorld();
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 12, paintRate: 200 });
+  const b = E.billFor('sharma-house');
+  const litres = 100 * 2 / 130 * 1.1;
+  close(b.totals.litres, litres, 1e-6);
+  close(b.totals.paintCost, litres * 200, 1e-6);
+  close(b.totals.total, 1200 + litres * 200, 1e-6);
+});
+test('with no paint rate the total is labour only', () => {
+  seedWorld();
+  const b = E.billFor('sharma-house');
+  assert.strictEqual(b.totals.paintCost, 0);
+  assert.strictEqual(b.totals.total, b.totals.labour);
+});
+test('ERP paint maths match PPMeasure when it is loaded', () => {
+  // The work log delegates litres to PPMeasure.paintLitres. The ERP must
+  // agree with it, or the same day would quote two different quantities.
+  // Load erp.js in a browser-like context where window.PPMeasure exists and
+  // prove dayCosting uses it, not the local fallback.
+  const vm = require('vm');
+  const fs = require('fs');
+  const path = require('path');
+  const M = require('../js/measure.js');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'js', 'erp.js'), 'utf8');
+
+  const store = {};
+  const win = {
+    PPMeasure: M,
+    localStorage: {
+      getItem: (k) => (k in store ? store[k] : null),
+      setItem: (k, v) => { store[k] = String(v); }
+    }
+  };
+  const sandbox = { window: win, console };
+  sandbox.globalThis = sandbox;
+  vm.createContext(sandbox);
+  vm.runInContext(src, sandbox);
+
+  const P = win.PPERP;
+  const day = { date: 'x', status: 'submitted', rate: 12, coverage: 130, coats: 2, entries: [{ id: 'e', sqft: 100 }] };
+  const viaMeasure = P.dayCosting(day, null).litres;
+  close(viaMeasure, M.paintLitres(100, { coats: 2, coverage: 130 }), 1e-9);
+  // And the local fallback (no PPMeasure) yields the same figure.
+  close(P.paintLitres(100, { coats: 2, coverage: 130 }), viaMeasure, 1e-9);
+});
+test('the invoice shows the paint line and grand total', () => {
+  seedWorld();
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 12, paintRate: 200 });
+  const txt = E.invoiceText('sharma-house');
+  assert.ok(txt.indexOf('Paint cost:') >= 0, 'expected a paint cost line');
+  assert.ok(txt.indexOf('GRAND TOTAL:') >= 0, 'expected a grand total line');
+  assert.ok(txt.indexOf('₹1,200') >= 0, 'expected the labour subtotal');
+});
+test('paint quantity reaches the painter-wise report', () => {
+  seedWorld();
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 12, paintRate: 200 });
+  const rows = E.reportByPainter();
+  const r = rows.find((x) => x.crew === 'Ramesh Kumar');
+  assert.ok(r, 'expected a row for Ramesh Kumar');
+  assert.ok(r.approvedLitres > 0, 'approved litres must be carried through');
+  assert.ok(r.approvedPaintCost > 0, 'approved paint cost must be carried through');
+});
+test('a day-level paintRate change withdraws a stale approval', () => {
+  seedWorld();
+  E.approveDay('2026-10-10', 'Gahonsh');
+  assert.strictEqual(E.approvalOf('2026-10-10').status, 'approved');
+  const wl = E.readWorkLog();
+  wl['2026-10-10'].paintRate = 250;
+  E._setStore(memStore({ painterPlusWorkLog: JSON.stringify(wl), painterPlusERP: JSON.stringify(E.read()) }));
+  assert.strictEqual(E.approvalOf('2026-10-10').status, 'pending', 'a paint-rate change must re-open the sign-off');
+});
+
+// ============================================================
 // INVOICE
 // ============================================================
 test('the invoice lists approved work and the total', () => {

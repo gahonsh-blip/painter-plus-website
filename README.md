@@ -224,16 +224,21 @@ adds a rupee to a bill. Pending work is shown beside the bill so it is visible,
 but kept in its own bucket. `billFor()` returns `totals` (approved, billable) and
 `pending` separately — they are never added together.
 
-- **Dashboard** — billable vs awaiting-approval money, total measured, latest days.
-- **Projects** — name, client, phone, site, labour rate, coats, coverage, status.
+- **Dashboard** — billable vs awaiting-approval money, total measured, paint
+  needed, latest days.
+- **Projects** — name, client, phone, site, labour rate, coats, coverage,
+  paint rate (₹ per litre, optional), status.
 - **Approvals** — only a *final-submitted* day can be approved or rejected (an
   open day is still being edited, so its numbers are not final). Decisions can be
   undone.
 - **Billing** — pick a project and the bill lists approved days only, with a
-  "not included" callout for pending work. **Record this bill** saves a numbered
-  invoice (`PP-001`, `PP-002`, …); **Copy invoice** produces a pasteable text bill.
+  "not included" callout for pending work. Each approved day shows its area, its
+  paint quantity and — when the project has a paint rate — its material cost.
+  The bill foots to a **grand total** (labour + paint). **Record this bill** saves
+  a numbered invoice (`PP-001`, `PP-002`, …); **Copy invoice** produces a
+  pasteable text bill that lists the paint line and the grand total.
 - **Reports** — daily, project-wise and painter-wise, each showing approved vs
-  pending area and labour.
+  pending area, labour **and paint litres**.
 
 The work log links a day to a project through a picker on the day bar
 (`#wlProjectPick`); the free-text site name is still there for one-off jobs, and
@@ -251,9 +256,11 @@ node tests/erp.test.js
 
 `tests/erp.test.js` includes a block of `THE RULE:` tests that prove unapproved
 and rejected work never reaches a bill total, plus regression tests for the
-third-pass fixes: an approval is bound to the measurements it signed (editing an
-approved day withdraws it), invoice ids stay unique, a deleted invoice number is
-never reused, and rejected work is not counted as pending.
+fixes: an approval is bound to the measurements it signed (editing an approved
+day withdraws it), invoice ids stay unique, a deleted invoice number is never
+reused, rejected work is not counted as pending, a blank project rate never
+zeroes the day's labour, and the ERP quotes the same paint litres as
+`js/measure.js`.
 
 ## 🎨 Customisation
 
@@ -339,7 +346,10 @@ bash tests/run-wl-erp-selftest.sh 8132     # then open http://localhost:8132/_wl
 
 `run-erp-selftest.sh` unlocks `erp.html`, creates a project through the real
 form, seeds a submitted and an open day, and checks the dashboard, approvals,
-billing (₹0 before approval, ₹960 after), the invoice and all three reports.
+billing (₹0 before approval, ₹960 after), the invoice and all three reports. It
+then sets a paint rate and proves the bill gains a paint quantity, a material
+cost and a grand total (labour + paint), and that the paint litres reach the
+painter report.
 `run-wl-erp-selftest.sh` proves a day logged in `worklog.html` is stamped with
 the chosen ERP project and then appears in that project's bill once approved.
 Both runners cache-bust their scripts and drop the service worker, which caches

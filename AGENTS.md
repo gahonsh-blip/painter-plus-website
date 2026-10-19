@@ -49,6 +49,10 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 18. **Rejected work counted as pending — FIXED.** `overview()` folded rejected labour into `unbilledLabour`, so the dashboard advertised rejected money as awaiting approval. It now reports `rejectedSqft` / `rejectedLabour` separately. See §20.
 
+19. **Blank project rate zeroed the day's labour — FIXED.** `dayCosting()` used `project ? num(project.rate) : num(day.rate)`, so a project whose *Labour rate* was left blank (normalises to `rate: 0`) discarded the rate the crew had entered on the day — a ₹1,200 day billed as ₹0 the moment it was linked to a rate-less project. It now falls back with `(project && num(project.rate)) || num(day && day.rate)`, exactly as `coverage`/`coats` already did. See §21.
+
+20. **ERP vs work log paint divergence — FIXED.** The work log computes litres via `PPMeasure.paintLitres()`; the ERP hardcoded its own `× 1.1`. They agreed only while the shared wastage default stayed `0.1`. `PPERP.dayCosting()` now delegates to `PPMeasure.paintLitres()` (with an identical fallback for Node), so the two can never quote different quantities. See §22.
+
 
 **Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`). And a UMD wrapper must actually pass its global into the factory: `factory()` with a body that uses `root` passes in Node (where the in-memory store hides it) and fails silently in the browser.
 
@@ -238,12 +242,19 @@ Data shape:
 ```
 {
   projects: [ { id, name, client, phone, address, rate, coverage, coats,
-                startDate, status: "active"|"closed", note } ],
+                paintRate, startDate, status: "active"|"closed", note } ],
   approvals: { "YYYY-MM-DD": { status: "approved"|"rejected", by, at, note,
                                sig } },   # sig = daySignature() at approval time
-  bills: { "<projectId>": [ { id, no, date, note, amount, sqft, createdAt } ] }
+  bills: { "<projectId>": [ { id, no, date, note, amount, sqft, litres,
+                              paintCost, labour, createdAt } ] }
 }
 ```
+
+`paintRate` is ₹ per litre. With it set, `dayCosting()` returns a paint
+quantity (`litres`, via `PPMeasure.paintLitres`), a material cost (`paintCost =
+litres × paintRate`) and a grand `total` (`labour + paintCost`); `billFor()`,
+`invoiceText()`, `overview()` and all three reports carry them through. A project
+left at `paintRate: 0` bills labour only — the paint quantity is still shown.
 
 **The one rule, do not break it:** a measurement that has not been *approved*
 never adds a rupee to a bill. `billFor()` returns `totals` (approved, billable)
@@ -258,8 +269,11 @@ and `pending` in **separate** fields; they are never summed. `billFor()` and
 - A day links to a project by `day.projectId` **first**, then by the free-text
   `day.project` name (`dayMatchesProject`), so days logged before projects
   existed still appear in a project's bill and reports.
-- A project's `rate`/`coats`/`coverage` override the day's own values
-  (`dayCosting(day, project)`), so changing the project rate re-prices the bill.
+- A project's `rate`/`coats`/`coverage`/`paintRate` override the day's own
+  values (`dayCosting(day, project)`), so changing the project rate re-prices the
+  bill. A project figure of `0` means *"not set yet"* and falls back to the
+  day's own — never treat `0` as a real override, or a blank project rate zeroes
+  the crew's entered labour (see §21).
 - Reports: `reportDaily` (newest first, with approval state), `reportByProject`
   (approved vs pending vs rejected), `reportByPainter` (attributed by `day.crew`,
   `'Unassigned'` when missing), `overview` (whole-operation KPIs).

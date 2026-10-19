@@ -22,11 +22,17 @@
    Data shape (key: painterPlusERP)
      {
        projects: [ { id, name, client, phone, address, rate,
-                     coverage, coats, startDate, status, note } ],
+                     coverage, coats, paintRate, startDate, status, note } ],
        approvals: { "2026-10-18": { status: "approved" | "rejected",
-                                    by, at, note } },
-       bills: { "<projectId>": [ { id, no, date, note, createdAt } ] }
+                                    by, at, note, sig } },
+       bills: { "<projectId>": [ { id, no, date, note, amount,
+                                   sqft, litres, paintCost, labour,
+                                   createdAt } ] }
      }
+
+   Each project also carries `paintRate` (₹ per litre), so a day's measured
+   area yields a paint quantity (litres, via PPMeasure.paintLitres) and a
+   material cost — and the two together give a grand total, not just labour.
 
    Everything is pure except the small storage helpers, so the
    costing and gating can be unit-tested in Node.
@@ -45,7 +51,7 @@
   const APPROVAL_STATUS = ['pending', 'approved', 'rejected'];
 
   // Rates are per project. These defaults match js/worklog.js.
-  const DEFAULTS = { rate: 0, coverage: 130, coats: 2 };
+  const DEFAULTS = { rate: 0, coverage: 130, coats: 2, paintRate: 0 };
 
   // ============================================================
   // NUMERIC HELPERS (pure)
@@ -136,16 +142,40 @@
 
   function dayCosting(day, project) {
     const t = dayTotals(day);
-    const rate = project ? num(project.rate) : num(day && day.rate);
+    // A project's rate overrides the day's own, but a project left at ₹0 is
+    // "not set yet", not "free" — falling back to the day's rate keeps the
+    // labour the crew already entered from being silently zeroed.
+    const rate = (project && num(project.rate)) || num(day && day.rate);
     const coverage = (project && num(project.coverage)) || num(day && day.coverage) || DEFAULTS.coverage;
     const coats = (project && num(project.coats)) || num(day && day.coats) || DEFAULTS.coats;
-    const litres = (t.sqft * coats / coverage) * 1.1;
+    const paintRate = (project && num(project.paintRate)) || num(day && day.paintRate) || 0;
+    const litres = paintLitres(t.sqft, { coats: coats, coverage: coverage });
+    const paintCost = litres * paintRate;
     return {
       sqft: t.sqft, count: t.count,
       rate: rate, coverage: coverage, coats: coats,
       labour: t.sqft * rate,
-      litres: litres
+      litres: litres,
+      paintRate: paintRate,
+      paintCost: paintCost,
+      total: t.sqft * rate + paintCost
     };
+  }
+
+  // Litres of paint for an area, including wastage. Delegates to PPMeasure
+  // when present so the ERP and the work log can never quote different
+  // quantities for the same day (PPMeasure.paintLitres is the single source
+  // of the coverage/wastage maths); falls back to the same formula in Node.
+  function paintLitres(sqft, opts) {
+    const o = opts || {};
+    const M = root && root.PPMeasure;
+    if (M && typeof M.paintLitres === 'function') return M.paintLitres(sqft, o);
+    const area = num(sqft);
+    const coats = num(o.coats) || DEFAULTS.coats;
+    const coverage = num(o.coverage) || DEFAULTS.coverage;
+    const wastage = o.wastage === undefined ? 0.1 : num(o.wastage);
+    if (!area) return 0;
+    return (area * coats / coverage) * (1 + wastage);
   }
 
   // ============================================================
@@ -155,6 +185,7 @@
     return {
       id: '', name: '', client: '', phone: '', address: '',
       rate: DEFAULTS.rate, coverage: DEFAULTS.coverage, coats: DEFAULTS.coats,
+      paintRate: DEFAULTS.paintRate,
       startDate: '', status: 'active', note: ''
     };
   }
@@ -172,6 +203,7 @@
     out.rate = num(out.rate);
     out.coverage = num(out.coverage) || DEFAULTS.coverage;
     out.coats = num(out.coats) || DEFAULTS.coats;
+    out.paintRate = num(out.paintRate);
     out.status = PROJECT_STATUS.indexOf(out.status) >= 0 ? out.status : 'active';
     return out;
   }
@@ -290,7 +322,7 @@
   // time so an edited-after-approval day reverts to pending automatically.
   function daySignature(day) {
     const t = dayTotals(day);
-    const parts = [t.sqft, t.count, num(day && day.rate), num(day && day.coverage), num(day && day.coats)];
+    const parts = [t.sqft, t.count, num(day && day.rate), num(day && day.coverage), num(day && day.coats), num(day && day.paintRate)];
     parts.push((day && day.projectId) || '');
     (day && day.entries || []).forEach((e) => parts.push(e.id || '', num(e.sqft), num(e.w), num(e.h)));
     return parts.join('|');
@@ -337,11 +369,13 @@
   }
 
   function sumRows(rows) {
-    const out = { count: rows.length, sqft: 0, labour: 0, litres: 0 };
+    const out = { count: rows.length, sqft: 0, labour: 0, litres: 0, paintCost: 0, total: 0 };
     rows.forEach((r) => {
       out.sqft += r.costing.sqft;
       out.labour += r.costing.labour;
       out.litres += r.costing.litres;
+      out.paintCost += r.costing.paintCost;
+      out.total += r.costing.total;
     });
     return out;
   }
@@ -368,6 +402,9 @@
       // Explicit so no caller can accidentally bill unapproved work.
       billableSqft: approved.sqft,
       billableLabour: approved.labour,
+      billableLitres: approved.litres,
+      billablePaintCost: approved.paintCost,
+      billableTotal: approved.total,
       bills: (d.bills[projectId] || []).slice()
     };
   }
@@ -391,6 +428,9 @@
       note: (entry && entry.note) || '',
       amount: (entry && entry.amount) || 0,
       sqft: (entry && entry.sqft) || 0,
+      litres: (entry && entry.litres) || 0,
+      paintCost: (entry && entry.paintCost) || 0,
+      labour: (entry && entry.labour) || 0,
       createdAt: new Date().toISOString()
     };
     list.push(e);
@@ -443,6 +483,11 @@
     lines.push('Labour rate:  ' + money(b.project.rate) + ' per sq ft');
     lines.push('Labour total: ' + money(b.totals.labour));
     lines.push('Paint needed: ' + fmtLitres(b.totals.litres) + ' (' + b.project.coats + ' coats)');
+    if (b.totals.paintCost) {
+      lines.push('Paint cost:   ' + fmtLitres(b.totals.litres) + ' × ' +
+        money(b.project.paintRate) + '/L = ' + money(b.totals.paintCost));
+    }
+    lines.push('GRAND TOTAL:  ' + money(b.totals.total));
     if (b.pending.count) {
       lines.push('');
       lines.push('NOT INCLUDED (awaiting approval): ' +
@@ -474,7 +519,9 @@
         approval: a.status,
         sqft: c.sqft,
         labour: c.labour,
-        litres: c.litres
+        litres: c.litres,
+        paintCost: c.paintCost,
+        total: c.total
       };
     });
   }
@@ -502,16 +549,20 @@
     Object.keys(wl).forEach((date) => {
       const day = wl[date];
       const who = day.crew || 'Unassigned';
-      if (!map[who]) map[who] = { crew: who, days: 0, sqft: 0, labour: 0, approvedSqft: 0, approvedLabour: 0 };
+      if (!map[who]) map[who] = { crew: who, days: 0, sqft: 0, labour: 0, litres: 0, paintCost: 0, approvedSqft: 0, approvedLabour: 0, approvedLitres: 0, approvedPaintCost: 0 };
       const project = d.projects.find((p) => dayMatchesProject(day, p)) || null;
       const c = dayCosting(day, project);
       const a = approvalOf(date, d);
       map[who].days++;
       map[who].sqft += c.sqft;
       map[who].labour += c.labour;
+      map[who].litres += c.litres;
+      map[who].paintCost += c.paintCost;
       if (a.status === 'approved' && day.status === 'submitted') {
         map[who].approvedSqft += c.sqft;
         map[who].approvedLabour += c.labour;
+        map[who].approvedLitres += c.litres;
+        map[who].approvedPaintCost += c.paintCost;
       }
     });
     return Object.keys(map).map((k) => map[k]).sort((a, b) => b.sqft - a.sqft);
@@ -521,10 +572,15 @@
   function overview(data, worklog) {
     const d = data || read();
     const daily = reportDaily(d, worklog);
-    let sqft = 0, labour = 0, approvedSqft = 0, approvedLabour = 0, pendingCount = 0, rejectedSqft = 0, rejectedLabour = 0;
+    let sqft = 0, labour = 0, litres = 0, paintCost = 0;
+    let approvedSqft = 0, approvedLabour = 0, approvedLitres = 0, approvedPaintCost = 0;
+    let pendingCount = 0, rejectedSqft = 0, rejectedLabour = 0;
     daily.forEach((r) => {
-      sqft += r.sqft; labour += r.labour;
-      if (r.approval === 'approved' && r.status === 'submitted') { approvedSqft += r.sqft; approvedLabour += r.labour; }
+      sqft += r.sqft; labour += r.labour; litres += r.litres; paintCost += r.paintCost;
+      if (r.approval === 'approved' && r.status === 'submitted') {
+        approvedSqft += r.sqft; approvedLabour += r.labour;
+        approvedLitres += r.litres; approvedPaintCost += r.paintCost;
+      }
       // A rejected day is not awaiting approval — it needs rework, and its
       // area must not be advertised as pending money.
       else if (r.approval === 'rejected') { rejectedSqft += r.sqft; rejectedLabour += r.labour; }
@@ -535,8 +591,14 @@
       days: daily.length,
       sqft: sqft,
       labour: labour,
+      litres: litres,
+      paintCost: paintCost,
+      total: labour + paintCost,
       approvedSqft: approvedSqft,
       approvedLabour: approvedLabour,
+      approvedLitres: approvedLitres,
+      approvedPaintCost: approvedPaintCost,
+      approvedTotal: approvedLabour + approvedPaintCost,
       pendingDays: pendingCount,
       rejectedSqft: rejectedSqft,
       rejectedLabour: rejectedLabour,
@@ -550,7 +612,7 @@
     num, money, fmtSqft, fmtLitres,
     // store
     read, write, _setStore,
-    readWorkLog, dayTotals, dayCosting,
+    readWorkLog, dayTotals, dayCosting, paintLitres,
     // projects
     blankProject, normaliseProject, listProjects, getProject, saveProject, removeProject,
     // linking

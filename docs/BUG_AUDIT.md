@@ -37,6 +37,8 @@ and found 4 more, the worst being an approval that outlived the work it signed o
 | 18 | Medium | Two invoices raised together shared an id — deleting one deleted both | Fixed |
 | 19 | Low | A deleted invoice number was reused by the next invoice | Fixed |
 | 20 | Low | Rejected work counted as "awaiting approval" on the dashboard | Fixed |
+| 21 | **High** | A blank project rate silently zeroed the day's labour (₹1,200 → ₹0) | Fixed |
+| 22 | Medium | The ERP and the work log could quote different paint quantities | Fixed |
 
 ---
 
@@ -387,6 +389,38 @@ and excludes them from `unbilledLabour`; the dashboard renders a distinct red
 
 ---
 
+## 21. High — a blank project rate silently zeroed the day's labour
+
+**Symptom.** `dayCosting()` read `project ? num(project.rate) : num(day.rate)`.
+A project whose *Labour rate* was left blank normalises to `rate: 0`, and `0`
+is a real value — so the ternary picked the project's `0` and **discarded the
+rate the crew had entered on the day**. A day worth 80 sq ft × ₹15 = ₹1,200
+billed as **₹0**, with no warning, the moment it was linked to a project that
+had no rate yet. (Reproduced in Node: `bill labour = 0`, expected 1200.)
+
+**Fix.** `dayCosting()` now uses `(project && num(project.rate)) || num(day && day.rate)`,
+so a project rate of `0` means *"not set yet"* and falls back to the day's own
+rate. The same fallback already protected `coverage` and `coats`; the rate was
+the one figure that was not protected.
+
+---
+
+## 22. Medium — the ERP and the work log quoted different paint quantities
+
+**Symptom.** The work log computes litres through `PPMeasure.paintLitres()`
+(the single source of the coverage/wastage maths), but the ERP's `dayCosting()`
+hardcoded its own `(sqft × coats / coverage) × 1.1`. The two happened to agree
+*only while the wastage factor stayed 0.1*; any change to the shared default
+would make the same day show one figure in the work log and another in the
+bill. It was a latent divergence, not yet a visible wrong number.
+
+**Fix.** The ERP now delegates to `PPMeasure.paintLitres()` when it is present
+and falls back to the identical formula in Node, so the two can never disagree.
+A regression test loads `erp.js` in a browser-like VM with `window.PPMeasure`
+present and asserts the ERP's litres equal the measure module's.
+
+---
+
 ## Second-pass audit — categories checked and clean
 
 The follow-up pass covered bug *types* the first pass did not:
@@ -456,18 +490,24 @@ The follow-up pass covered bug *types* the first pass did not:
 
 ### Third pass (2026-10-18)
 
-13. `node tests/erp.test.js` — **47/47 pass**, including six new regression tests
+13. `node tests/erp.test.js` — **54/54 pass**, including six regression tests
     covering bugs 17–20 (edit-after-approval withdraws the sign-off, re-approval
     bills the new amount, distinct invoice ids, no reused invoice number, a
-    rejected day is not pending).
+    rejected day is not pending) and seven covering bugs 21–22 and the paint
+    quantity / material cost feature (a blank project rate keeps the day rate,
+    a paint rate adds a material cost, no paint rate means labour only, the ERP
+    matches `PPMeasure`, the invoice shows the paint line and grand total, the
+    painter report carries litres, a paint-rate change withdraws a stale
+    approval).
 14. `node tests/measure.test.js` 16/16, `node tests/photo-studio.test.js` 50/50 —
     unchanged by the ERP fixes.
 15. Real-browser run of `tests/run-wl-erp-selftest.sh` — **16/16 checks pass**,
     including *reopen withdraws the ERP approval* and *an edited day is not
     billed on the old approval*.
-16. Real-browser run of `tests/run-erp-selftest.sh` — **25/25 checks pass**;
+16. Real-browser run of `tests/run-erp-selftest.sh` — **32/32 checks pass**;
     the dashboard still shows the correct billable / pending split, now with a
-    separate Rejected KPI.
+    separate Rejected KPI and a Paint KPI, and the bill shows the paint quantity,
+    material cost and grand total.
 17. A page-load probe of all 14 pages — every page loads with no JS errors and
     no missing element ids.
 18. `node --check` on every JS file — all parse.

@@ -183,6 +183,37 @@
 
       // ---- 12. money format sanity ----
       check(E.money(960) === '₹960', 'money format: ' + E.money(960));
+
+      // ---- 13. paint quantity + material cost reach the bill ----
+      // Give the project a paint rate, then re-open billing: the day that was
+      // ₹960 of labour must now also carry a material cost and a grand total.
+      const E2 = window.PPERP;
+      const p2 = E2.getProject(proj.id);
+      p2.paintRate = 200;
+      E2.saveProject(p2);
+      document.querySelector('#tabBill').click();
+      await sleep(80);
+      $('erpBillProject').value = proj.id;
+      $('erpBillProject').dispatchEvent(new Event('change', { bubbles: true }));
+      await sleep(80);
+      const bill2 = txt('erpBillOut');
+      // 80 sq ft × 2 coats / 130 × 1.1 = 1.354 L; × ₹200 ≈ ₹271.
+      check(bill2.indexOf('Paint needed') !== -1, 'bill shows a Paint needed figure once a paint rate is set');
+      check(bill2.indexOf('1.4 L') !== -1, 'bill shows the paint quantity (1.4 L)');
+      check(bill2.indexOf('Grand total') !== -1, 'bill shows a Grand total (labour + paint)');
+      const bd = E2.billFor(proj.id);
+      check(bd.totals.paintCost > 0, 'approved paint cost is non-zero: ' + bd.totals.paintCost);
+      check(Math.abs(bd.totals.total - (bd.totals.labour + bd.totals.paintCost)) < 1e-6,
+        'grand total = labour + paint (' + bd.totals.total + ')');
+
+      // ---- 14. paint quantity reaches the painter report ----
+      document.querySelector('#tabReport').click();
+      await sleep(60);
+      document.querySelector('#repTabPainter').click();
+      await sleep(80);
+      const rep2 = txt('erpReportOut');
+      check(rep2.indexOf('Paint') !== -1, 'painter report has a Paint column');
+      check(rep2.indexOf('1.4 L') !== -1, 'painter report shows the approved paint litres');
     } catch (err) {
       fail('threw: ' + (err && err.message));
       console.error(err);
