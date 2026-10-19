@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ===== TEAM & ROLES MANAGER =====
         const tmForm = document.getElementById('tmForm');
-        const tmFields = ['tmId', 'tmName', 'tmRole', 'tmTitle', 'tmPhoto', 'tmTagline', 'tmBio', 'tmPhone', 'tmEmail', 'tmAddress'];
+        const tmFields = ['tmId', 'tmName', 'tmRole', 'tmTitle', 'tmStartYear', 'tmPhoto', 'tmTagline', 'tmBio', 'tmPhone', 'tmEmail', 'tmAddress'];
         const tmGet = id => document.getElementById(id);
         const tmVal = id => { const el = tmGet(id); return el ? (el.value || '').trim() : ''; };
         let editingMember = null;
@@ -233,6 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: tmVal('tmName'),
                 role: tmVal('tmRole') || 'painter',
                 title: tmVal('tmTitle'),
+                startYear: tmVal('tmStartYear'),
                 photo: tmVal('tmPhoto'),
                 tagline: tmVal('tmTagline'),
                 bio: tmVal('tmBio'),
@@ -318,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tmGet('tmName').value = m.name || '';
             tmGet('tmRole').value = m.role || 'painter';
             tmGet('tmTitle').value = m.title || '';
+            tmGet('tmStartYear').value = m.startYear || '';
             tmGet('tmPhoto').value = m.photo || '';
             tmGet('tmTagline').value = m.tagline || '';
             tmGet('tmBio').value = m.bio || '';
@@ -371,10 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
             pfGet('pfRole').value = p.title || '';
             pfGet('pfTagline').value = p.tagline || '';
             pfGet('pfBio').value = p.bio || '';
-            pfGet('pfStat1').value = p.stat1 || '';
-            pfGet('pfStat2').value = p.stat2 || '';
-            pfGet('pfStat3').value = p.stat3 || '';
-            pfGet('pfStat4').value = p.stat4 || '';
+            pfGet('pfStartYear').value = p.startYear || '';
             pfGet('pfQuote').value = p.quote || '';
             pfGet('pfPhone').value = p.phone || '';
             pfGet('pfEmail').value = p.email || '';
@@ -405,8 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 photo: pfVal('pfPhoto'),
                 tagline: pfVal('pfTagline'),
                 bio: pfVal('pfBio'),
-                stat1: pfVal('pfStat1'), stat2: pfVal('pfStat2'),
-                stat3: pfVal('pfStat3'), stat4: pfVal('pfStat4'),
+                startYear: pfVal('pfStartYear'),
                 quote: pfVal('pfQuote'),
                 phone: pfVal('pfPhone'), email: pfVal('pfEmail'),
                 address: pfVal('pfAddress'), note: pfVal('pfNote')

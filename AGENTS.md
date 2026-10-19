@@ -83,10 +83,12 @@ Use these exact values when fixing contact info across all pages:
 
 | Concern | File(s) |
 |--------|---------|
-| Pages | `index.html`, `about.html`, `services.html`, `portfolio.html`, `contact.html`, `privacy.html`, `terms.html`, `offline.html` |
+| Pages | `index.html`, `about.html`, `services.html`, `portfolio.html`, `gallery.html`, `painter-profile.html`, `contact.html`, `privacy.html`, `terms.html`, `offline.html` |
 | Color Studio | `color-studio.html` + `js/color-studio.js` — live room/exterior paint preview, finishes, lighting, and the **area & square-feet estimator** |
 | Paint my photo | `js/photo-studio.js` (`window.PPPhoto`) — recolour an uploaded wall photo (tap 4 corners, pick colour/finish/texture) + paint/putty/primer estimate; the section lives in `color-studio.html` |
-| Team roster | `team.html` (roster page), `painter-profile.html` (per-member profile), `js/team.js` (shared data + roles) |
+| Team roster | `team.html` (roster page, cards show a derived evidence row), `painter-profile.html` (per-member profile + gallery + self-edit), `js/team.js` (shared data + roles + self-claim) |
+| Crew work gallery | `gallery.html` + `js/gallery-page.js` — every member's work photos in one place, attributed to painter and project, filterable |
+| Gallery + work-record engine | `js/gallery.js` (`window.PPGallery`) — photo CRUD, crew `feed`, and the **derived work record** (years, projects, sq ft, days, co-workers) |
 | Admin | `admin.html` (Owner/Head login: Team & Roles, profile, Portfolio projects) |
 | Daily work log | `worklog.html` + `js/worklog.js` — each day the crew adds a photo entry per painted surface, **measures its square feet on the photo** (or types length × height), sees one running day total plus labour and paint, then does a **Final submit** |
 | ERP | `erp.html` + `js/erp.js` (`window.PPERP`) + `js/erp-page.js` — the layer above the work log: projects, approvals, billing (**approved work only**) and daily/project/painter reports |
@@ -295,6 +297,45 @@ and `pending` in **separate** fields; they are never summed. `billFor()` and
   - `bash tests/run-wl-erp-selftest.sh` → `tests/wl-erp-selftest.js`: log a day
     against an ERP project and confirm it reaches that project's bill.
 
+## Painter profiles, work gallery & verified work record — `js/gallery.js` (`window.PPGallery`)
+
+Gives each crew member a professional profile built on evidence. Full write-up:
+`docs/PROFILE_GALLERY.md`. Two surfaces, two natures:
+
+- **Gallery** — hand-curated photos (`painterPlusGallery`, keyed by member id).
+  `photo` is a downscaled data-URL (≤1024px JPEG, like the work log) or an
+  http(s) URL. Public API: `list`, `get`, `count`, `add`, `remove`, `removeAll`,
+  `feed` (every photo across the crew, newest first).
+- **Work record** — `PPGallery.workRecord(memberId)` **derives** years, projects,
+  square feet, days on site, co-workers and photo count from the work log + ERP +
+  roster on every render. Never typed in, so it can never drift from the books.
+
+**Why derive:** a number a painter types is a claim; a number the site computes
+from the day book is evidence. The profile's old hard-coded "500+ projects"
+stats were removed (`stat1..stat4` cleared in `js/team.js`) and replaced by this.
+
+- **Credit, not ownership.** A day has an owner (`crew`) but entries can be
+  tagged to another member. `creditedEntries`/`creditFor` split a day by entry
+  tag (falling back to the owner), so a shared day is not double-counted. This
+  is the semantics the tests pin down.
+- **Self-service, not security.** `PPTeam.claim(id)` stores the member id in
+  `sessionStorage` (`ppClaimedMember`); `PPTeam.isMe(id)` is true for that
+  member, or for anyone when an Owner/Head is signed in. A painter edits their
+  own profile from their phone with no passcode; role changes still need the
+  Owner/Head gate, and the roster still guards the last lead.
+- **Attribute safety.** Every interpolated attribute (`src`, `alt`, `data-id`,
+  option `value`) goes through `escAttr()` — the shared text `esc()` does not
+  escape quotes, and a photo URL is attacker-influenced data.
+- **Honest empty state.** No logged work ⇒ the record shows an empty-state
+  message, never a zero-figure boast; a roster card with no data shows no row.
+- Pages: `painter-profile.html` + `js/profile-page.js` (record, gallery, gated
+  self-edit, role controls), `gallery.html` + `js/gallery-page.js` (whole crew,
+  filter by painter/project), `team.html` + `js/team-page.js` (roster cards with
+  the derived row). Member field added: `startYear`.
+- Tests: `node tests/gallery.test.js` (pure engine) plus three browser
+  self-tests: `tests/run-profile-selftest.sh`, `tests/run-gallery-selftest.sh`,
+  `tests/run-team-selftest.sh`.
+
 ## Working rules for agents
 
 - Read `docs/NEXT_STEPS.md` and resolve merge conflicts BEFORE any new work.
@@ -313,6 +354,14 @@ grep -rn "^<<<<<<<\|^=======\|^>>>>>>>" .
 
 # Quick syntax check of the JS (requires node)
 node --check js/script.js
+
+# Pure unit tests (no dependencies)
+node tests/gallery.test.js && node tests/erp.test.js && node tests/measure.test.js && node tests/photo-studio.test.js
+
+# Browser self-tests (open the printed URL, read the ok/FAIL lines)
+bash tests/run-profile-selftest.sh 8132
+bash tests/run-gallery-selftest.sh 8133
+bash tests/run-team-selftest.sh 8134
 
 # Local preview
 python3 -m http.server 8000

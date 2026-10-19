@@ -31,6 +31,7 @@
           <a href="./portfolio.html">Portfolio</a>
           <a href="./color-studio.html">Color Studio</a>
           <a href="./team.html">Team</a>
+          <a href="./gallery.html">Crew Gallery</a>
           <a href="./worklog.html">Work Log</a>
           <a href="./erp.html">ERP</a>
           <a href="./contact.html">Contact</a>
@@ -91,6 +92,11 @@
                       <input type="text" id="tmTitle" class="form-control" placeholder="e.g. Senior Painter" />
                     </label>
                   </div>
+                  <label class="adm-field">
+                    <span>Working since (year)</span>
+                    <input type="text" id="tmStartYear" class="form-control" placeholder="e.g. 2018" inputmode="numeric" />
+                    <small>Used for the "years on the tools" figure on the member's profile.</small>
+                  </label>
                   <label class="adm-field">
                     <span>Photo (URL)</span>
                     <input type="url" id="tmPhoto" class="form-control" placeholder="https://…/photo.jpg" />
@@ -167,19 +173,14 @@
                   <textarea id="pfBio" class="form-control" rows="4" placeholder="A few sentences about the painter's experience and approach."></textarea>
                 </label>
                 <div class="adm-row">
-                  <label class="adm-field"><span>Years experience</span><input type="text" id="pfStat1" class="form-control" placeholder="10+" /></label>
-                  <label class="adm-field"><span>Projects done</span><input type="text" id="pfStat2" class="form-control" placeholder="500+" /></label>
-                  <label class="adm-field"><span>Warranty</span><input type="text" id="pfStat3" class="form-control" placeholder="5-yr" /></label>
-                  <label class="adm-field"><span>Inspection</span><input type="text" id="pfStat4" class="form-control" placeholder="100%" /></label>
+                  <label class="adm-field"><span>Working since (year)</span><input type="text" id="pfStartYear" class="form-control" placeholder="2015" inputmode="numeric" /></label>
+                  <label class="adm-field"><span>Phone</span><input type="text" id="pfPhone" class="form-control" placeholder="+91 8825183628" /></label>
+                  <label class="adm-field"><span>Email</span><input type="email" id="pfEmail" class="form-control" placeholder="gahonsh@gmail.com" /></label>
                 </div>
                 <label class="adm-field">
                   <span>Favourite quote</span>
                   <textarea id="pfQuote" class="form-control" rows="2" placeholder="A motto or philosophy line"></textarea>
                 </label>
-                <div class="adm-row">
-                  <label class="adm-field"><span>Phone</span><input type="text" id="pfPhone" class="form-control" placeholder="+91 8825183628" /></label>
-                  <label class="adm-field"><span>Email</span><input type="email" id="pfEmail" class="form-control" placeholder="gahonsh@gmail.com" /></label>
-                </div>
                 <label class="adm-field">
                   <span>Address</span>
                   <input type="text" id="pfAddress" class="form-control" placeholder="Upar Balalong, Arki, Khunti, Jharkhand – 835225" />

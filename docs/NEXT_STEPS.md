@@ -176,3 +176,33 @@ grep -rn "^<<<<<<< HEAD\|^=======$\|^>>>>>>>" . || echo "clean"
   styles, color-contrast audit.
 - Add a sitemap link in the footer and a "skip to content" link.
 - Set up Lighthouse/CI checks in the GitHub Actions workflow.
+
+---
+
+## 8. Painter profiles & work gallery (done — 2026-10-18)
+
+The profile page's four hard-coded stats ("10+ years", "500+ projects") were
+replaced with an evidence-backed profile. See `docs/PROFILE_GALLERY.md`.
+
+- **`js/gallery.js`** (`window.PPGallery`) — photo CRUD, a whole-crew `feed`,
+  and `workRecord()` which *derives* years, projects, square feet, days,
+  co-workers and photo count from the work log + ERP + roster.
+- **`painter-profile.html` + `js/profile-page.js`** — derived work record, a
+  photo gallery with a lightbox, and gated self-editing (a painter claims their
+  own profile with `PPTeam.claim`; an Owner/Head can edit anyone).
+- **`gallery.html` + `js/gallery-page.js`** — the whole crew's photos, each
+  attributed to its painter and project, filterable by both.
+- **`team.html`** — roster cards now carry a derived evidence row.
+- **`js/team.js`** — added `startYear`, the self-claim helpers and `isManager`;
+  cleared the old typed-in stat defaults.
+- **Tests** — `node tests/gallery.test.js` (24) plus browser self-tests
+  `tests/run-profile-selftest.sh` (25), `tests/run-gallery-selftest.sh` (19),
+  `tests/run-team-selftest.sh` (8); all report **ALL OK**.
+
+Still open (future): photo-based square-foot *measurement* — the record reports
+what was logged, it does not measure the picture. That is the Color Studio /
+`js/measure.js` territory.
+
+---
+
+## 9. Optional future improvements (continued)

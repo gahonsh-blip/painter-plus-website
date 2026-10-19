@@ -23,6 +23,7 @@
   const STORE_KEY = 'painterPlusTeam';
   const LEGACY_PROFILE_KEY = 'painterPlusProfile';
   const SESSION_KEY = 'ppAdminUnlocked';
+  const CLAIM_KEY = 'ppClaimedMember';
   const PASSCODE = 'painter123'; // client-side gate only — not real security
   const OWNER_ID = 'gahonsh';
 
@@ -60,10 +61,13 @@
       photo: '',
       tagline: '',
       bio: '',
-      stat1: '10+', stat1label: 'Years experience',
-      stat2: '500+', stat2label: 'Projects done',
-      stat3: '5-yr', stat3label: 'Warranty',
-      stat4: '100%', stat4label: 'Free inspection',
+      startYear: '',
+      // Optional highlight chips. Left blank on purpose: the profile's real
+      // numbers come from the work log (see js/gallery.js), not typed claims.
+      stat1: '', stat1label: '',
+      stat2: '', stat2label: '',
+      stat3: '', stat3label: '',
+      stat4: '', stat4label: '',
       quote: '',
       order: 99
     }, contactDefaults());
@@ -77,6 +81,7 @@
       name: 'Gahonsh',
       role: 'head',
       title: 'Head & Founder — Painter Plus',
+      startYear: '2015',
       tagline: 'Master painter crafting premium finishes across Jharkhand since 2015.',
       bio: 'A hands-on painting specialist with a decade of on-site experience. From precise surface preparation to the final flawless coat, every project is treated as a signature piece. The belief is simple: great paint is 70% preparation and 100% care.',
       quote: '“Paint is the first thing a room says about itself. I make sure it always says quality.”',
@@ -269,6 +274,31 @@
     return !!me && MANAGER_ROLE_IDS.includes(me.role);
   }
 
+  // ----- Crew self-service ("this is me") -----
+  // The roster is shared in localStorage, so a painter can edit THEIR OWN
+  // profile from their phone without signing in. Claiming a member id is a
+  // convenience marker, not security — the passcode gate stays for role
+  // changes. `isMe` is true for the claimed member, or for anyone when an
+  // Owner/Head is signed in (they may edit everyone).
+  function claim(id) {
+    if (!id || !get(id)) return false;
+    try { sessionStorage.setItem(CLAIM_KEY, String(id)); } catch { /* blocked */ }
+    emit();
+    return true;
+  }
+  function unclaim() {
+    try { sessionStorage.removeItem(CLAIM_KEY); } catch { /* blocked */ }
+    emit();
+  }
+  function claimedId() {
+    try { return sessionStorage.getItem(CLAIM_KEY) || ''; } catch { return ''; }
+  }
+  function isMe(id) {
+    if (!id) return false;
+    if (isManager()) return true;
+    return claimedId() === id;
+  }
+
   function memberFromQuery() {
     const id = new URLSearchParams(window.location.search).get('id');
     return id ? get(id) : head();
@@ -293,11 +323,12 @@
   }
 
   window.PPTeam = {
-    STORE_KEY, LEGACY_PROFILE_KEY, SESSION_KEY, PASSCODE, OWNER_ID,
+    STORE_KEY, LEGACY_PROFILE_KEY, SESSION_KEY, CLAIM_KEY, PASSCODE, OWNER_ID,
     ROLES, ROLE_IDS, MANAGER_ROLE_IDS, LEAD_ROLE_IDS,
     roleOf, roleRank, list, get, head, save, setRole, remove,
     countLeads, countHeads, wouldStrandLeads,
     isActingHead, isManager, unlockHead, lockHead,
+    claim, unclaim, claimedId, isMe,
     memberFromQuery, roleBadge, roleOptions, initials, blankMember,
     ownerDefaults: ownerMember, esc
   };

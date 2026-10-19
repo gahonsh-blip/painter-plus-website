@@ -1588,6 +1588,8 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 .tm-card h3 { font-size: 1.2rem; margin-bottom: 4px; }
 .tm-title-line { color: var(--primary); font-weight: 600; font-size: .88rem; margin-bottom: 6px; }
 .tm-tagline { color: var(--text-light); font-size: .9rem; line-height: 1.6; }
+.tm-stats { display: block; margin-top: 10px; color: var(--text-light); font-size: .82rem; }
+.tm-toolbar-links { display: flex; gap: 8px; flex-wrap: wrap; }
 .tm-link { display: inline-block; margin-top: 14px; font-weight: 700; font-size: .85rem; color: var(--primary); }
 
 /* --- Member profile: role controls --- */
@@ -1966,4 +1968,108 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 @media (max-width: 560px) {
   .erp-form-row { grid-template-columns: 1fr; }
   .erp-kpis { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   WORK RECORD, GALLERY & CREW GALLERY
+   The profile's record band is DERIVED from the work log (js/gallery.js),
+   so these styles only present evidence — they do not assert anything.
+   ============================================================ */
+.pp-record-sub { max-width: 720px; margin: -8px auto 26px; text-align: center; color: var(--text-light); font-size: 1rem; }
+.pp-record-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 18px; }
+.pp-record-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  padding: 22px 16px; border-radius: var(--radius); background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow-sm); transition: transform .3s, box-shadow .3s;
+}
+.pp-record-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
+.pp-record-ic { font-size: 1.8rem; }
+.pp-record-num { font-family: var(--font-display); font-size: 1.9rem; font-weight: 800; color: var(--primary); line-height: 1.1; }
+.pp-record-label { color: var(--text-light); font-size: .86rem; }
+.pp-record-window { text-align: center; color: var(--text-light); font-size: .92rem; margin-top: 18px; }
+.pp-record-projects { max-width: 720px; margin: 22px auto 0; }
+.pp-record-projects h3 { font-family: var(--font-display); font-size: 1rem; margin-bottom: 10px; text-align: center; }
+.pp-record-projects ul { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; padding: 0; }
+.pp-record-projects li { background: var(--surface-hover); border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; font-size: .9rem; }
+.pp-record-empty, .pp-gallery-empty { text-align: center; color: var(--text-light); padding: 24px; }
+
+/* --- gallery grid on the profile page --- */
+.pp-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+.pp-gallery-card {
+  display: flex; flex-direction: column; padding: 0; overflow: hidden; text-align: left; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); transition: transform .3s, box-shadow .3s, border-color .3s; font: inherit; color: inherit;
+}
+.pp-gallery-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); border-color: var(--primary); }
+.pp-gallery-media { display: block; aspect-ratio: 4 / 3; background: var(--surface-hover); }
+.pp-gallery-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp-gallery-noimg { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 2.4rem; }
+.pp-gallery-body { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px 16px; }
+.pp-gallery-body strong { font-family: var(--font-display); }
+.pp-gallery-meta { color: var(--text-light); font-size: .82rem; }
+
+/* --- self-edit card --- */
+.pp-edit-card { padding: 28px; }
+.pp-edit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.pp-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.pp-field span { font-size: .86rem; font-weight: 600; }
+.pp-edit-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 6px; }
+.pp-edit-subhead { font-family: var(--font-display); font-size: 1.05rem; margin: 26px 0 12px; padding-top: 18px; border-top: 1px solid var(--border); }
+.pp-claim-note { color: var(--text-light); }
+.pp-preview { margin: 12px 0; }
+.pp-preview img { max-width: 260px; border-radius: 12px; border: 1px solid var(--border); }
+
+/* --- gallery list in the editor --- */
+.pp-glist { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pp-glist-item { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-hover); }
+.pp-glist-item img, .pp-glist-noimg { width: 56px; height: 56px; border-radius: 9px; object-fit: cover; display: flex; align-items: center; justify-content: center; background: var(--surface); flex: none; }
+.pp-glist-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.pp-glist-body span { color: var(--text-light); font-size: .82rem; }
+.pp-glist-del { border: none; background: none; cursor: pointer; font-size: 1.1rem; padding: 6px; border-radius: 8px; }
+.pp-glist-del:hover { background: rgba(220,38,38,.12); }
+
+/* --- lightbox --- */
+.pp-lightbox {
+  position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center;
+  background: rgba(2, 6, 23, .85); padding: 24px; animation: pp-fade .2s ease;
+}
+@keyframes pp-fade { from { opacity: 0; } to { opacity: 1; } }
+.pp-lb-figure { max-width: min(900px, 92vw); max-height: 88vh; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.pp-lb-figure img { max-width: 100%; max-height: 76vh; object-fit: contain; border-radius: 14px; background: #0b1220; }
+.pp-lb-figure figcaption { color: #f8fafc; text-align: center; display: flex; flex-direction: column; gap: 3px; }
+.pp-lb-figure figcaption span { color: #cbd5e1; font-size: .88rem; }
+.pp-lb-close, .pp-lb-nav {
+  position: absolute; border: none; cursor: pointer; color: #fff; background: rgba(255,255,255,.12);
+  border-radius: 999px; width: 46px; height: 46px; font-size: 1.4rem; line-height: 1; display: flex; align-items: center; justify-content: center;
+}
+.pp-lb-close { top: 20px; right: 20px; }
+.pp-lb-nav { top: 50%; transform: translateY(-50%); }
+.pp-lb-prev { left: 20px; }
+.pp-lb-next { right: 20px; }
+.pp-lb-close:hover, .pp-lb-nav:hover { background: rgba(255,255,255,.28); }
+
+/* --- crew gallery page --- */
+.cg-section { padding-top: 30px; }
+.cg-toolbar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.cg-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.cg-project-filter { display: flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--text-light); }
+.cg-project-filter .form-control { width: auto; min-width: 180px; }
+.cg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+.cg-card { margin: 0; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); transition: transform .3s, box-shadow .3s; }
+.cg-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
+.cg-media { display: block; padding: 0; border: none; cursor: pointer; aspect-ratio: 4 / 3; background: var(--surface-hover); }
+.cg-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cg-noimg { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 2.4rem; }
+.cg-body { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 16px; }
+.cg-body strong { font-family: var(--font-display); }
+.cg-meta { color: var(--text-light); font-size: .82rem; }
+.cg-by { color: var(--text-light); font-size: .82rem; }
+.cg-by a { color: var(--primary); font-weight: 600; }
+.cg-empty { text-align: center; color: var(--text-light); padding: 30px; }
+.cg-cta { text-align: center; margin-top: 40px; }
+.cg-cta p { font-family: var(--font-display); font-size: 1.3rem; margin-bottom: 14px; }
+
+@media (max-width: 640px) {
+  .pp-edit-card { padding: 20px; }
+  .cg-toolbar { flex-direction: column; align-items: stretch; }
 }

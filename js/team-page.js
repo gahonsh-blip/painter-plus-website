@@ -48,11 +48,26 @@
     const media = m.photo
       ? '<img class="tm-photo" loading="lazy" src="' + T.esc(m.photo) + '" alt="' + T.esc(m.name) + '" onerror="this.remove()" />'
       : '<span class="tm-initials" aria-hidden="true">' + T.esc(T.initials(m.name)) + '</span>';
+
+    // Derived evidence row: years, projects, sq ft and photos come from the
+    // work log + gallery (js/gallery.js), never from a typed-in claim.
+    let stats = '';
+    if (window.PPGallery) {
+      const r = window.PPGallery.workRecord(m.id);
+      const bits = [];
+      if (r.years) bits.push('🗓️ ' + r.years + '+ yrs');
+      if (r.projects) bits.push('🏗️ ' + r.projects + (r.projects === 1 ? ' project' : ' projects'));
+      if (r.sqft) bits.push('📐 ' + window.PPGallery.fmtSqft(r.sqft));
+      if (r.galleryCount) bits.push('📸 ' + r.galleryCount);
+      if (bits.length) stats = '<span class="tm-stats">' + bits.map(b => T.esc(b)).join(' · ') + '</span>';
+    }
+
     return '<a class="card tm-card reveal role-' + T.esc(role.id) + '" href="./painter-profile.html?id=' + encodeURIComponent(m.id) + '">' +
       '<div class="tm-media">' + media + T.roleBadge(m) + '</div>' +
       '<h3>' + T.esc(m.name) + '</h3>' +
       (m.title ? '<p class="tm-title-line">' + T.esc(m.title) + '</p>' : '') +
       (m.tagline ? '<p class="tm-tagline">' + T.esc(m.tagline) + '</p>' : '') +
+      stats +
       '<span class="tm-link">View profile →</span>' +
       '</a>';
   }
