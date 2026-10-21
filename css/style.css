@@ -640,6 +640,10 @@ textarea.form-control { resize: vertical; }
   to   { clip-path: inset(0 0 0 0); }
 }
 .roller-reveal { clip-path: inset(0 100% 0 0); }
+/* The wipe is driven by the parent card's .visible state: clip-path collapses
+   the image's own intersection rect to zero, so an IntersectionObserver on the
+   image never fires and it would stay hidden forever. */
+.card.visible .roller-reveal,
 .roller-reveal.visible { animation: roller-reveal 1.1s ease forwards; }
 
 /* --- 5. PROCESS STEPS: a connecting line that fills --------------
