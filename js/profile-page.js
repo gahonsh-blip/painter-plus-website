@@ -97,9 +97,8 @@
 
     if (!r.daysOnSite && !r.galleryCount) {
       wrap.innerHTML =
-        '<p class="pp-record-empty">No work logged yet. Every day added on the ' +
-        '<a href="./worklog.html">Work Log</a> with this member as the crew — and every photo ' +
-        'added below — is counted here automatically.</p>';
+        '<p class="pp-record-empty">No work logged yet. Every day the crew records ' +
+        'with this member — and every photo added below — is counted here automatically.</p>';
       return;
     }
 

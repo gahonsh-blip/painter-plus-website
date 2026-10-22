@@ -79,6 +79,23 @@ test('no public page nav lists Work Log / ERP / Admin', () => {
   assert.deepStrictEqual(offenders, [], offenders.join('\n      '));
 });
 
+// ---------- JS loaded by public pages must not hardcode a staff link ----------
+test('public-page JavaScript hardcodes no staff link', () => {
+  // team-page.js is allowed: it creates the admin link only for a signed-in
+  // Owner/Head. erp-page.js is allowed: it is only loaded on the staff erp.html.
+  const allowed = new Set(['team-page.js', 'erp-page.js']);
+  const jsDir = path.join(ROOT, 'js');
+  const offenders = [];
+  for (const f of fs.readdirSync(jsDir)) {
+    if (!f.endsWith('.js') || allowed.has(f)) continue;
+    const src = read('js/' + f);
+    for (const link of ['./worklog.html', './erp.html', './admin.html']) {
+      if (src.indexOf(link) !== -1) offenders.push(f + ' -> ' + link);
+    }
+  }
+  assert.deepStrictEqual(offenders, [], 'staff links hardcoded in JS:\n      ' + offenders.join('\n      '));
+});
+
 // ---------- staff pages stay out of search engines ----------
 test('the staff pages are marked noindex', () => {
   for (const f of STAFF_PAGES) {
