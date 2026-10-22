@@ -34,7 +34,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuBtn = document.querySelector('.mobile-toggle');
     const nav = document.querySelector('.nav-links');
     if (menuBtn && nav) {
-        menuBtn.addEventListener('click', () => nav.classList.toggle('open'));
+        // The button controls the nav, so mirror its state for assistive tech.
+        menuBtn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false');
+        menuBtn.setAttribute('aria-controls', 'primary-nav');
+        menuBtn.addEventListener('click', () => {
+            const open = nav.classList.toggle('open');
+            menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
     }
 
     // ----- PROGRESS BAR -----
@@ -84,14 +90,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ----- FAQ TOGGLE -----
     // The +/− toggle rotates (see CSS) instead of swapping text, so the
-    // open/closed state stays instantly legible.
+    // open/closed state stays instantly legible. The question is a real
+    // <button>, so it is reachable and operable by keyboard; keep
+    // aria-expanded in step with the visual state.
     document.querySelectorAll('.faq-item').forEach(item => {
-        const toggleBtn = item.querySelector('.toggle');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => {
-                item.classList.toggle('open');
-            });
-        }
+        const toggleBtn = item.querySelector('.question');
+        if (!toggleBtn) return;
+        toggleBtn.addEventListener('click', () => {
+            const open = item.classList.toggle('open');
+            toggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
     });
 
     // ----- PORTFOLIO FILTER -----

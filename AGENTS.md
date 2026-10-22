@@ -67,9 +67,21 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 27. **More ERP / Color-Studio fixes — see `docs/BUG_AUDIT.md` §31-37.** An invoice that printed `Rs 0/sq ft` next to a real total (`billedRateInfo()` now quotes the rate the work was billed at); a day billed under two projects (an id match fell through to a name match in `dayMatchesProject`); a Color Studio swatch that never highlighted (`hexToRgb` could not parse the browser's `rgb(...)`); a same-millisecond project-id collision (`uniqueProjectId`); `billTotal()` dropping paint; a decorative social image on the all-or-nothing SW-install path (per-asset `precache`); the work-log summary printing the crew id.
 
+28. **Nav header wrapped and clipped — FIXED.** With 11 nav links and a fixed `gap: 28px` and no `flex-wrap`, the header needed two rows from ~769px to ~1100px and the last links (`Contact`, `Admin`, the theme toggle) were clipped or pushed off-screen (header 78px → 121px → 166px as it narrowed). `.nav-links` now wraps (`flex-wrap: wrap; justify-content: center`, gap 18px), `.flex-header` gained `gap: 12px; flex-wrap: wrap`, and a `max-width: 1100px`/`min-width: 769px` block tightens the gap to 12px and type to 0.9rem so the links stay on one row from 800px up. See §38.
+
+29. **Corrupt Color Studio store crashed the render — FIXED.** A hand-edited `pp_studio` (a colour stored as a number, `null`, an object or a non-hex string) made `js/color-studio.js` throw `TypeError: …toUpperCase is not a function` in `selectSurface`, aborting the whole file. A `safeHex(value, fallback)` helper now coerces every stored colour to a real 3/6-digit hex, and it is used at every colour read/write site (`applyColour`, `paintStage`, `selectSurface`, `applyPreset`, `updateHarmony`, `renderSummary`, swatch highlight, quote link, `loadPersisted`). `selectSurface` also falls back when handed a stale surface key from a previous scene. See §39.
+
+30. **Color Studio overflowed a phone — FIXED.** `.studio-advanced` used bare `1.15fr 0.85fr` grid tracks, which refuse to shrink below their content's min-content width, so at 320–560px the right column was pushed off-screen and the page scrolled horizontally. Now `minmax(0, …)` tracks + `min-width: 0`, with `flex-wrap` on `.coverage` and tighter padding under 560px. See §40.
+
+31. **Mascot sat on the WhatsApp button — FIXED.** `.painter-mascot` and `.whatsapp-float` both pinned bottom-right, so the mascot covered the WhatsApp pill at every width. The mascot's `bottom` is now `calc(24px + 55px + 14px)` (the float's offset + height + gap). See §41.
+
+32. **FAQ not keyboard-operable / menu state unannounced / no active nav link — FIXED.** The FAQ question is now a real `<button type="button" class="question" aria-expanded="…">` with the handler on it (was a `<div>` with a click on an inner `+` span); `.mobile-toggle` carries `aria-controls="primary-nav"` and a live `aria-expanded`; every page's `<nav>` gained `id="primary-nav"` + `aria-label`, and each page's own link is `class="active" aria-current="page"`. See §42-44.
 
 
-**Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`). And a stored value that is an **id** must be resolved to a display name through `PPTeam` before it is shown to a person — never print the raw id. And a UMD wrapper must actually pass its global into the factory: `factory()` with a body that uses `root` passes in Node (where the in-memory store hides it) and fails silently in the browser.
+
+**Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`). And a stored value that is an **id** must be resolved to a display name through `PPTeam` before it is shown to a person — never print the raw id. And a UMD wrapper must actually pass its global into the factory: `factory()` with a body that uses `root` passes in Node (where the in-memory store hides it) and fails silently in the browser. And a value read from `localStorage` is untrusted input — a colour must be coerced to a real hex (`safeHex`) before it reaches the DOM, or a hand-edited store crashes the render.
+
+**Layout gotcha:** a bare `fr` grid track refuses to shrink below its content's min-content width. A grid whose children contain a wide fixed-ratio box (the Color Studio stage) overflows its container on a phone unless the tracks are `minmax(0, …)` and the children get `min-width: 0`.
 
 **Canvas gotcha:** `ctx.createImageData(w, h)` returns *transparent black*, not a copy of what is on the canvas. A repaint loop that writes only the pixels it changes (as `js/photo-studio.js` does) must first `out.data.set(baseData.data)`, or everything outside the edited region is wiped. `js/photo-studio.js` also keeps every per-pixel access inside a `try/catch`, because a `file://` page taints the canvas and `getImageData` throws.
 
@@ -169,6 +181,20 @@ surface**.
   the client types anything; **Reset sizes** restores them.
 - The stage art is proportional, not to scale — the estimator sums the sizes the
   client types, it does not measure the picture.
+- **Stored colours are untrusted input.** `pp_studio` can be hand-edited or
+  corrupted, so every colour read out of it goes through `safeHex(value,
+  fallback)` — which returns a real 3/6-digit hex or the scene default — before
+  it reaches `.toUpperCase()`, `.replace()`, `style.backgroundColor` or the
+  quote link. `selectSurface` also falls back to the scene's first surface when
+  handed a stale key from a previous scene. Never call string methods on
+  `colours[scene][key]` directly. See `docs/BUG_AUDIT.md` §39.
+- **Layout:** `.studio-advanced` uses `minmax(0, …)` grid tracks with
+  `min-width: 0` on the children, because a bare `fr` track will not shrink
+  below the stage's min-content width and overflows a phone. See §40.
+- Test: `bash tests/run-cs-selftest.sh` (or the `COLOR STUDIO selftest` step of
+  `tests/run-all-headless.sh`) seeds a corrupt `pp_studio` from `<head>` before
+  any page script runs and asserts nothing throws and no raw value reaches the
+  DOM.
 
 ## Daily work log (ERP) — `worklog.html` + `js/worklog.js`
 
@@ -418,6 +444,7 @@ bash tests/run-gallery-selftest.sh 8133
 bash tests/run-team-selftest.sh 8134
 bash tests/run-erp-selftest.sh 8135
 bash tests/run-wl-selftest.sh 8136
+bash tests/run-cs-selftest.sh 8139     # Color Studio vs a corrupt pp_studio store
 bash tests/run-portfolio-selftest.sh 8138
 bash tests/run-page-sweep.sh 8137   # every page, uncaught-JS-error sweep
 

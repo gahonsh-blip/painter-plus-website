@@ -246,6 +246,18 @@
         .join("")
     );
   }
+  // Every colour that reaches the DOM is coerced through this first. The stored
+  // scheme is untrusted input: a hand-edited or corrupted `pp_studio` entry can
+  // hold a number or null where a hex string is expected, and the old code
+  // called `.toUpperCase()` / `.replace()` straight on it, throwing and
+  // aborting the rest of the scene render.
+  function safeHex(value, fallback) {
+    const s = typeof value === "string" ? value.trim() : "";
+    if (/^#?[0-9a-f]{3}$/i.test(s) || /^#?[0-9a-f]{6}$/i.test(s)) {
+      return s.charAt(0) === "#" ? s : "#" + s;
+    }
+    return fallback || "#e8e3d8";
+  }
   // Interpolate from original -> chosen by coverage ratio.
   function blend(originalHex, chosenHex, ratio) {
     const a = hexToRgb(originalHex);
@@ -278,7 +290,7 @@
     if (active) active.classList.add("active");
     else {
       // Highlight any swatch matching the current surface colour.
-      const cur = (colours[scene][surface] || "").toLowerCase();
+      const cur = safeHex(colours[scene][surface], "").toLowerCase();
       const match = Array.from(paletteEl.querySelectorAll(".swatch")).find(
         (s) => rgbToHex(...hexToRgb(s.style.backgroundColor)) === cur
       );
@@ -288,9 +300,9 @@
 
   // --- Apply colour to current surface + repaint stage ---
   function applyColour(hex) {
-    colours[scene][surface] = hex;
-    customColor.value = hex;
-    customHex.textContent = hex.toUpperCase();
+    colours[scene][surface] = safeHex(hex);
+    customColor.value = colours[scene][surface];
+    customHex.textContent = colours[scene][surface].toUpperCase();
     paintStage();
     markActiveSwatch(null);
     updateHarmony();
@@ -306,7 +318,7 @@
     sceneEl.querySelectorAll(".paint-surface").forEach((el) => {
       const key = el.dataset.surface;
       const orig = DEFAULTS[scene][key] || "#e8e3d8";
-      const chosen = colours[scene][key] || orig;
+      const chosen = safeHex(colours[scene][key], orig);
       el.style.backgroundColor = blend(orig, chosen, ratio);
     });
   }
@@ -327,6 +339,13 @@
     });
   }
   function selectSurface(key) {
+    // A surface tab captured from a previous scene can still fire if the scene
+    // changed in between; that key does not exist here, so fall back to the
+    // scene's first surface instead of reading an undefined colour.
+    if (!DEFAULTS[scene] || !Object.prototype.hasOwnProperty.call(DEFAULTS[scene], key)) {
+      key = Object.keys(DEFAULTS[scene] || {})[0];
+    }
+    if (!key) return;
     surface = key;
     surfaceTabsEl.querySelectorAll(".surface-tab").forEach((t, i) => {
       const on = Object.keys(DEFAULTS[scene])[i] === key;
@@ -337,7 +356,7 @@
     stage.querySelectorAll(".scene.active .paint-surface").forEach((el) => {
       el.classList.toggle("selected", el.dataset.surface === key);
     });
-    const cur = colours[scene][key] || DEFAULTS[scene][key];
+    const cur = safeHex(colours[scene][key], DEFAULTS[scene][key]);
     customColor.value = cur;
     customHex.textContent = cur.toUpperCase();
     markActiveSwatch(null);
@@ -410,14 +429,14 @@
   }
   function applyPreset(p) {
     Object.keys(p.colors).forEach((key) => {
-      if (DEFAULTS[scene][key] !== undefined) colours[scene][key] = p.colors[key];
+      if (DEFAULTS[scene][key] !== undefined) colours[scene][key] = safeHex(p.colors[key], DEFAULTS[scene][key]);
     });
     // Mark the active preset visually.
     presetTabsEl.querySelectorAll(".preset-tab").forEach((t) =>
       t.classList.toggle("active", t.textContent === p.name)
     );
     paintStage();
-    const cur = colours[scene][surface] || DEFAULTS[scene][surface];
+    const cur = safeHex(colours[scene][surface], DEFAULTS[scene][surface]);
     customColor.value = cur;
     customHex.textContent = cur.toUpperCase();
     markActiveSwatch(null);
@@ -428,7 +447,7 @@
 
   // --- Harmony hint (light/dark + warm/cool) ---
   function updateHarmony() {
-    const hex = colours[scene][surface] || DEFAULTS[scene][surface];
+    const hex = safeHex(colours[scene][surface], DEFAULTS[scene][surface]);
     const [r, g, b] = hexToRgb(hex);
     const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     const warm = r > b;
@@ -608,13 +627,13 @@
       row.className = "ss-row";
       const chip = document.createElement("div");
       chip.className = "ss-chip";
-      chip.style.backgroundColor = colours[scene][key];
+      chip.style.backgroundColor = safeHex(colours[scene][key], DEFAULTS[scene][key]);
       const name = document.createElement("span");
       name.className = "ss-name";
       name.textContent = SURFACE_LABELS[key] || key;
       const hx = document.createElement("span");
       hx.className = "ss-hex";
-      hx.textContent = colours[scene][key].toUpperCase();
+      hx.textContent = safeHex(colours[scene][key], DEFAULTS[scene][key]).toUpperCase();
       row.appendChild(chip);
       row.appendChild(name);
       row.appendChild(hx);
@@ -635,7 +654,7 @@
     params.set("scene", scene);
     params.set("finish", finish);
     params.set("light", light);
-    Object.keys(colours[scene]).forEach((k) => params.set(k, colours[scene][k].replace("#", "")));
+    Object.keys(colours[scene]).forEach((k) => params.set(k, safeHex(colours[scene][k], DEFAULTS[scene][k]).replace("#", "")));
     const coats = areaCoatsEl ? parseInt(areaCoatsEl.value, 10) || 2 : 2;
     let paintTotal = 0;
     const st = areaState();
@@ -655,7 +674,10 @@
       const d = JSON.parse(raw);
       if (d.colours) {
         Object.keys(d.colours).forEach((s) => {
-          if (colours[s]) Object.assign(colours[s], d.colours[s]);
+          if (!colours[s] || !d.colours[s] || typeof d.colours[s] !== "object") return;
+          Object.keys(d.colours[s]).forEach((k) => {
+            if (DEFAULTS[s][k] !== undefined) colours[s][k] = safeHex(d.colours[s][k], DEFAULTS[s][k]);
+          });
         });
       }
       if (d.areas) {
@@ -680,7 +702,7 @@
     const coats = areaCoatsEl ? parseInt(areaCoatsEl.value, 10) || 2 : 2;
     const summary = ["Painter Plus colour scheme (" + scene + "):"]
       .concat(Object.keys(colours[scene]).map(
-        (k) => (SURFACE_LABELS[k] || k) + ": " + colours[scene][k].toUpperCase()
+        (k) => (SURFACE_LABELS[k] || k) + ": " + safeHex(colours[scene][k], DEFAULTS[scene][k]).toUpperCase()
       ))
       .concat(paintTotal > 0
         ? ["Paint area: " + fmt(paintTotal) + " (" + coats + " coat" + (coats > 1 ? "s" : "") +
@@ -708,7 +730,7 @@
     coverageVal.textContent = "100%";
     presetTabsEl.querySelectorAll(".preset-tab").forEach((t) => t.classList.remove("active"));
     paintStage();
-    const cur = colours[scene][surface] || DEFAULTS[scene][surface];
+    const cur = safeHex(colours[scene][surface], DEFAULTS[scene][surface]);
     customColor.value = cur;
     customHex.textContent = cur.toUpperCase();
     markActiveSwatch(null);

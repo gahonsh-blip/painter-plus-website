@@ -41,8 +41,8 @@
       <div class="container flex-header">
         <a href="./index.html" class="logo">🎨 <span>Painter Plus</span></a>
         <button class="mobile-toggle" type="button" aria-label="Toggle navigation">☰</button>
-        <nav class="nav-links">
-          <a href="./index.html">Home</a>
+        <nav class="nav-links" id="primary-nav" aria-label="Main navigation">
+          <a href="./index.html" class="active" aria-current="page">Home</a>
           <a href="./about.html">About</a>
           <a href="./services.html">Services</a>
           <a href="./portfolio.html">Portfolio</a>
@@ -289,15 +289,15 @@
           <h2 class="section-title">Frequently asked <span>questions</span></h2>
           <div class="faq-wrap">
             <div class="faq-item open">
-              <div class="question"><span>How much does painting cost?</span><span class="toggle">+</span></div>
+              <button type="button" class="question" aria-expanded="true"><span>How much does painting cost?</span><span class="toggle" aria-hidden="true">+</span></button>
               <div class="answer">Pricing depends on the area, finish quality, and prep work required. We offer a free site inspection and detailed estimate.</div>
             </div>
             <div class="faq-item">
-              <div class="question"><span>Do you offer wall putty services?</span><span class="toggle">+</span></div>
+              <button type="button" class="question" aria-expanded="false"><span>Do you offer wall putty services?</span><span class="toggle" aria-hidden="true">+</span></button>
               <div class="answer">Yes. We handle wall putty, primer, and texture applications to ensure a smooth and durable finish.</div>
             </div>
             <div class="faq-item">
-              <div class="question"><span>What is the warranty period?</span><span class="toggle">+</span></div>
+              <button type="button" class="question" aria-expanded="false"><span>What is the warranty period?</span><span class="toggle" aria-hidden="true">+</span></button>
               <div class="answer">We provide a 5-year warranty covering peeling and cracking in standard usage conditions.</div>
             </div>
           </div>

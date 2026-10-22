@@ -928,3 +928,135 @@ The follow-up pass covered bug *types* the first pass did not:
     Painter report shows *"Ramesh Kumar days=2 sqft=140"* with no id leak.
 41. Service-worker cache bumped `painter-plus-v23` → `v24` (the precache also
     moved to per-asset, bug 36).
+
+---
+
+## Seventh pass — 2026-10-22 (development-only review)
+
+Focused on layout/responsive behaviour, UI consistency and accessibility, with a
+green baseline first and every fix re-verified against the existing suites.
+
+### 38. High — the nav header wrapped and clipped at intermediate widths
+
+**Symptom.** With 11 nav links the header needed two rows between roughly 769px
+and 1100px. `.nav-links` had a fixed `gap: 28px` and no `flex-wrap`, so the links
+overflowed the header box and the last ones (`Contact`, `Admin`, the theme
+toggle) were clipped or pushed off-screen. Header height jumped from 78px to
+121px to 166px as the viewport narrowed.
+
+**Root cause.** `.flex-header` and `.nav-links` were both unwrapped flex rows
+with generous gaps; nothing told them they could wrap, and the nav never shrank.
+
+**Fix.** `.nav-links` gained `flex-wrap: wrap; justify-content: center` and its
+gap dropped 28px → 18px; `.flex-header` gained `gap: 12px; flex-wrap: wrap`. A
+new `@media (max-width: 1100px) and (min-width: 769px)` block tightens the gap to
+12px and the type to 0.9rem so all 11 links stay on one row from 800px up, and
+wrap cleanly (never clip) below that.
+
+**Verification.** Measured header height and nav row count at 769/800/850/900/
+950/1000/1024/1100/1280/1440px in headless Chromium: one row from 800px up,
+header 78px on desktop, nothing clipped at any width.
+
+### 39. High — a corrupt Color Studio store crashed the scene render
+
+**Symptom.** A hand-edited or corrupted `pp_studio` in `localStorage` (a colour
+stored as a number, `null`, an object, or a non-hex string) made
+`js/color-studio.js` throw `TypeError: …toUpperCase is not a function` during
+`selectSurface`, aborting the rest of the file — the stage stopped repainting and
+every control after that point stopped responding.
+
+**Root cause.** `colours[scene][key]` was treated as a hex string everywhere and
+handed straight to `.toUpperCase()` / `.replace()`, with no validation of what
+`loadPersisted()` had read.
+
+**Fix.** A `safeHex(value, fallback)` helper coerces any stored value to a real
+3/6-digit hex (falling back to the scene default), and every read/write of a
+colour now goes through it — `applyColour`, `paintStage`, `selectSurface`,
+`applyPreset`, `updateHarmony`, `renderSummary`, the swatch highlighting, the
+quote link and `loadPersisted()`. A separate guard in `selectSurface` also
+handles a surface tab captured from a *previous* scene, whose key no longer
+exists in the current one.
+
+**Verification.** New `tests/color-studio-selftest.js` (+ `tests/cs-seed.js`)
+seeds a corrupt store from `<head>` before any page script runs and asserts that
+nothing throws, that no raw stored value reaches the DOM or the quote link, and
+that the stage still paints. Against the *original* `color-studio.js` it reports
+4 FAILs (`cur.toUpperCase is not a function`); against the fix it is all-green.
+
+### 40. Medium — the Color Studio stage and controls overflowed a phone
+
+**Symptom.** At 320–560px the studio's right-hand column was pushed off-screen;
+the page scrolled horizontally and the "Request quote" button was partly
+unreachable.
+
+**Root cause.** `.studio-advanced` used `grid-template-columns: 1.15fr 0.85fr`.
+A bare `fr` track refuses to shrink below its content's min-content width, so the
+stage (a wide `aspect-ratio` box) forced the grid wider than its container.
+
+**Fix.** `grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr)` plus
+`min-width: 0` on the tracks, `flex-wrap` on `.coverage` with a shrinkable range
+input, and tighter `padding` on `.stage-wrap` / `.controls` below 560px.
+
+**Verification.** A per-width sweep of `color-studio.html` at 320/360/375/414/
+480/560/768/900px: zero elements past the right edge and `scrollWidth ==
+clientWidth` at every width (previously 30+ overflowing elements at 320px).
+
+### 41. Medium — the painter mascot sat on top of the WhatsApp button
+
+**Symptom.** The fixed `.painter-mascot` and the fixed `.whatsapp-float` both
+pinned to the bottom-right corner, so the mascot covered the WhatsApp pill at
+every width (320–1440px).
+
+**Fix.** The mascot's `bottom` is now `calc(24px + 55px + 14px)` — the float's
+own 24px offset plus its 55px height plus a 14px gap — so it sits above the pill.
+
+**Verification.** An overlap probe at 320/375/480/700/1024/1280/1440px reports
+`OVERLAP=false` and the mascot fully on-screen at every width (previously
+`OVERLAP=true` everywhere).
+
+### 42. Medium — the FAQ was not keyboard-operable
+
+**Symptom.** Each FAQ question was a `<div>` with a click handler on an inner
+`+` span, so it could not be reached or toggled with the keyboard and had no
+accessible open/closed state.
+
+**Fix.** The question is now a real `<button type="button" class="question"
+aria-expanded="…">`, the handler moved to it, and `aria-expanded` tracks the
+visual state. CSS neutralises the button chrome and adds a `:focus-visible`
+ring; the `+`→`×` rotation is unchanged.
+
+### 43. Low — the mobile menu did not report its state
+
+**Fix.** `.mobile-toggle` now carries `aria-controls="primary-nav"` and an
+`aria-expanded` that flips with the menu; every page's `<nav>` gained
+`id="primary-nav"` and `aria-label="Main navigation"`.
+
+### 44. Low — the current page was not marked in the nav
+
+**Fix.** Each page's own link now has `class="active" aria-current="page"`, with
+a CSS rule that colours it and underlines it, so the visitor can see where they
+are. (`erp.html` already had this; it is now consistent site-wide.)
+
+**Verification (38–44).** New `tests/ui-selftest.js` drives the real
+`index.html` and asserts the FAQ button semantics and toggle, the mobile-menu
+`aria-expanded` round-trip, and the active-link marking. Wired into
+`tests/run-all-headless.sh` as *PAGE UI selftest*. All-green at 375/768/1024/
+1440px.
+
+### Seventh-pass verification summary
+
+- `node tests/erp.test.js` **64/64**, `gallery.test.js` **24/24**,
+  `measure.test.js` **16/16**, `photo-studio.test.js` **50/50** — green.
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED**: work log, ERP,
+  work-log→ERP, team, gallery, profile, paint-my-photo (**30/30**), Color Studio
+  (new), Page UI (new), portfolio injection, and the full-site sweep (**15/15
+  pages clean**).
+- Full-page horizontal-scroll sweep across all 15 pages × 11 widths
+  (320→1440px), with entry animations settled: **0 pages can scroll
+  horizontally**. (An earlier raw `getBoundingClientRect` pass flagged
+  `.reveal-right` / `.bg-glow`; both are transient animation/decoration state,
+  not real overflow — `body { overflow-x: hidden }` and the settled layout
+  measure clean.)
+- Service-worker cache bumped `painter-plus-v24` → `v25` (this pass changed
+  `css/style.css`, `js/script.js`, `js/color-studio.js` and the pages, all
+  precached).

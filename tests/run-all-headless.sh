@@ -48,6 +48,19 @@ build team.html           team-selftest.js      _team-selftest.html
 build gallery.html        gallery-selftest.js   _gallery-selftest.html
 build painter-profile.html profile-selftest.js  _profile-selftest.html
 build color-studio.html   pmp-selftest.js       _pmp-selftest.html
+build index.html          ui-selftest.js        _ui-selftest.html
+
+# The color-studio test seeds a corrupt store from <head> (no defer) so an
+# init-time throw is captured; it needs its own builder, like portfolio.
+python3 - "$ROOT" "$BUST" <<'PY'
+import sys, re
+root, bust = sys.argv[1], sys.argv[2]
+html = open(root + '/color-studio.html', encoding='utf-8').read()
+html = re.sub(r'(src="\./(?:js|tests)/[a-z-]+\.js)"', lambda m: m.group(1) + '?v=' + bust + '"', html)
+html = html.replace('</head>', '<script src="./tests/cs-seed.js?v=%s"></script>\n' % bust + '</head>', 1)
+html = html.replace('</body>', '<script src="./tests/color-studio-selftest.js?v=%s" defer></script>\n' % bust + '</body>', 1)
+open(root + '/_cs-selftest.html', 'w', encoding='utf-8').write(html)
+PY
 
 # The portfolio merge test needs a hostile project seeded before script.js
 # runs, so it gets its own builder rather than the generic one.
@@ -95,7 +108,8 @@ PY
 cleanup() {
   rm -f "$ROOT"/_selftest.html "$ROOT"/_erp-selftest.html "$ROOT"/_wl-erp-selftest.html \
         "$ROOT"/_team-selftest.html "$ROOT"/_gallery-selftest.html "$ROOT"/_profile-selftest.html \
-        "$ROOT"/_pmp-selftest.html "$ROOT"/_portfolio-selftest.html "$ROOT"/_sweep.html "$ROOT"/_sweep-*.html
+        "$ROOT"/_pmp-selftest.html "$ROOT"/_portfolio-selftest.html "$ROOT"/_cs-selftest.html \
+        "$ROOT"/_ui-selftest.html "$ROOT"/_sweep.html "$ROOT"/_sweep-*.html
   pkill -f "http.server $PORT" 2>/dev/null
 }
 trap cleanup EXIT
@@ -131,6 +145,8 @@ run_pre _team-selftest.html    team-selftest      "TEAM selftest"
 run_pre _gallery-selftest.html gallery-selftest   "GALLERY selftest"
 run_pre _profile-selftest.html profile-selftest   "PAINTER PROFILE selftest"
 run_pre _pmp-selftest.html     pmpTestOut         "PAINT-MY-PHOTO selftest"
+run_pre _cs-selftest.html      cs-selftest        "COLOR STUDIO selftest"
+run_pre _ui-selftest.html      ui-selftest        "PAGE UI selftest (FAQ, mobile menu, active nav)"
 run_pre _portfolio-selftest.html portfolio-selftest "PORTFOLIO injection selftest"
 run_pre _sweep.html            sweepOut           "FULL-SITE SWEEP"
 

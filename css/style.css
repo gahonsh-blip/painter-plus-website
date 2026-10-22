@@ -65,7 +65,7 @@ header {
 .flex-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .logo { font-family: var(--font-display); font-weight: 800; font-size: 1.8rem; letter-spacing: -0.02em; text-decoration: none; }
 .logo span { color: var(--primary); }
-.nav-links { display: flex; gap: 28px; align-items: center; }
+.nav-links { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; justify-content: center; }
 .nav-links a {
   text-decoration: none;
   font-weight: 500;
@@ -85,6 +85,8 @@ header {
 }
 .nav-links a:hover { opacity: 1; }
 .nav-links a:hover::after { width: 100%; }
+.nav-links a.active { opacity: 1; color: var(--primary); }
+.nav-links a.active::after { width: 100%; }
 .btn-primary {
   display: inline-block;
   text-decoration: none;
@@ -200,7 +202,9 @@ header {
 .painter-mascot {
   position: fixed;
   right: clamp(10px, 2.5vw, 30px);
-  bottom: clamp(10px, 2.5vw, 30px);
+  /* The WhatsApp pill is fixed to the same bottom-right corner (24px offset,
+     55px tall), so the mascot sits ABOVE it instead of underneath it. */
+  bottom: calc(24px + 55px + 14px);
   width: clamp(72px, 9vw, 116px);
   z-index: 40;
   pointer-events: none;
@@ -272,7 +276,12 @@ header {
   padding: 18px 22px;
   cursor: pointer;
 }
-.faq-item .question { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; }
+.faq-item .question {
+  display: flex; justify-content: space-between; gap: 12px; font-weight: 600;
+  width: 100%; text-align: left; font-family: inherit; font-size: inherit;
+  color: inherit; background: none; border: none; padding: 0; cursor: pointer;
+}
+.faq-item .question:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 6px; }
 .faq-item .answer { max-height: 0; overflow: hidden; color: var(--text-light); transition: max-height 0.4s ease; }
 .faq-item.open .answer { max-height: 200px; margin-top: 12px; }
 .cta-card {
@@ -345,7 +354,7 @@ textarea.form-control { resize: vertical; }
   padding: 7px 14px;
   cursor: pointer;
 }
-.mobile-toggle { display: none; border: none; background: none; font-size: 1.8rem; color: var(--text); cursor: pointer; }
+.mobile-toggle { display: none; border: none; background: none; font-size: 1.8rem; line-height: 1; color: var(--text); cursor: pointer; padding: 4px 8px; border-radius: 10px; }
 .progress-bar {
   position: fixed;
   inset: 0 0 auto 0;
@@ -1048,10 +1057,14 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 
 .studio-advanced {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  /* minmax(0, …) lets the tracks shrink below their content's min-content
+     width; a bare `1fr` refuses to, so on a narrow phone the stage and the
+     controls overflowed the container instead of fitting it. */
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   gap: 24px;
   align-items: start;
 }
+.studio-advanced > * { min-width: 0; }
 
 /* --- Stage (left) --- */
 .stage-wrap {
@@ -1249,14 +1262,14 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 
 /* Coverage slider */
 .coverage {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   margin-top: 16px; padding: 12px 14px;
   background: var(--surface-hover);
   border: 1px solid var(--border);
   border-radius: 12px;
 }
 .coverage label { font-size: 0.9rem; font-weight: 600; white-space: nowrap; }
-.coverage input[type="range"] { flex: 1; accent-color: var(--primary); }
+.coverage input[type="range"] { flex: 1 1 140px; min-width: 0; accent-color: var(--primary); }
 .coverage span { font-family: monospace; font-size: 0.9rem; min-width: 42px; text-align: right; }
 
 /* --- Controls (right) --- */
@@ -1481,12 +1494,24 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
   .area-inputs { grid-template-columns: 1fr 1fr; }
   .area-field--out { grid-column: 1 / -1; }
   .area-row-dim { display: none; }
+  /* On a phone the stage and the controls need their padding back. */
+  .stage-wrap, .controls { padding: 12px; }
+  .controls .ctrl-group h3 { font-size: 0.95rem; }
 }
 
 @media (max-width: 900px) {
   .about-grid, .contact-card { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: repeat(2, 1fr); }
 }
+@media (max-width: 1100px) and (min-width: 769px) {
+  /* Between the desktop and mobile breakpoints the 12 nav items do not fit
+     on the logo's row, so the header became two stacked rows. A tighter gap
+     and type size keeps them on one row for as long as the width allows. */
+  .flex-header { gap: 10px; }
+  .nav-links { gap: 12px; font-size: 0.9rem; }
+  .nav-links a::after { bottom: -3px; }
+}
+
 @media (max-width: 768px) {
   .mobile-toggle { display: block; }
   .nav-links { display: none; flex-direction: column; width: 100%; padding-top: 12px; }
