@@ -240,6 +240,44 @@ test('corrupt stored JSON falls back to empty', () => {
   assert.deepStrictEqual(G.list('x'), []);
   assert.deepStrictEqual(G.feed(), []);
 });
+// A hand-edited store can hold a scalar where a member's photo list belongs, a
+// null inside the list, or a null where a work-log day belongs. Every one of
+// these used to throw and abort the whole page script.
+test('a member whose gallery is not an array does not throw', () => {
+  G._setStore(memStore({
+    painterPlusGallery: JSON.stringify({
+      good: [null, 'x', 7, { id: 'g1', title: 'ok' }],
+      bad: 'not-an-array',
+      alsoBad: { nope: 1 },
+      nullish: null
+    })
+  }));
+  assert.doesNotThrow(() => G.list('bad'));
+  assert.doesNotThrow(() => G.feed());
+  assert.doesNotThrow(() => G.count('bad'));
+  assert.strictEqual(G.count('bad'), 0);
+  assert.strictEqual(G.list('good').length, 1, 'only the real item survives');
+  assert.strictEqual(G.feed().length, 1);
+});
+test('sortItems drops malformed items', () => {
+  assert.doesNotThrow(() => G.sortItems([null, 'x', { id: 'a' }, 7, []]));
+  assert.strictEqual(G.sortItems([null, { id: 'a' }]).length, 1);
+});
+test('a work record over corrupt days/entries does not throw', () => {
+  G._setStore(memStore({
+    painterPlusWorkLog: JSON.stringify({
+      '2026-10-10': null,
+      '2026-10-11': { date: '2026-10-11', status: 'submitted', entries: 'nope' },
+      '2026-10-12': { date: '2026-10-12', status: 'submitted', crew: 'ramesh-kumar', entries: [null, 7, { id: 'e1', sqft: 30 }] }
+    }),
+    painterPlusERP: JSON.stringify({ projects: [null, 'x', { id: 'p1', name: 'Real' }] }),
+    painterPlusTeam: JSON.stringify([null, 'x', { id: 'ramesh-kumar', name: 'Ramesh Kumar', role: 'painter' }])
+  }));
+  let r;
+  assert.doesNotThrow(() => { r = G.workRecord('ramesh-kumar'); });
+  assert.strictEqual(r.sqft, 30, 'the one real entry is still credited');
+  assert.strictEqual(r.daysOnSite, 1);
+});
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

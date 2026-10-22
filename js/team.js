@@ -215,7 +215,12 @@
       write(seeded);
       return seeded;
     }
-    return stored.map(m => Object.assign(blankMember(m.role), m));
+    // A hand-edited roster can hold a null, a scalar or a bare array. Every
+    // reader (list/get/head) does `m.role`, `m.name`, so drop anything that is
+    // not a plain object before it can throw.
+    return stored
+      .filter(m => m && typeof m === 'object' && !Array.isArray(m))
+      .map(m => Object.assign(blankMember(m.role), m));
   }
 
   function write(members) {

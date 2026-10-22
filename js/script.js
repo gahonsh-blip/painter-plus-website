@@ -134,7 +134,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Projects added via admin.html are stored locally and shown here so
     // the painter can preview additions instantly. (Static site, no backend.)
     const PP_KEY = 'painterPlusProjects';
-    function ppRead() { try { return JSON.parse(store.get(PP_KEY)) || []; } catch { return []; } }
+    // A corrupt store can hold anything; only a list of plain objects is a
+    // usable project list, and every caller below does `p.image`, `p.title`…
+    function ppRead() {
+        let raw;
+        try { raw = JSON.parse(store.get(PP_KEY)); } catch { return []; }
+        return Array.isArray(raw) ? raw.filter(p => p && typeof p === 'object' && !Array.isArray(p)) : [];
+    }
     const pfGridMerge = document.getElementById('pfGrid');
     if (pfGridMerge) {
         const added = ppRead();
@@ -144,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.className = 'card pf-card reveal';
                 card.dataset.category = p.category || 'interior';
                 card.dataset.user = '1';
-                const img = p.image || '';
+                const img = typeof p.image === 'string' ? p.image : '';
                 const meta = [p.location && '📍 ' + p.location, p.year, p.finish].filter(Boolean).join(' · ');
                 // These fields are free text typed in admin.html; escape each
                 // one so a stray < or " cannot inject markup into the card.

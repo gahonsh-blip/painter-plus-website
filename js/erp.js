@@ -115,8 +115,17 @@
     try { data = JSON.parse(rawGet(STORE_KEY)); } catch (e) { data = null; }
     if (!data || typeof data !== 'object') data = {};
     if (!Array.isArray(data.projects)) data.projects = [];
-    if (!data.approvals || typeof data.approvals !== 'object') data.approvals = {};
-    if (!data.bills || typeof data.bills !== 'object') data.bills = {};
+    // Drop malformed project entries. A `null`/scalar in the array made every
+    // consumer (`listProjects` sorting by name, the page's project options)
+    // throw on `null.name` and abort the whole page script.
+    data.projects = data.projects.filter((p) => p && typeof p === 'object' && !Array.isArray(p));
+    if (!data.approvals || typeof data.approvals !== 'object' || Array.isArray(data.approvals)) data.approvals = {};
+    if (!data.bills || typeof data.bills !== 'object' || Array.isArray(data.bills)) data.bills = {};
+    // Bills live per project id as an array; a corrupt store can hold anything.
+    Object.keys(data.bills).forEach((k) => {
+      const list = data.bills[k];
+      data.bills[k] = Array.isArray(list) ? list.filter((b) => b && typeof b === 'object' && !Array.isArray(b)) : [];
+    });
     return data;
   }
 
@@ -129,14 +138,25 @@
   function readWorkLog() {
     let data = null;
     try { data = JSON.parse(rawGet(WORKLOG_KEY)); } catch (e) { data = null; }
-    if (!data || typeof data !== 'object') return {};
-    return data;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+    // A hand-edited or half-written day can be `null` or a scalar. Every
+    // consumer reads `day.status`, `day.entries`, `day.date`… so drop anything
+    // that is not a plain object here, once, rather than guarding at each call.
+    const out = {};
+    Object.keys(data).forEach((k) => {
+      const day = data[k];
+      if (day && typeof day === 'object' && !Array.isArray(day)) out[k] = day;
+    });
+    return out;
   }
 
   // A day's own costing, computed here rather than trusting a stored
   // total, so a bill always reflects the entries actually saved.
   function dayTotals(day) {
-    const entries = (day && day.entries) || [];
+    // `entries` can be anything in a hand-edited store (a string, an object,
+    // nulls inside the array); treat only a real array of objects as entries.
+    const entries = (day && Array.isArray(day.entries) ? day.entries : [])
+      .filter((e) => e && typeof e === 'object' && !Array.isArray(e));
     let sqft = 0;
     entries.forEach((e) => {
       const s = num(e.sqft) || (num(e.w) * num(e.h));
@@ -404,7 +424,10 @@
     const r = effectiveRates(day, p);
     const parts = [t.sqft, t.count, r.rate, r.coverage, r.coats, r.paintRate];
     parts.push((day && day.projectId) || '', (p && p.id) || '');
-    (day && day.entries || []).forEach((e) => parts.push(e.id || '', num(e.sqft), num(e.w), num(e.h)));
+    (day && Array.isArray(day.entries) ? day.entries : []).forEach((e) => {
+      if (!e || typeof e !== 'object') return;
+      parts.push(e.id || '', num(e.sqft), num(e.w), num(e.h));
+    });
     return parts.join('|');
   }
 
