@@ -537,6 +537,139 @@ test('REG: a rejected day is not counted as pending', () => {
 });
 
 // ============================================================
+// REGRESSIONS — eighth pass (double billing + orphaned approvals)
+// ------------------------------------------------------------
+// The most expensive bug this module can have: charging the client
+// twice for the same measurements, and billing work under a project
+// whose sign-off belonged to a different (now deleted) one.
+// ============================================================
+
+// Bug: a project's *entire* approved history stayed billable forever, so
+// "Record this bill" could be clicked again and the same work invoiced twice.
+test('REG: a day is never billed twice', () => {
+  seedWorld();
+  const due = E.billFor('sharma-house').totals.total;
+  assert.ok(due > 0);
+  const r1 = E.addBill('sharma-house', { amount: due, sqft: 100 });
+  assert.strictEqual(r1.ok, true);
+  const after = E.billFor('sharma-house');
+  assert.strictEqual(after.totals.total, 0, 'nothing new to bill once it is invoiced');
+  assert.strictEqual(after.billedTotals.sqft, 100, 'the invoiced work is reported as billed');
+  // A second "Record this bill" would raise an invoice for nothing.
+  const r2 = E.addBill('sharma-house', { amount: after.totals.total });
+  assert.strictEqual(r2.bill.amount, 0);
+  const invoices = E.billFor('sharma-house').bills.reduce((s, x) => s + x.amount, 0);
+  assert.ok(invoices <= due + 1e-9, 'total invoiced must never exceed the approved work');
+});
+test('REG: addBill records the dates it covers, so re-billing is impossible', () => {
+  seedWorld();
+  const b = E.billFor('sharma-house');
+  const r = E.addBill('sharma-house', { amount: b.totals.total });
+  assert.deepStrictEqual(r.bill.dates, ['2026-10-10'], 'the invoice must name the day it covers');
+  assert.strictEqual(E.billFor('sharma-house').totals.total, 0);
+});
+test('REG: a new approval after billing becomes billable again', () => {
+  seedWorld();
+  E.addBill('sharma-house', { amount: E.billFor('sharma-house').totals.total });
+  assert.strictEqual(E.billFor('sharma-house').totals.total, 0);
+  // The 11th is submitted-but-pending; approving it is genuinely new work.
+  E.approveDay('2026-10-11', 'Gahonsh');
+  const b = E.billFor('sharma-house');
+  assert.strictEqual(b.totals.sqft, 50, 'only the newly approved day is billable');
+  assert.strictEqual(b.totals.labour, 600);
+  assert.strictEqual(b.billedTotals.sqft, 100, 'the earlier invoice is still counted as billed');
+});
+test('REG: removing an invoice re-opens its days for billing', () => {
+  seedWorld();
+  const r = E.addBill('sharma-house', { amount: E.billFor('sharma-house').totals.total });
+  assert.strictEqual(E.billFor('sharma-house').totals.total, 0);
+  E.removeBill('sharma-house', r.bill.id);
+  assert.ok(E.billFor('sharma-house').totals.total > 0, 'a deleted invoice releases its days');
+});
+test('REG: invoice numbers are unique across the whole business', () => {
+  seedWorld();
+  E.approveDay('2026-10-11', 'Gahonsh');
+  E.saveProject({ id: 'other', name: 'Other Site', rate: 12 });
+  const a = E.addBill('sharma-house', { amount: 100 });
+  const b = E.addBill('other', { amount: 100 });
+  assert.notStrictEqual(a.bill.no, b.bill.no, 'two projects must not share an invoice number');
+  assert.strictEqual(b.bill.no, 'PP-002');
+});
+test('REG: an orphaned approval cannot bill under another project', () => {
+  seedWorld();
+  // The 10th is approved. Delete the project — the sign-off must go with it,
+  // because `dayMatchesProject` falls back to a name match, so the day (and its
+  // stale approval) would otherwise be re-attributed to any project that shares
+  // the name and billed there.
+  assert.strictEqual(E.approvalOf('2026-10-10').status, 'approved');
+  E.removeProject('sharma-house');
+  assert.strictEqual(E.approvalOf('2026-10-10').status, 'pending', 'the sign-off must be withdrawn');
+  const back = E.saveProject({ name: 'Sharma House', rate: 99 });
+  const b = E.billFor(back.project.id);
+  assert.strictEqual(b.totals.total, 0, 'a re-created project must not inherit the old approval');
+});
+
+// Bug: the daily report resolved a day's project differently from billing
+// (id lookup, then a name fallback), so a day with a stale projectId appeared
+// under one project in the report while billing it under none.
+test('REG: the reports and billing agree on a day\'s project', () => {
+  E._setStore(memStore({
+    painterPlusWorkLog: JSON.stringify({
+      a: { date: 'a', projectId: 'ghost', project: 'Real', status: 'submitted', rate: 10, entries: [{ id: '1', sqft: 10 }] }
+    }),
+    painterPlusERP: JSON.stringify({
+      projects: [{ id: 'real', name: 'Real', rate: 10 }], approvals: {}, bills: {}
+    })
+  }));
+  const row = E.reportDaily()[0];
+  const bill = E.billFor('real');
+  // The stale id matches nothing, so both must treat the day as unlinked.
+  assert.strictEqual(row.projectId, '');
+  assert.strictEqual(bill.totals.sqft, 0);
+  assert.strictEqual(E.projectForDay({ projectId: 'ghost', project: 'Real' }), null);
+});
+
+// Bug: `money()` rounded for display only, so an invoice stored
+// ₹95.89999999999999 and every later sum drifted.
+test('REG: a stored invoice amount is a real money value', () => {
+  seedWorld();
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 13.7 });
+  const b = E.billFor('sharma-house');
+  const r = E.addBill('sharma-house', { amount: b.totals.total, sqft: b.totals.sqft });
+  assert.strictEqual(r.bill.amount, Math.round(r.bill.amount * 100) / 100, 'amount must be 2dp');
+  assert.strictEqual(E.round2(95.89999999999999), 95.9);
+});
+
+// Bug: an empty bill quoted "₹0 / sq ft (day rate)".
+test('REG: an empty bill does not claim a day rate', () => {
+  seedWorld();
+  E.saveProject({ id: 'empty-site', name: 'Empty Site', rate: 0 });
+  const b = E.billFor('empty-site');
+  assert.strictEqual(b.rateInfo.fromDay, false, 'no day-rate work means no "(day rate)" label');
+});
+
+// Bug: an already-invoiced day was still offered as billable, so the invoice
+// text showed the full amount again as if it were owed.
+test('REG: the invoice names work that was already invoiced', () => {
+  seedWorld();
+  E.addBill('sharma-house', { amount: E.billFor('sharma-house').totals.total });
+  const txt = E.invoiceText('sharma-house');
+  assert.ok(/ALREADY INVOICED/.test(txt), 'expected the already-invoiced callout');
+  assert.ok(/Nothing new to bill/.test(txt), 'expected the "nothing new to bill" line');
+});
+
+// Bug: overview() never accounted for invoices, so "Approved & billable" kept
+// counting work that was already on an invoice.
+test('REG: overview reports the invoiced total', () => {
+  seedWorld();
+  const o0 = E.overview();
+  assert.strictEqual(o0.invoicedTotal, 0);
+  E.addBill('sharma-house', { amount: 500 });
+  const o1 = E.overview();
+  assert.strictEqual(o1.invoicedTotal, 500);
+});
+
+// ============================================================
 // REGRESSIONS — second pass (bugs 1–9, see docs/BUG_AUDIT.md)
 // ============================================================
 

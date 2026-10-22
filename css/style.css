@@ -1983,6 +1983,8 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 .erp-callout { border-radius: 12px; padding: 12px 16px; margin: 12px 0; font-size: .9rem; }
 .erp-callout-warn { background: rgba(217,119,6,.1); border-left: 4px solid #d97706; }
 .erp-callout-bad { background: rgba(220,38,38,.08); border-left: 4px solid #dc2626; }
+.erp-callout-ok { background: rgba(22,163,74,.1); border-left: 4px solid #16a34a; }
+.erp-actions button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .erp-subtabs { margin-bottom: 18px; }
 
 @media (max-width: 900px) {
