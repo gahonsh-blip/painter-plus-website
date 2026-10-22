@@ -79,7 +79,17 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 33. **A corrupt store crashed 7 of 15 pages — FIXED.** It is not enough to guard a stored *value*; the stored *shape* is untrusted too. A `null`/scalar where an array or object belongs (`projects: [null]`, `entries: "nope"`, a member's gallery that is a string, a `null` work-log day) threw an uncaught `TypeError` and aborted the page script. Every store reader now normalises once at the boundary and **drops** anything that is not a plain object (or, for a per-member map, anything that is not an array): `erp.js read()`/`readWorkLog()`, `gallery.js readRaw()`/`sortItems()`/`count()`/`feed()`/`objectList()`, `script.js ppRead()`, `worklog.js getDay()`/`totals()`, `team.js read()`. Verified by the new `tests/run-corrupt-sweep.sh` (seed in `tests/corrupt-seed.js`), which reports **7 pages with errors** against the old modules and **all clean** against the fix. See §45.
 
-**Untrusted-shape gotcha:** when you add a new stored collection, filter its elements at the read boundary — never assume the stored array holds objects. A single `null` in it aborts the whole page script.
+34. **Approved work could be invoiced twice — FIXED.** `billFor()` returned *all* of a project's approved days every time it was called, and a bill recorded only an amount — never *which* days it covered. So "Record this bill" could be clicked again and the same measurements were invoiced (and paid) twice. An invoice now records the work-log `dates` it covers (`addBill()` derives them from `bucketDays(project).unbilled`, never trusting the caller), `bucketDays()` splits approved days into `unbilled`/`billed` via `billedDateSet()`, and `billFor().totals` is the **unbilled** set. The Billing tab disables the button when nothing is unbilled and names the already-invoiced work; the dashboard gained an **Invoiced** KPI. See §46.
+
+35. **Deleting a project orphaned its approvals — FIXED.** `removeProject()` dropped the project and its invoices but left every approval keyed by date. Because `dayMatchesProject()` falls back to a name match, those days — and their stale sign-offs — were re-attributed to any *other* project sharing the name and billed there. `removeProject()` now deletes each of the project's days' approvals first, so a sign-off dies with the site it covered. See §47.
+
+36. **Report/invoice project-resolution mismatch — FIXED.** `reportDaily()`/`reportByPainter()` used their own lookup (`getProject(projectId) || name-match`), which fell through to a name match when the id was stale — the *opposite* of the billing rule (`dayMatchesProject()` treats an explicit id as authoritative). A day with a stale id showed one project in the daily report while billing under none. `projectForDay()` now delegates to `dayMatchesProject()` and every report uses it, so there is exactly one rule. See §48.
+
+37. **Invoice numbers were unique per project, not per business — FIXED.** `nextBillNo()` scanned only the current project's list, so two projects each issued `PP-001`. It now scans every project's bills. See §49.
+
+38. **Stored invoice amounts were un-rounded — FIXED.** `money()` rounded for *display* only, so an amount like `95.89999999999999` was stored raw and later sums drifted. `addBill()` runs every amount through `round2()`; `money()` uses it too. See §50. **And** an empty bill no longer claims a "(day rate)" label (`billedRateInfo().fromDay` is now `rates.length > 0`). See §51.
+
+**Money-path gotcha:** the ERP's job is to *not* charge the wrong amount. Three invariants must hold and each has a test that fails if it breaks: (1) unapproved work is never billed; (2) approved work is billed **once** — a bill must record the dates it covers; (3) a report and an invoice must resolve a day's project by the *same* rule (`dayMatchesProject`, id authoritative). Also round money at *storage* (`round2`), not only at display.
 
 
 
@@ -124,7 +134,7 @@ Use these exact values when fixing contact info across all pages:
 | Gallery + work-record engine | `js/gallery.js` (`window.PPGallery`) — photo CRUD, crew `feed`, and the **derived work record** (years, projects, sq ft, days, co-workers) |
 | Admin | `admin.html` (Owner/Head login: Team & Roles, profile, Portfolio projects) |
 | Daily work log | `worklog.html` + `js/worklog.js` — each day the crew adds a photo entry per painted surface, **measures its square feet on the photo** (or types length × height), sees one running day total plus labour and paint, then does a **Final submit** |
-| ERP | `erp.html` + `js/erp.js` (`window.PPERP`) + `js/erp-page.js` — the layer above the work log: projects, approvals, billing (**approved work only**) and daily/project/painter reports |
+| ERP | `erp.html` + `js/erp.js` (`window.PPERP`) + `js/erp-page.js` — the layer above the work log: projects, approvals, billing (**approved work only, billed once**) and daily/project/painter reports |
 | Photo measurement | `js/measure.js` (`window.PPMeasure`) — perspective-corrected area from a photo (4-corner calibration + shoelace), and the paint/labour maths |
 | Styles | `css/style.css` |
 | Scripts | `js/script.js` |
@@ -321,13 +331,31 @@ and `pending` in **separate** fields; they are never summed. `billFor()` and
 `invoiceText()` read only approved days. There is a block of `THE RULE:` tests in
 `tests/erp.test.js` that fails if this ever regresses.
 
+**The second rule, also do not break it:** approved work is billed **once**. An
+invoice records the work-log `dates` it covers (`addBill()` derives them from
+`bucketDays(project).unbilled` — never trust a caller to pass them), and
+`bucketDays()` splits the approved days into `unbilled` and `billed` using
+`billedDateSet()`. `billFor().totals` is the **unbilled** set (what a new invoice
+would cover); the already-invoiced work is reported separately as
+`billedTotals`/`billedLines`. Without this, "Record this bill" could be clicked
+twice and the same measurements invoiced (and paid) twice — see §46. A new day
+approved after a bill is genuinely new work and *is* billable; deleting an
+invoice releases its days again. The `REG:` tests in `tests/erp.test.js` fail if
+this regresses.
+
 - A day can only be approved once it is **final-submitted** (`canApprove(day)`
   checks `day.status === 'submitted'`) — an open day is still being edited.
 - **An approval is bound to the measurements it signed.** `setApproval()` stores a `sig` fingerprint of the day (`daySignature()`); `approvalOf()` returns `pending` (with `stale: true`) whenever the day no longer matches — i.e. it was reopened and edited after approval. `PPWorkLog.reopenDay()` also calls `PPERP.clearApproval(date)`. Never remove this: without it, an approved day could be edited and the *old* sign-off would still bill the *new* amount. (An approval with no `sig` — written before this existed — is honoured as-is.)
-- **Invoice ids and numbers must stay unique.** `addBill()` appends a random suffix to the id, and `nextBillNo()` derives the number from the highest `PP-nnn` ever used (never the list length), so deleting an invoice neither collides nor frees its number for reuse.
+- **A sign-off dies with its project.** `removeProject()` deletes every approval for that project's days (`daysForProject`). Otherwise, because `dayMatchesProject()` falls back to a name match, those days and their stale approvals would be re-attributed to any *other* project sharing the name and billed there. See §47.
+- **Invoice ids and numbers must stay unique.** `addBill()` appends a random suffix to the id, and `nextBillNo()` derives the number from the highest `PP-nnn` ever used **across every project** (never the list length), so deleting an invoice neither collides nor frees its number for reuse. A per-project counter issued two `PP-001`s (§49).
+- **Money is rounded at storage, not just display.** `addBill()` runs every amount through `round2()`. `money()` only rounds for display, so a raw float (`95.89999999999999`) used to be stored and every later sum drifted (§50).
 - A day links to a project by `day.projectId` **first**, then by the free-text
   `day.project` name (`dayMatchesProject`), so days logged before projects
-  existed still appear in a project's bill and reports.
+  existed still appear in a project's bill and reports. **One rule only:**
+  `projectForDay()`, the reports and billing all go through `dayMatchesProject()`
+  — an explicit `projectId` is authoritative and a stale one matches nothing
+  (never fall back to the name when an id is set, or a day is billed twice — §32
+  — or the report and the invoice disagree — §48).
 - A project's `rate`/`coats`/`coverage`/`paintRate` override the day's own
   values (`dayCosting(day, project)`), so changing the project rate re-prices the
   bill. A project figure of `0` means *"not set yet"* and falls back to the
@@ -345,7 +373,8 @@ and `pending` in **separate** fields; they are never summed. `billFor()` and
   `erp.html`, or a day approved there, shows up when the crew returns to this
   tab without a manual reload.
 - Pure engine: everything except the small storage helpers is DOM-free and
-  unit-tested. Tests: `node tests/erp.test.js`.
+  unit-tested. Tests: `node tests/erp.test.js` (78 checks, incl. the `THE RULE:`
+  and `REG:` blocks that pin "approved work is billed once").
 - Browser self-tests (need a real browser; both runners cache-bust their scripts
   and drop the service worker, which caches cache-first and would otherwise serve
   a stale `js` file while iterating):
