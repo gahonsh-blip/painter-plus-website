@@ -78,6 +78,35 @@ html = html.replace('</body>', '<script src="./tests/portfolio-selftest.js?v=%s"
 open(root + '/_portfolio-selftest.html', 'w', encoding='utf-8').write(html)
 PY
 
+# Corrupt-store sweep: seed every storage key with hostile data before any
+# page script runs, then load every page and fail on any uncaught error.
+python3 - "$ROOT" "$BUST" <<'PY'
+import sys, os, re
+root, bust = sys.argv[1], sys.argv[2]
+seed = open(os.path.join(root, 'tests', 'corrupt-seed.js'), encoding='utf-8').read()
+coll = ('<script>window.__pageErrors=[];(function(){var p=window.__pageErrors;'
+        'window.addEventListener("error",function(e){p.push("error: "+(e.message||e.error||"unknown"));});'
+        'window.addEventListener("unhandledrejection",function(e){p.push("rejection: "+(e.reason&&e.reason.message||e.reason||"unknown"));});'
+        'var ce=console.error;console.error=function(){p.push("console.error: "+Array.prototype.slice.call(arguments).join(" "));ce.apply(console,arguments);};})();</script>')
+pages = []
+for name in sorted(os.listdir(root)):
+    if not name.endswith('.html') or name.startswith('_'): continue
+    html = open(os.path.join(root, name), encoding='utf-8').read()
+    html = re.sub(r'(src="\./(?:js|tests)/[a-z-]+\.js)"', lambda m: m.group(1)+'?v='+bust+'"', html)
+    html = html.replace('</head>', coll+'<script>'+seed+'</script></head>', 1)
+    open(os.path.join(root, '_corrupt-'+name), 'w', encoding='utf-8').write(html)
+    pages.append(name)
+idx = ['<!DOCTYPE html><html><head><meta charset="utf-8"><title>corrupt</title></head><body>',
+       '<pre id="corruptOut" style="font:13px/1.5 monospace">running...</pre>',
+       '<iframe id="corruptFrame" hidden></iframe><script>',
+       'var PAGES='+repr(pages)+';var out=document.getElementById("corruptOut");var fails=0;var i=0;var fr=document.getElementById("corruptFrame");',
+       'function next(){if(i>=PAGES.length){fr.remove();out.textContent=out.textContent.replace("running...","")+(fails?("DONE: "+fails+" page(s) with errors"):"DONE: all pages clean");return;}',
+       'var name=PAGES[i++];fr.onload=function(){setTimeout(function(){var errs=[];try{errs=(fr.contentWindow.__pageErrors||[]).slice();}catch(e){errs=["<cross-origin>"];}',
+       'out.textContent+=(errs.length?("FAIL "+name+"\\n"+errs.map(function(x){return "   - "+x;}).join("\\n")+"\\n"):("ok   "+name+"\\n"));if(errs.length)fails++;next();},500);};fr.src="./_corrupt-"+name;}next();',
+       '</script></body></html>']
+open(os.path.join(root, '_corrupt.html'), 'w', encoding='utf-8').write('\n'.join(idx))
+PY
+
 # Page sweep: build every page with an error collector + an index.
 python3 - "$ROOT" "$BUST" <<'PY'
 import sys, os, re
@@ -109,7 +138,8 @@ cleanup() {
   rm -f "$ROOT"/_selftest.html "$ROOT"/_erp-selftest.html "$ROOT"/_wl-erp-selftest.html \
         "$ROOT"/_team-selftest.html "$ROOT"/_gallery-selftest.html "$ROOT"/_profile-selftest.html \
         "$ROOT"/_pmp-selftest.html "$ROOT"/_portfolio-selftest.html "$ROOT"/_cs-selftest.html \
-        "$ROOT"/_ui-selftest.html "$ROOT"/_sweep.html "$ROOT"/_sweep-*.html
+        "$ROOT"/_ui-selftest.html "$ROOT"/_sweep.html "$ROOT"/_sweep-*.html \
+        "$ROOT"/_corrupt.html "$ROOT"/_corrupt-*.html
   pkill -f "http.server $PORT" 2>/dev/null
 }
 trap cleanup EXIT
@@ -164,6 +194,7 @@ run_pre _pmp-selftest.html     pmpTestOut         "PAINT-MY-PHOTO selftest"
 run_pre _cs-selftest.html      cs-selftest        "COLOR STUDIO selftest"
 run_pre _ui-selftest.html      ui-selftest        "PAGE UI selftest (FAQ, mobile menu, active nav)"
 run_pre _portfolio-selftest.html portfolio-selftest "PORTFOLIO injection selftest"
+run_pre _corrupt.html          corruptOut         "CORRUPT STORE sweep (every page, hostile localStorage)"
 run_pre _sweep.html            sweepOut           "FULL-SITE SWEEP"
 
 if [ "$FAILED" -eq 0 ]; then echo "ALL BROWSER CHECKS PASSED"; else echo "SOME BROWSER CHECKS FAILED"; fi

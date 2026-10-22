@@ -1060,3 +1060,99 @@ are. (`erp.html` already had this; it is now consistent site-wide.)
 - Service-worker cache bumped `painter-plus-v24` → `v25` (this pass changed
   `css/style.css`, `js/script.js`, `js/color-studio.js` and the pages, all
   precached).
+
+---
+
+## Eighth pass — 2026-10-22 (untrusted-storage hardening)
+
+**Theme.** Every previous pass hardened the *values* the site stores (a colour
+must be a hex, an id must resolve to a name). This pass hardens the *shape* of
+the store itself. `localStorage` is untrusted input: it can be hand-edited in
+DevTools, truncated by a failed save, or left behind by an older build. The site
+loads page scripts site-wide, so one unguarded access on a malformed store
+aborts the whole file and silently kills unrelated features.
+
+**How it was found.** A throwaway harness seeded *every* storage key the site
+reads (`painterPlusTeam`, `painterPlusWorkLog`, `painterPlusERP`,
+`painterPlusGallery`, `painterPlusProjects`, `pp_studio`, `painterPlusProfile`,
+plus the two `sessionStorage` flags) with hostile data — `null`s and scalars
+where arrays and objects belong, a non-array `entries`, a `null` work-log day, a
+`null` project, a non-array member gallery — and loaded all 15 pages. **7 pages
+threw.** After the fixes, all 15 are clean; the harness is now a permanent test
+(§45).
+
+### 45. High — a corrupt store crashed 7 of 15 pages
+
+**Symptom.** With malformed data in `localStorage`, the page scripts threw an
+uncaught `TypeError` and aborted mid-render:
+
+| Page | Error |
+|------|-------|
+| `admin.html` | `Cannot read properties of null (reading 'image')` |
+| `erp.html` | `Cannot read properties of null (reading 'name')` |
+| `worklog.html` | `Cannot read properties of null (reading 'name')` |
+| `gallery.html` | `(d[memberId] \|\| []).forEach is not a function` |
+| `team.html`, `painter-profile.html` | `Cannot read properties of null (reading 'at')` |
+| `portfolio.html` | `img.replace is not a function` |
+
+**Root cause.** Each module's store reader trusted the *shape* of the parsed
+JSON. `read()`/`readRaw()`/`getDay()`/`readAll()` checked that the top level was
+an object but not that the members of the stored arrays were objects, or that a
+per-member value was an array at all:
+
+- `js/erp.js` `read()` returned `data.projects` as-is, so a `null` in the array
+  reached `listProjects()`'s `a.name.localeCompare(...)`; `readWorkLog()`
+  returned a `null` day, which `reportDaily()` read `day.status` off.
+- `js/gallery.js` `readRaw()` returned the raw object, so a member whose value
+  was a string (`"nope"`) reached `(d[memberId] || []).forEach` in `feed()`; a
+  `null` inside a member's array reached `sortItems()`'s `b.at`.
+- `js/script.js` `ppRead()` returned `JSON.parse(...) || []` — an array of
+  anything — so a `null` project reached `renderList()`'s `p.image`, and a
+  non-string `image` reached `img.replace(...)` in the portfolio merge.
+- `js/worklog.js` `getDay()` only guarded the top level, so a `null` inside
+  `entries` reached `totals()`'s `e.sqft`.
+- `js/team.js` `read()` mapped the raw roster, so a `null` member reached
+  `Object.assign(blankMember(m.role), m)`.
+
+**Fix.** Each reader now normalises its data *once*, at the boundary, and drops
+anything that is not a plain object (or, for a per-member map, anything that is
+not an array):
+
+- `js/erp.js` — `read()` filters `projects` to plain objects and coerces
+  `approvals`/`bills` to objects, filtering each project's bill list; `readWorkLog()`
+  keeps only object days; `dayTotals()`/`daySignature()` treat `entries` as a real
+  array of objects.
+- `js/gallery.js` — `readRaw()` keeps only array-of-object member entries;
+  `sortItems()`, `count()`, `feed()` and the new `entryList()` drop malformed
+  members/items/entries; the `worklogDays`/`erpProjects`/`roster` fallbacks go
+  through a new `objectList()`.
+- `js/script.js` — `ppRead()` returns a filtered array of objects; the portfolio
+  merge coerces `p.image` to a string.
+- `js/worklog.js` — `getDay()` filters `entries`; `totals()`/`breakdown()` guard
+  each entry.
+- `js/team.js` — `read()` filters non-object roster members.
+
+**Why "drop", not "repair":** a `null` project has no id, name or rate, so there
+is nothing to repair it from; showing it would print `undefined` in the UI. The
+readers keep every well-formed row and discard only the impossible ones, so a
+half-corrupt store still shows all the real data.
+
+**Verification.** New `tests/corrupt-seed.js` holds the hostile seed and
+`tests/run-corrupt-sweep.sh` (plus a `CORRUPT STORE sweep` step in
+`tests/run-all-headless.sh`) loads all 15 pages with it in place, failing on any
+uncaught error. Against the *original* modules the sweep reports **7 pages with
+errors**; against the fix it is **all pages clean**. Node-level regression tests
+were added to `tests/erp.test.js` (3) and `tests/gallery.test.js` (3), which fail
+if any reader starts trusting the stored shape again.
+
+### Eighth-pass verification summary
+
+- `node tests/erp.test.js` **67/67**, `gallery.test.js` **27/27**,
+  `measure.test.js` **16/16**, `photo-studio.test.js` **50/50**,
+  `passcode.test.js` **13/13**, `exposure.test.js` **10/10** — green.
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED**, including the
+  new *CORRUPT STORE sweep* (**15/15 pages clean**) and the unchanged full-site
+  sweep (**15/15 pages clean**).
+- Service-worker cache bumped `painter-plus-v26` → `v27` (this pass changed
+  `js/erp.js`, `js/gallery.js`, `js/script.js`, `js/team.js`, `js/worklog.js`,
+  all precached).

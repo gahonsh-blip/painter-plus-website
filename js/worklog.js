@@ -107,8 +107,13 @@
   function getDay(date) {
     const days = readAll();
     const d = days[date];
-    if (!d) return blankDay(date);
-    return Object.assign(blankDay(date), d, { entries: Array.isArray(d.entries) ? d.entries : [] });
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return blankDay(date);
+    // A hand-edited store can hold nulls or scalars inside `entries`; every
+    // reader below does `e.sqft`, `e.w`, so keep only real entry objects.
+    const entries = Array.isArray(d.entries)
+      ? d.entries.filter(e => e && typeof e === 'object' && !Array.isArray(e))
+      : [];
+    return Object.assign(blankDay(date), d, { entries: entries });
   }
   function listDays() {
     const days = readAll();
@@ -153,7 +158,8 @@
   }
 
   function totals(day) {
-    const entries = (day && day.entries) || [];
+    const entries = (day && Array.isArray(day.entries) ? day.entries : [])
+      .filter(e => e && typeof e === 'object' && !Array.isArray(e));
     let sum = 0;
     entries.forEach(e => { sum += num(e.sqft) || sqft(e.w, e.h); });
     return { count: entries.length, sqft: sum };
@@ -161,7 +167,8 @@
   // Per-area breakdown, so the day total can be read at a glance.
   function breakdown(day) {
     const out = [];
-    ((day && day.entries) || []).forEach(e => {
+    ((day && Array.isArray(day.entries) ? day.entries : [])).forEach(e => {
+      if (!e || typeof e !== 'object' || Array.isArray(e)) return;
       const key = e.area || 'other';
       let row = out.find(r => r.area === key);
       if (!row) { row = { area: key, label: areaLabel(key), count: 0, sqft: 0 }; out.push(row); }

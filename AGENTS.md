@@ -77,9 +77,15 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 32. **FAQ not keyboard-operable / menu state unannounced / no active nav link — FIXED.** The FAQ question is now a real `<button type="button" class="question" aria-expanded="…">` with the handler on it (was a `<div>` with a click on an inner `+` span); `.mobile-toggle` carries `aria-controls="primary-nav"` and a live `aria-expanded`; every page's `<nav>` gained `id="primary-nav"` + `aria-label`, and each page's own link is `class="active" aria-current="page"`. See §42-44.
 
+33. **A corrupt store crashed 7 of 15 pages — FIXED.** It is not enough to guard a stored *value*; the stored *shape* is untrusted too. A `null`/scalar where an array or object belongs (`projects: [null]`, `entries: "nope"`, a member's gallery that is a string, a `null` work-log day) threw an uncaught `TypeError` and aborted the page script. Every store reader now normalises once at the boundary and **drops** anything that is not a plain object (or, for a per-member map, anything that is not an array): `erp.js read()`/`readWorkLog()`, `gallery.js readRaw()`/`sortItems()`/`count()`/`feed()`/`objectList()`, `script.js ppRead()`, `worklog.js getDay()`/`totals()`, `team.js read()`. Verified by the new `tests/run-corrupt-sweep.sh` (seed in `tests/corrupt-seed.js`), which reports **7 pages with errors** against the old modules and **all clean** against the fix. See §45.
+
+**Untrusted-shape gotcha:** when you add a new stored collection, filter its elements at the read boundary — never assume the stored array holds objects. A single `null` in it aborts the whole page script.
+
 
 
 **Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`). And a stored value that is an **id** must be resolved to a display name through `PPTeam` before it is shown to a person — never print the raw id. And a UMD wrapper must actually pass its global into the factory: `factory()` with a body that uses `root` passes in Node (where the in-memory store hides it) and fails silently in the browser. And a value read from `localStorage` is untrusted input — a colour must be coerced to a real hex (`safeHex`) before it reaches the DOM, or a hand-edited store crashes the render.
+
+**Untrusted-shape gotcha (see `docs/BUG_AUDIT.md` §45):** it is not enough to guard a stored *value* — the stored *shape* is untrusted too. A `null` or a scalar where an array/object belongs (`projects: [null]`, `entries: "nope"`, a member's gallery that is a string, a `null` work-log day) used to crash **7 of 15 pages** on `null.name` / `.forEach is not a function` / `img.replace`. Every store reader now normalises its data once at the boundary and **drops** anything that is not a plain object (or, for a per-member map, anything that is not an array): `erp.js read()`/`readWorkLog()`, `gallery.js readRaw()`/`sortItems()`/`count()`/`feed()`/`objectList()`, `script.js ppRead()`, `worklog.js getDay()`/`totals()`, `team.js read()`. When you add a new stored collection, filter its elements there — do not assume the array holds objects. Verify with `bash tests/run-corrupt-sweep.sh` (seed in `tests/corrupt-seed.js`), which loads all 15 pages against a hostile store.
 
 **Layout gotcha:** a bare `fr` grid track refuses to shrink below its content's min-content width. A grid whose children contain a wide fixed-ratio box (the Color Studio stage) overflows its container on a phone unless the tracks are `minmax(0, …)` and the children get `min-width: 0`.
 
@@ -466,6 +472,7 @@ bash tests/run-wl-selftest.sh 8136
 bash tests/run-cs-selftest.sh 8139     # Color Studio vs a corrupt pp_studio store
 bash tests/run-portfolio-selftest.sh 8138
 bash tests/run-page-sweep.sh 8137   # every page, uncaught-JS-error sweep
+bash tests/run-corrupt-sweep.sh 8172  # every page vs a hostile localStorage/sessionStorage seed
 
 # Local preview
 python3 -m http.server 8000

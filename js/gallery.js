@@ -74,7 +74,16 @@
     if (!s) return {};
     let raw;
     try { raw = JSON.parse(s.getItem(STORE_KEY)); } catch (e) { raw = null; }
-    return (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    // A member's gallery must be an array of plain objects. A hand-edited
+    // store can hold a scalar or an object there, which made `list()` /
+    // `feed()` call `.forEach` on a non-array and abort the whole page script.
+    const out = {};
+    Object.keys(raw).forEach((k) => {
+      if (!Array.isArray(raw[k])) return;
+      out[k] = raw[k].filter((it) => it && typeof it === 'object' && !Array.isArray(it));
+    });
+    return out;
   }
   function writeRaw(data) {
     const s = backing();
@@ -119,8 +128,10 @@
     return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   }
   // Newest first by `at`, then by id (stable for items with no timestamp).
+  // Only real objects survive: `sortItems` is public, so a caller (or a
+  // corrupt store) can hand it nulls/scalars without crashing the sort.
   function sortItems(items) {
-    return (items || []).slice().sort((a, b) => {
+    return (items || []).filter((x) => x && typeof x === 'object' && !Array.isArray(x)).slice().sort((a, b) => {
       const byAt = String(b.at || '').localeCompare(String(a.at || ''));
       if (byAt) return byAt;
       return String(b.id || '').localeCompare(String(a.id || ''));
@@ -138,7 +149,8 @@
     return list(memberId, data).find((x) => x.id === id) || null;
   }
   function count(memberId, data) {
-    return ((data || readRaw())[memberId] || []).length;
+    const v = (data || readRaw())[memberId];
+    return Array.isArray(v) ? v.length : 0;
   }
   function add(memberId, item, data) {
     const d = data || readRaw();
@@ -171,7 +183,12 @@
     const d = data || readRaw();
     const out = [];
     Object.keys(d).forEach((memberId) => {
-      (d[memberId] || []).forEach((item) => out.push(Object.assign({ memberId: memberId }, normaliseItem(item))));
+      const items = Array.isArray(d[memberId]) ? d[memberId] : [];
+      items.forEach((item) => {
+        if (item && typeof item === 'object' && !Array.isArray(item)) {
+          out.push(Object.assign({ memberId: memberId }, normaliseItem(item)));
+        }
+      });
     });
     return sortItems(out);
   }
@@ -188,31 +205,47 @@
     try { return JSON.parse(s.getItem(key)); } catch (e) { return null; }
   }
 
+  // A stored list of plain objects (days, projects, roster members). A corrupt
+  // store can hold a null or a scalar in the array; callers below read `.id`,
+  // `.name` and `.status` off every element, so drop the malformed ones here.
+  function objectList(v) {
+    return Array.isArray(v) ? v.filter((x) => x && typeof x === 'object' && !Array.isArray(x)) : [];
+  }
+
   function worklogDays(ctx) {
-    if (ctx && ctx.days) return ctx.days;
+    if (ctx && ctx.days) return objectList(ctx.days);
     if (root && root.PPWorkLog && typeof root.PPWorkLog.listDays === 'function') {
-      try { return root.PPWorkLog.listDays(); } catch (e) { /* fall through */ }
+      try { return objectList(root.PPWorkLog.listDays()); } catch (e) { /* fall through */ }
     }
     const raw = readJSON(WORKLOG_KEY) || {};
-    return Object.keys(raw).sort().reverse().map((k) => raw[k]);
+    if (typeof raw !== 'object' || Array.isArray(raw)) return [];
+    return Object.keys(raw).sort().reverse().map((k) => raw[k]).filter((d) => d && typeof d === 'object' && !Array.isArray(d));
   }
 
   function erpProjects(ctx) {
-    if (ctx && ctx.projects) return ctx.projects;
+    if (ctx && ctx.projects) return objectList(ctx.projects);
     if (root && root.PPERP && typeof root.PPERP.listProjects === 'function') {
-      try { return root.PPERP.listProjects(); } catch (e) { /* fall through */ }
+      try { return objectList(root.PPERP.listProjects()); } catch (e) { /* fall through */ }
     }
     const raw = readJSON(ERP_KEY);
-    return (raw && Array.isArray(raw.projects)) ? raw.projects : [];
+    return objectList(raw && raw.projects);
   }
 
   function roster(ctx) {
-    if (ctx && ctx.members) return ctx.members;
+    if (ctx && ctx.members) return objectList(ctx.members);
     if (root && root.PPTeam && typeof root.PPTeam.list === 'function') {
-      try { return root.PPTeam.list(); } catch (e) { /* fall through */ }
+      try { return objectList(root.PPTeam.list()); } catch (e) { /* fall through */ }
     }
     const raw = readJSON(TEAM_KEY);
-    return Array.isArray(raw) ? raw : [];
+    return objectList(raw);
+  }
+
+  // A day's entries as a real array of plain objects. `entries` can be
+  // anything in a hand-edited store (a string, an object, nulls inside the
+  // array), so every reader below goes through here instead of `|| []`.
+  function entryList(day) {
+    const raw = day && day.entries;
+    return Array.isArray(raw) ? raw.filter((e) => e && typeof e === 'object' && !Array.isArray(e)) : [];
   }
 
   // The members present on one work-log day: the day's own crew plus any
@@ -221,14 +254,14 @@
     const set = [];
     const push = (id) => { const v = String(id || ''); if (v && set.indexOf(v) === -1) set.push(v); };
     push(day && day.crew);
-    ((day && day.entries) || []).forEach((e) => push(e.crew));
+    entryList(day).forEach((e) => push(e.crew));
     return set;
   }
 
   // Square feet a member is credited with on a day: the whole day when the
   // day is theirs, else only the entries tagged to them.
   function creditedEntries(day, memberId) {
-    const entries = (day && day.entries) || [];
+    const entries = entryList(day);
     const dayCrew = String((day && day.crew) || '');
     // An entry tagged to someone belongs to them; an untagged entry belongs
     // to the day's crew. This keeps a shared day from double-counting.

@@ -724,6 +724,57 @@ test('REG: re-approving after a project-rate change bills the new rate', () => {
   assert.strictEqual(E.billFor('sharma-house').totals.labour, 5000); // 100 × 50
 });
 
+// ============================================================
+// CORRUPT-STORE RESILIENCE
+// ------------------------------------------------------------
+// localStorage is untrusted input: it can be hand-edited, half-written
+// by a failed save, or left behind by an older build. A `null` or a
+// scalar inside the stored arrays/objects must never throw — the whole
+// page script aborts when it does (this codebase loads page scripts
+// site-wide), so a bad store silently kills unrelated features.
+// ============================================================
+test('REG: a corrupt ERP store does not throw and drops the bad rows', () => {
+  const store = memStore({
+    painterPlusERP: JSON.stringify({
+      projects: [null, 'x', 7, [], { id: 'p1', name: 'Real', rate: 10 }],
+      approvals: { '2026-10-10': 5, '2026-10-11': null },
+      bills: { p1: [null, 'x', { id: 'b1', no: 'PP-001', amount: 10 }], bad: 7 }
+    })
+  });
+  E._setStore(store);
+  assert.doesNotThrow(() => E.read());
+  assert.doesNotThrow(() => E.listProjects());
+  assert.doesNotThrow(() => E.reportByProject());
+  assert.doesNotThrow(() => E.overview());
+  assert.strictEqual(E.listProjects().length, 1, 'only the real project survives');
+  const b = E.billFor('p1');
+  assert.strictEqual(b.ok, true);
+  assert.strictEqual(b.bills.length, 1, 'only the real bill survives');
+});
+
+test('REG: a corrupt work log does not throw', () => {
+  const store = memStore({
+    painterPlusWorkLog: JSON.stringify({
+      '2026-10-10': null,
+      '2026-10-11': 'nope',
+      '2026-10-12': { date: '2026-10-12', status: 'submitted', entries: 'not-an-array' },
+      '2026-10-13': { date: '2026-10-13', status: 'submitted', entries: [null, 7, { id: 'e1', sqft: 20 }] }
+    })
+  });
+  E._setStore(store);
+  assert.doesNotThrow(() => E.readWorkLog());
+  assert.doesNotThrow(() => E.reportDaily());
+  assert.doesNotThrow(() => E.overview());
+  assert.doesNotThrow(() => E.dayCosting(E.readWorkLog()['2026-10-12']));
+  // The good day is still costed from its one real entry.
+  assert.strictEqual(E.dayCosting(E.readWorkLog()['2026-10-13']).sqft, 20);
+});
+
+test('REG: a daySignature over a corrupt day does not throw', () => {
+  assert.doesNotThrow(() => E.daySignature({ date: 'd', entries: [null, 'x', {}] }, null));
+  assert.doesNotThrow(() => E.daySignature(null, null));
+});
+
 // Bug: a save whose localStorage write failed (quota/blocked) still reported
 // ok:true, so the UI said "saved" while nothing was stored.
 test('REG: a failed write is reported, not silently swallowed', () => {
