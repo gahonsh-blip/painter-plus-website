@@ -77,7 +77,7 @@
     try {
       // ---- 1. unlock the gate with the real passcode ----
       const pass = $('erpPass');
-      if (pass) { pass.value = Team.PASSCODE; }
+      if (pass) { pass.value = 'painter123'; } // the real staff passcode (js/team.js stores only its digest)
       const unlock = $('erpUnlock');
       if (unlock) unlock.click();
       await sleep(150);

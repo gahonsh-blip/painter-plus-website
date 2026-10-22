@@ -128,14 +128,29 @@
     check(r.projects === 1, 'workRecord.projects === 1');
     check(r.coworkers === 1, 'workRecord.coworkers === 1 (Suresh)');
 
-    // ---- SELF-EDIT: claim this profile ----
-    const claimBtn = $('ppClaimBtn');
-    check(!!claimBtn, 'an unclaimed visitor sees a "This is me" button');
-    if (claimBtn) {
-      claimBtn.click();
+    // ---- SELF-EDIT: the profile is passcode-gated ----
+    // A public visitor must NOT be able to edit: the edit form stays hidden
+    // and there is a passcode prompt instead of a one-tap "This is me".
+    check(!$('ppClaimBtn'), 'no anonymous "This is me" button is offered');
+    check($('ppEditBody').hidden, 'the edit form is hidden from a signed-out visitor');
+    const passInput = $('ppClaimPass');
+    check(!!passInput, 'a crew passcode field is offered instead');
+
+    if (passInput) {
+      // Wrong passcode must not open the editor.
+      passInput.value = 'wrong';
+      $('ppClaimForm').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
       await sleep(60);
-      check(!$('ppEditBody').hidden, 'claiming the profile reveals the edit form');
-      check(T.claimedId() === MEMBER, 'the member id is claimed in this session');
+      check($('ppEditBody').hidden, 'a wrong passcode does not reveal the edit form');
+      check((txt('ppClaimErr') || '').indexOf('Wrong') !== -1, 'a wrong passcode shows an error');
+      check(T.claimedId() === '', 'no member is claimed after a wrong passcode');
+
+      // The real passcode does open it, and claims this member.
+      passInput.value = 'painter123';
+      $('ppClaimForm').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      await sleep(60);
+      check(!$('ppEditBody').hidden, 'the real passcode reveals the edit form');
+      check(T.claimedId() === MEMBER, 'the member id is claimed after signing in');
     }
 
     // ---- EDIT THE PROFILE ----

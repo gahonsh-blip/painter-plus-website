@@ -220,7 +220,9 @@ bash tests/run-pmp-selftest.sh 8133   # then open http://localhost:8133/_pmp-sel
 
 `erp.html` (`js/erp.js`, `window.PPERP`) is the layer above the work log that
 turns measurements into money. It is Owner/Head gated, exactly like `admin.html`
-and `worklog.html` (default passcode `painter123`, client-side only).
+and `worklog.html` (staff passcode, client-side only — `js/team.js` stores a
+salted SHA-256 digest, never the passcode itself; see `tests/hash-passcode.js`
+to set a new one).
 
 The chain is deliberately gated:
 
@@ -378,6 +380,8 @@ Before considering the site fixed, verify:
 - [ ] `node tests/measure.test.js` passes (photo measurement geometry + costing).
 - [ ] `node tests/erp.test.js` passes (ERP costing + the approval gate + the browser-global binding).
 - [ ] `node tests/photo-studio.test.js` passes (photo recolour + material maths).
+- [ ] `node tests/passcode.test.js` passes (staff gate: digest only, no plaintext passcode shipped).
+- [ ] `node tests/exposure.test.js` passes (public pages leak no staff links or passcode; deploy publishes only the public site).
 - [ ] All pages load with no console errors.
 - [ ] Dark/light theme toggle works.
 - [ ] Mobile menu opens/closes.

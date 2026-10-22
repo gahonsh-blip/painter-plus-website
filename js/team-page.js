@@ -17,6 +17,24 @@
 
   let activeRole = 'all';
 
+  // The "Manage roles" link opens the passcode-gated admin page, so it is only
+  // created for someone already signed in as Owner/Head. A visitor gets no
+  // staff entry point from the public team page — the link is not in the HTML.
+  function syncManageLink() {
+    const wrap = document.querySelector('.tm-toolbar-links');
+    if (!wrap) return;
+    const existing = document.getElementById('tmManageLink');
+    const allowed = T.isManager() || T.isActingHead();
+    if (!allowed) { if (existing) existing.remove(); return; }
+    if (existing) return;
+    const a = document.createElement('a');
+    a.href = './admin.html';
+    a.id = 'tmManageLink';
+    a.className = 'btn-ghost btn-sm';
+    a.textContent = '🔑 Manage roles';
+    wrap.appendChild(a);
+  }
+
   function renderRoles() {
     if (!rolesWrap) return;
     rolesWrap.innerHTML = T.ROLES.map(r => {
@@ -85,7 +103,7 @@
     else scope.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
   }
 
-  function renderAll() { renderRoles(); renderFilters(); render(); }
+  function renderAll() { renderRoles(); renderFilters(); render(); syncManageLink(); }
 
   renderAll();
   // script.js creates the reveal observer on DOMContentLoaded; re-render then

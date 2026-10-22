@@ -198,10 +198,11 @@
     const mine = T.isMe(member.id);
     const body = $('ppEditBody');
     const heading = $('ppEditHeading');
-    // The section (and its "This is me" prompt) is always visible so a painter
-    // can claim their own profile; the edit form only appears once it is "me".
+    // Editing needs the staff passcode. Until someone signs in, the section
+    // shows only the sign-in prompt — no edit form, no "This is me" shortcut,
+    // so a public visitor can never change a member's details.
     if (body) body.hidden = !mine;
-    if (heading) heading.textContent = mine ? '✏️ Edit my profile & gallery' : '🧑‍🎨 Is this your profile?';
+    if (heading) heading.textContent = mine ? '✏️ Edit my profile & gallery' : '🔒 Crew sign-in';
     if (!mine) { renderClaim(); return; }
     fillEditor();
     renderClaim();
@@ -214,17 +215,30 @@
     const isManager = T.isManager();
     const claimed = T.claimedId() === member.id;
     if (isManager) {
-      claimWrap.innerHTML = '<span class="pp-claim-note">🔑 Signed in as Owner/Head — you can edit any member\'s profile.</span>';
+      claimWrap.innerHTML = '<span class="pp-claim-note">🔑 Signed in as Owner/Head — you can edit any member\'s profile.</span> ' +
+        '<button type="button" class="btn-ghost btn-sm" id="ppUnclaim">Sign out</button>';
+      const un = $('ppUnclaim');
+      if (un) un.addEventListener('click', () => { T.unclaim(); T.lockHead(); renderEditor(); });
     } else if (claimed) {
       claimWrap.innerHTML = '<span class="pp-claim-note">✅ This is your profile.</span> ' +
-        '<button type="button" class="btn-ghost btn-sm" id="ppUnclaim">Not me — sign out of this profile</button>';
+        '<button type="button" class="btn-ghost btn-sm" id="ppUnclaim">Sign out</button>';
       const un = $('ppUnclaim');
-      if (un) un.addEventListener('click', () => { T.unclaim(); renderEditor(); });
+      if (un) un.addEventListener('click', () => { T.unclaim(); T.lockHead(); renderEditor(); });
     } else {
-      claimWrap.innerHTML = '<span class="pp-claim-note">👋 Tap below if this is you — then you can edit your own profile and add your work photos on this device.</span> ' +
-        '<button type="button" class="btn-ghost btn-sm" id="ppClaimBtn">This is me</button>';
-      const c = $('ppClaimBtn');
-      if (c) c.addEventListener('click', () => { if (T.claim(member.id)) renderEditor(); });
+      claimWrap.innerHTML =
+        '<span class="pp-claim-note">👋 Enter the crew passcode to edit this profile and manage its work photos.</span>' +
+        '<form class="pp-claim-form" id="ppClaimForm">' +
+          '<input type="password" id="ppClaimPass" class="form-control" placeholder="Crew passcode" autocomplete="current-password" aria-label="Crew passcode" />' +
+          '<button type="submit" class="btn-primary btn-sm">Sign in</button>' +
+        '</form>' +
+        '<p class="pp-role-status" id="ppClaimErr" role="status" aria-live="polite"></p>';
+      const form = $('ppClaimForm');
+      if (form) form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const pass = $('ppClaimPass');
+        if (T.claim(member.id, pass ? pass.value : '')) renderEditor();
+        else { const err = $('ppClaimErr'); if (err) { err.textContent = 'Wrong passcode. Try again.'; err.classList.add('is-error'); } }
+      });
     }
   }
 
@@ -329,7 +343,6 @@
   // ROLE CONTROLS (Owner/Head only)
   // ------------------------------------------------------------
   const roleSection = $('ppRoleSection');
-  const lockedSection = $('ppRoleLocked');
   const optionsWrap = $('ppRoleOptions');
   const statusEl = $('ppRoleStatus');
 
@@ -337,7 +350,6 @@
     if (!roleSection) return;
     const isHead = T.isManager();
     roleSection.hidden = !isHead;
-    if (lockedSection) lockedSection.hidden = isHead;
     if (!isHead || !optionsWrap) return;
 
     optionsWrap.innerHTML = T.ROLES.map(r => {

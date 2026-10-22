@@ -33,11 +33,28 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      # Stage ONLY the public website files. The repository also holds internal
+      # material (AGENTS.md, README.md, docs/, tests/) that must never be
+      # published — AGENTS.md and README.md document the staff passcode and the
+      # whole internal architecture, and they were previously served live at
+      # /AGENTS.md and /README.md. Uploading `path: '.'` shipped all of it.
+      - name: Stage public site files
+        run: |
+          set -eu
+          mkdir -p _site
+          cp -R css js images _site/
+          cp ./*.html manifest.json sw.js robots.txt sitemap.xml _headers _site/
+          # Fail loudly if an internal file ever slips into the staged site.
+          if find _site \( -name 'AGENTS.md' -o -name 'README.md' -o -name '*.test.js' \
+               -o -name '*-selftest.js' -o -name 'run-*.sh' -o -path '*_site/docs/*' \
+               -o -path '*_site/tests/*' \) | grep -q .; then
+            echo "::error::Internal files leaked into the staged site"; exit 1
+          fi
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
-          path: '.'
+          # Upload only the staged public site.
+          path: '_site'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

@@ -37,7 +37,7 @@
       E.saveProject({ name: 'Arki Villa', client: 'Mr Kumar', rate: 15, coats: 2, coverage: 130 });
 
       // Unlock the work-log gate.
-      $('wlPass').value = Team.PASSCODE;
+      $('wlPass').value = 'painter123'; // the real staff passcode
       $('wlUnlock').click();
       await sleep(150);
       check(!$('wlPanel').hidden, 'work-log gate unlocks');

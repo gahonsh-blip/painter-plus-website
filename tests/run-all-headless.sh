@@ -118,6 +118,22 @@ python3 -m http.server "$PORT" >/dev/null 2>&1 &
 sleep 2
 
 FAILED=0
+
+# --- Pure Node unit tests (no browser) -------------------------------
+run_node() {  # run_node <label> <test-file>
+  local label="$1" file="$2"
+  echo "===== $label ====="
+  if ! node "$ROOT/$file"; then FAILED=1; fi
+  echo
+}
+
+run_node "PASSCODE gate (js/team.js)" tests/passcode.test.js
+run_node "PUBLIC EXPOSURE (no passcode / staff links leaked)" tests/exposure.test.js
+run_node "GALLERY engine" tests/gallery.test.js
+run_node "ERP engine" tests/erp.test.js
+run_node "PHOTO MEASURE geometry" tests/measure.test.js
+run_node "PAINT-MY-PHOTO engine" tests/photo-studio.test.js
+
 run_pre() {  # run_pre <page> <pre-id> <label>
   local page="$1" pid="$2" label="$3"
   local dom

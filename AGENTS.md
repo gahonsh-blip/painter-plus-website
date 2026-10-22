@@ -150,7 +150,9 @@ highest first:
   `PPTeam.wouldStrandLeads(id, role)` reports this for the UI, which disables
   the offending option.
 - The role controls only render for a signed-in Owner/Head (session passcode
-  gate, default `painter123` — client-side only, not real security).
+  gate — client-side only, not real security). The passcode itself is **not** in
+  the source: `js/team.js` holds a salted SHA-256 digest (`PASSCODE_SHA256`) and
+  `tests/hash-passcode.js` prints a digest for a new passcode.
 - `list()` sorts by `roleRank()` (owner → helper), so the Owner/Head always
   lead the roster; `head()` returns the Owner if there is one, else the Head.
 
@@ -367,11 +369,14 @@ stats were removed (`stat1..stat4` cleared in `js/team.js`) and replaced by this
   tagged to another member. `creditedEntries`/`creditFor` split a day by entry
   tag (falling back to the owner), so a shared day is not double-counted. This
   is the semantics the tests pin down.
-- **Self-service, not security.** `PPTeam.claim(id)` stores the member id in
-  `sessionStorage` (`ppClaimedMember`); `PPTeam.isMe(id)` is true for that
-  member, or for anyone when an Owner/Head is signed in. A painter edits their
-  own profile from their phone with no passcode; role changes still need the
-  Owner/Head gate, and the roster still guards the last lead.
+- **Self-service, behind the staff gate.** `PPTeam.claim(id, passcode)` now
+  requires the staff passcode; on success it stores the member id in
+  `sessionStorage` (`ppClaimedMember`) and opens the Owner/Head session.
+  `PPTeam.isMe(id)` is true for that member only while the session is active, or
+  for anyone when an Owner/Head is signed in. There is **no anonymous edit
+  path** — a public visitor sees a passcode prompt on `painter-profile.html`,
+  never an edit form. Role changes still need the Owner/Head gate, and the roster
+  still guards the last lead.
 - **Attribute safety.** Every interpolated attribute (`src`, `alt`, `data-id`,
   option `value`) goes through `escAttr()` — the shared text `esc()` does not
   escape quotes, and a photo URL is attacker-influenced data.
@@ -397,6 +402,20 @@ stats were removed (`stat1..stat4` cleared in `js/team.js`) and replaced by this
   `css/style.css`) — otherwise the cache-first worker serves the old file and a
   returning visitor never sees the fix.
 - After edits, run the verification checklist in `README.md` and `docs/NEXT_STEPS.md`.
+- **What a visitor must never see.** The public pages (`index`, `about`,
+  `services`, `portfolio`, `color-studio`, `team`, `gallery`, `contact`,
+  `privacy`, `terms`, `painter-profile`) must not link to the staff tools
+  (`admin.html`, `worklog.html`, `erp.html`), must not print the staff passcode,
+  and must not ship an edit form a signed-out visitor can submit. The staff
+  pages stay `noindex` and out of `sitemap.xml`. The deploy workflow stages a
+  `_site` directory of public assets only — **never** `path: '.'`, which used to
+  publish `AGENTS.md` and `README.md` (both document the passcode and the whole
+  internal architecture) to the live site. `tests/exposure.test.js` enforces all
+  of this.
+- **The staff passcode is never in the source.** `js/team.js` stores a salted
+  SHA-256 digest (`PASSCODE_SHA256`). To set a new passcode run
+  `node tests/hash-passcode.js "new-passcode"` and paste the digest in.
+  `tests/passcode.test.js` fails if the plaintext ever reappears.
 
 ## Verification
 
