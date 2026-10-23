@@ -2109,3 +2109,67 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
   .pp-edit-card { padding: 20px; }
   .cg-toolbar { flex-direction: column; align-items: stretch; }
 }
+
+/* ============================================================
+   SOFT SITE MOTION
+   ------------------------------------------------------------
+   A quiet, site-wide motion layer that stays in character with the
+   brand: content settles into place the way a freshly painted
+   surface settles, and nothing ever bounces or shouts.
+
+   Every rule here is additive — the pages are fully readable and
+   usable with none of it. It is disabled wholesale for anyone who
+   asks for reduced motion (see the block at the end).
+   ============================================================ */
+
+/* --- Page entrance: the content settles in, the whole view wipes
+   with brand colour once and clears. ------------------------------------ */
+@keyframes pp-page-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes pp-page-wash {
+  0%   { opacity: 0.10; }
+  100% { opacity: 0; }
+}
+/* `main` only: the fixed elements (progress bar, WhatsApp button, the
+   gallery lightbox) live outside it, so animating it cannot shift them. */
+main { animation: pp-page-enter 0.5s ease-out both; }
+/* A brand-coloured veil that clears on arrival — "the paint going on".
+   pointer-events:none and a low z-index keep it inert and behind the
+   lightbox (z-index 2000). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  pointer-events: none;
+  background: linear-gradient(120deg, var(--primary), var(--accent));
+  opacity: 0;
+  animation: pp-page-wash 0.7s ease-out both;
+}
+
+/* --- Header: a soft shadow as the sticky bar lifts off the page -------- */
+header { transition: background var(--transition), box-shadow var(--transition), border-color var(--transition); }
+header.is-scrolled {
+  box-shadow: var(--shadow-sm);
+  border-bottom-color: var(--border);
+}
+
+/* --- Staggered reveals: siblings cascade softly instead of popping in
+   all at once. JS sets --reveal-delay per element (see js/script.js). ---- */
+.reveal, .reveal-left, .reveal-right { transition-delay: var(--reveal-delay, 0ms); }
+
+/* --- Profile: share row + copy confirmation ---------------------------- */
+.pp-share { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.pp-share-note { color: var(--text-light); font-size: .86rem; margin-top: 8px; min-height: 1.3em; }
+
+/* --- Profile: the work-record number is animated by JS; keep the final
+   value legible while it counts, and steady it once settled. ------------ */
+.pp-record-num { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  main { animation: none !important; }
+  body::before { animation: none !important; opacity: 0 !important; }
+  .reveal, .reveal-left, .reveal-right { transition-delay: 0ms !important; }
+}

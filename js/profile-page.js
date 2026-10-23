@@ -37,6 +37,101 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => T.esc(s);
 
+  function reduceMotion() {
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+  }
+
+  // ------------------------------------------------------------
+  // SPECIALISATIONS — matched to what the member actually does.
+  // A helper's strengths are not a painter's, so the same six cards
+  // must not be shown for every role. The static HTML carries the
+  // painter set as a no-JS fallback; this replaces it per role.
+  // ------------------------------------------------------------
+  const SPECIALISATIONS = {
+    owner: [
+      { icon: '🏗️', title: 'Project Direction', text: 'Setting the standard for every site — scope, schedule and the crew that delivers it.' },
+      { icon: '🛡️', title: 'Quality Assurance', text: 'Every project ends with a walkthrough and a 5-year warranty backed by free site inspection.' },
+      { icon: '📐', title: 'Colour Consultation', text: 'Helping clients choose palettes and finishes that suit light, space, and lifestyle.' },
+      { icon: '🖌️', title: 'Interior Finishes', text: 'Matte, eggshell, satin & semi-gloss finishes applied with meticulous cutting-in and even roller work.' },
+      { icon: '🏠', title: 'Exterior Coatings', text: 'Weatherproof, UV-resistant exterior systems including elastomeric coatings that flex with the surface.' },
+      { icon: '🎨', title: 'Designer Textures', text: 'Hand-troweled stucco, accent walls, and feature textures that add depth and character to any room.' }
+    ],
+    head: [
+      { icon: '🏗️', title: 'Project Direction', text: 'Running the crew day to day — scope, schedule and the standard every site is held to.' },
+      { icon: '🛡️', title: 'Quality Assurance', text: 'Every project ends with a walkthrough and a 5-year warranty backed by free site inspection.' },
+      { icon: '📐', title: 'Colour Consultation', text: 'Helping clients choose palettes and finishes that suit light, space, and lifestyle.' },
+      { icon: '🖌️', title: 'Interior Finishes', text: 'Matte, eggshell, satin & semi-gloss finishes applied with meticulous cutting-in and even roller work.' },
+      { icon: '🏠', title: 'Exterior Coatings', text: 'Weatherproof, UV-resistant exterior systems including elastomeric coatings that flex with the surface.' },
+      { icon: '🎨', title: 'Designer Textures', text: 'Hand-troweled stucco, accent walls, and feature textures that add depth and character to any room.' }
+    ],
+    supervisor: [
+      { icon: '🛡️', title: 'Quality Assurance', text: 'Checking work against the spec and signing off only when the finish is right.' },
+      { icon: '🧰', title: 'Surface Preparation', text: 'Wall putty, crack filling, and priming — the unseen foundation of a finish that lasts for years.' },
+      { icon: '🖌️', title: 'Interior Finishes', text: 'Matte, eggshell, satin & semi-gloss finishes applied with meticulous cutting-in and even roller work.' },
+      { icon: '🏠', title: 'Exterior Coatings', text: 'Weatherproof, UV-resistant exterior systems including elastomeric coatings that flex with the surface.' },
+      { icon: '📋', title: 'Site Coordination', text: 'Sequencing trades and stages so the crew always has a prepared, ready surface to work on.' },
+      { icon: '📐', title: 'Colour Consultation', text: 'Helping clients choose palettes and finishes that suit light, space, and lifestyle.' }
+    ],
+    painter: [
+      { icon: '🖌️', title: 'Interior Finishes', text: 'Matte, eggshell, satin & semi-gloss finishes applied with meticulous cutting-in and even roller work.' },
+      { icon: '🏠', title: 'Exterior Coatings', text: 'Weatherproof, UV-resistant exterior systems including elastomeric coatings that flex with the surface.' },
+      { icon: '🎨', title: 'Designer Textures', text: 'Hand-troweled stucco, accent walls, and feature textures that add depth and character to any room.' },
+      { icon: '🧰', title: 'Surface Preparation', text: 'Wall putty, crack filling, and priming — the unseen foundation of a finish that lasts for years.' },
+      { icon: '📐', title: 'Colour Consultation', text: 'Helping clients choose palettes and finishes that suit light, space, and lifestyle.' },
+      { icon: '🛡️', title: 'Quality Assurance', text: 'Every project ends with a walkthrough and a 5-year warranty backed by free site inspection.' }
+    ],
+    helper: [
+      { icon: '🧰', title: 'Surface Preparation', text: 'Sanding, filling and priming the surface before a single coat goes on.' },
+      { icon: '🪣', title: 'Material Handling', text: 'Mixing, measuring and keeping paint, putty and thinner ready and correctly thinned.' },
+      { icon: '🧹', title: 'Site Protection', text: 'Masking floors and fittings, then leaving the site clean at the end of every day.' },
+      { icon: '🪜', title: 'Access & Setup', text: 'Scaffolding, ladders and platforms set up safely so the painter can reach every edge.' },
+      { icon: '🤝', title: 'Crew Support', text: 'Keeping the painter supplied and moving, so the day runs without stopping.' },
+      { icon: '🧽', title: 'Tool Care', text: 'Brushes, rollers and trays cleaned and stored, ready for the next coat.' }
+    ]
+  };
+
+  function renderSpecs() {
+    const wrap = $('ppSpecs');
+    if (!wrap) return;
+    const list = SPECIALISATIONS[member.role] || SPECIALISATIONS.painter;
+    set('ppSpecSub', 'What ' + member.name + ' brings to a site — matched to their role as ' +
+      T.roleOf(member.role).label + '.');
+    wrap.innerHTML = list.map((s) =>
+      '<article class="card reveal"><div class="icon">' + s.icon + '</div>' +
+      '<h3>' + esc(s.title) + '</h3><p>' + esc(s.text) + '</p></article>').join('');
+    observe(wrap);
+  }
+
+  // ------------------------------------------------------------
+  // SHARE — hand this member's profile to a client or a WhatsApp group.
+  // ------------------------------------------------------------
+  function renderShare() {
+    const wrap = $('ppShare');
+    if (!wrap) return;
+    const url = location.origin + location.pathname + '?id=' + encodeURIComponent(member.id);
+    const msg = 'Meet ' + member.name + ' from the Painter Plus crew — ' + url;
+    const wa = 'https://wa.me/?text=' + encodeURIComponent(msg);
+    const mail = 'mailto:?subject=' + encodeURIComponent('Painter Plus — ' + member.name) +
+      '&body=' + encodeURIComponent(msg);
+    wrap.innerHTML =
+      '<button type="button" class="btn-ghost btn-sm" id="ppCopy">🔗 Copy profile link</button>' +
+      '<a class="btn-ghost btn-sm" href="' + esc(wa) + '" target="_blank" rel="noreferrer">💬 Share on WhatsApp</a>' +
+      '<a class="btn-ghost btn-sm" href="' + esc(mail) + '">✉️ Email</a>';
+    const copy = $('ppCopy');
+    if (copy) copy.addEventListener('click', async () => {
+      const note = $('ppShareNote');
+      try {
+        if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('no clipboard');
+        await navigator.clipboard.writeText(url);
+        if (note) note.textContent = '✅ Link copied.';
+      } catch {
+        // Clipboard access is blocked on insecure origins and in some
+        // browsers; showing the link is the useful fallback.
+        if (note) note.textContent = 'Copy this link: ' + url;
+      }
+    });
+  }
+
   // ------------------------------------------------------------
   // PROFILE HEADER
   // ------------------------------------------------------------
@@ -72,8 +167,13 @@
 
   function observe(scope) {
     const obs = window.__ppRevealObserver;
-    if (obs) scope.querySelectorAll('.reveal:not(.visible)').forEach(el => obs.observe(el));
-    else scope.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+    const stagger = window.__ppStagger;
+    const els = scope.querySelectorAll('.reveal:not(.visible), .reveal-left:not(.visible), .reveal-right:not(.visible)');
+    els.forEach(el => {
+      if (stagger) stagger(el);
+      if (obs) obs.observe(el);
+      else el.classList.add('visible');
+    });
   }
 
   // ------------------------------------------------------------
@@ -81,12 +181,17 @@
   // ------------------------------------------------------------
   function recordCards(r) {
     const cards = [];
-    if (r.years) cards.push(['🗓️', r.years + '+', 'Years on the tools']);
-    cards.push(['🏗️', G.fmtCount(r.projects), r.projects === 1 ? 'Project logged' : 'Projects logged']);
-    cards.push(['📐', G.fmtSqft(r.sqft), 'Area painted']);
-    cards.push(['📅', G.fmtCount(r.daysOnSite), r.daysOnSite === 1 ? 'Day on site' : 'Days on site']);
-    if (r.photos) cards.push(['📸', G.fmtCount(r.photos), 'Work photos']);
-    if (r.coworkers) cards.push(['👥', G.fmtCount(r.coworkers), 'Co-workers']);
+    // Each card carries its derived figure twice: the exact rendered text (what
+    // a no-JS or reduced-motion visitor sees) and the raw number + format, so
+    // the count-up can animate any card, not only the plain counts.
+    if (r.years) cards.push({ icon: '🗓️', text: r.years + '+', count: r.years, fmt: 'years', label: 'Years on the tools' });
+    cards.push({ icon: '🏗️', text: G.fmtCount(r.projects), count: r.projects, fmt: 'count',
+      label: r.projects === 1 ? 'Project logged' : 'Projects logged' });
+    cards.push({ icon: '📐', text: G.fmtSqft(r.sqft), count: r.sqft, fmt: 'sqft', label: 'Area painted' });
+    cards.push({ icon: '📅', text: G.fmtCount(r.daysOnSite), count: r.daysOnSite, fmt: 'count',
+      label: r.daysOnSite === 1 ? 'Day on site' : 'Days on site' });
+    if (r.photos) cards.push({ icon: '📸', text: G.fmtCount(r.photos), count: r.photos, fmt: 'count', label: 'Work photos' });
+    if (r.coworkers) cards.push({ icon: '👥', text: G.fmtCount(r.coworkers), count: r.coworkers, fmt: 'count', label: 'Co-workers' });
     return cards;
   }
 
@@ -115,12 +220,49 @@
 
     wrap.innerHTML =
       '<div class="pp-record-grid">' +
-        cards.map(([icon, val, label]) =>
-          '<div class="pp-record-card reveal"><span class="pp-record-ic">' + icon + '</span>' +
-          '<span class="pp-record-num">' + esc(val) + '</span>' +
-          '<span class="pp-record-label">' + esc(label) + '</span></div>').join('') +
+        cards.map((c) =>
+          '<div class="pp-record-card reveal"><span class="pp-record-ic">' + c.icon + '</span>' +
+          '<span class="pp-record-num" data-count-to="' + esc(c.count) + '"' +
+            ' data-count-fmt="' + esc(c.fmt) + '" data-count-text="' + esc(c.text) + '">' +
+            esc(c.text) + '</span>' +
+          '<span class="pp-record-label">' + esc(c.label) + '</span></div>').join('') +
       '</div>' + windowLine + projects;
     observe(wrap);
+    animateCounts(wrap);
+  }
+
+  // A soft count-up on the derived numbers. The element already holds the true
+  // final figure, so a visitor with no JS, reduced motion, or an off-screen
+  // section always sees the correct number — the animation only ever replaces
+  // it with an intermediate one and puts the exact original text back.
+  function countText(n, fmt) {
+    if (fmt === 'sqft') return G.fmtSqft(n);
+    if (fmt === 'years') return G.fmtCount(n) + '+';
+    return G.fmtCount(n);
+  }
+
+  function animateCounts(scope) {
+    if (reduceMotion()) return;
+    scope.querySelectorAll('.pp-record-num[data-count-to]').forEach((el) => {
+      const target = parseFloat(el.dataset.countTo) || 0;
+      if (target <= 0 || el.dataset.counted === '1') return;
+      el.dataset.counted = '1';
+      const fmt = el.dataset.countFmt || 'count';
+      const finalText = el.dataset.countText || el.textContent;
+      const steps = 20;
+      let i = 0;
+      const tick = () => {
+        i++;
+        if (i < steps) {
+          el.textContent = countText(target * (i / steps), fmt);
+          setTimeout(tick, 30);
+        } else {
+          el.textContent = finalText;
+        }
+      };
+      el.textContent = countText(0, fmt);
+      setTimeout(tick, 30);
+    });
   }
 
   // ------------------------------------------------------------
@@ -288,7 +430,7 @@
         }));
         if (!res.ok) { flashEditor(res.error, true); return; }
         member = res.member;
-        renderProfile(); renderRecord(); flashEditor('✅ Profile saved.');
+        renderProfile(); renderShare(); renderSpecs(); renderRecord(); flashEditor('✅ Profile saved.');
       });
     }
 
@@ -399,12 +541,18 @@
   }
 
   function renderAll() {
-    if (!member) member = T.memberFromQuery();
+    // Re-read the member from the store on every render, so a role or name
+    // changed elsewhere (the admin page, another tab) is reflected here
+    // instead of the page holding a stale copy.
+    if (member) member = T.get(member.id) || member;
+    else member = T.memberFromQuery();
     if (!member) return;
     pendingRole = member.role;
     renderProfile();
+    renderShare();
     renderRecord();
     renderGallery();
+    renderSpecs();
     renderEditor();
     renderRoleControls();
   }

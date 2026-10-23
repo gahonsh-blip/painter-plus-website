@@ -388,13 +388,64 @@ stats were removed (`stat1..stat4` cleared in `js/team.js`) and replaced by this
   escape quotes, and a photo URL is attacker-influenced data.
 - **Honest empty state.** No logged work ⇒ the record shows an empty-state
   message, never a zero-figure boast; a roster card with no data shows no row.
+- **Role-aware specialisations.** `painter-profile.html`'s Specialisations cards
+  are replaced per role by `renderSpecs()` (`SPECIALISATIONS` map in
+  `js/profile-page.js`), because a helper's strengths are not a painter's. The
+  static HTML carries the **painter** set as the no-JS fallback. Add a role to
+  `SPECIALISATIONS` if `js/team.js` ever gains a new role.
+- **The record numbers count up, and the true figure is rendered first.**
+  `animateCounts()` animates `0 → value` on each `.pp-record-num`, but the
+  element already holds the exact final text (`data-count-text`), so a no-JS,
+  reduced-motion or off-screen visitor always sees the right number and the
+  animation can only put it back. Each card carries `data-count-to` (raw number)
+  + `data-count-fmt` (`count` | `sqft` | `years`) so any card animates, not only
+  the plain counts. Never make the animation the only path to the value.
+- **Share.** `renderShare()` builds a copy-link button (with a visible-link
+  fallback, because the clipboard API is blocked on insecure origins) plus
+  WhatsApp and email links. No `prompt()` anywhere — it would block a headless
+  test.
 - Pages: `painter-profile.html` + `js/profile-page.js` (record, gallery, gated
-  self-edit, role controls), `gallery.html` + `js/gallery-page.js` (whole crew,
-  filter by painter/project), `team.html` + `js/team-page.js` (roster cards with
-  the derived row). Member field added: `startYear`.
+  self-edit, role controls, specialisations, share), `gallery.html` +
+  `js/gallery-page.js` (whole crew, filter by painter/project), `team.html` +
+  `js/team-page.js` (roster cards with the derived row). Member field added:
+  `startYear`.
 - Tests: `node tests/gallery.test.js` (pure engine) plus three browser
   self-tests: `tests/run-profile-selftest.sh`, `tests/run-gallery-selftest.sh`,
-  `tests/run-team-selftest.sh`.
+  `tests/run-team-selftest.sh`. The profile test polls for the record to settle
+  (`waitForText`) before asserting a figure, because the numbers animate.
+
+## Site-wide soft motion — `css/style.css` + `js/script.js`
+
+A deliberately quiet, additive motion layer. The pages are fully readable and
+usable with none of it, and it is disabled wholesale under
+`@media (prefers-reduced-motion: reduce)`.
+
+- **Page entrance** — `main` fades/rises (`pp-page-enter`) and a brand-coloured
+  `body::before` veil clears (`pp-page-wash`). The veil is `pointer-events:none`
+  with `z-index: 1500` so it can never eat a click and sits **behind** the
+  gallery lightbox (z-index 2000). Animating `main` is safe only because no
+  fixed-position element lives inside it — `header`, `.whatsapp-float`,
+  `.progress-bar`, `.painter-mascot` and the lightbox are all siblings. Check
+  that before adding a `transform`/`filter` to a wrapper.
+- **Header lift** — `js/script.js` toggles `header.is-scrolled` on scroll. The
+  class changes **only paint properties** (shadow, border colour), never height,
+  so scrolling cannot shift the layout underneath.
+- **Staggered reveals** — `stagger()` in `js/script.js` sets `--reveal-delay`
+  (70 ms per sibling, capped at 420 ms) on `.reveal` peers; CSS owns the timing
+  via `transition-delay: var(--reveal-delay, 0ms)`. It is exposed as
+  `window.__ppStagger` so dynamic renders (profile, team, crew gallery) cascade
+  too — call it from any `observe()`-style helper that adds `.reveal` nodes after
+  load.
+
+**Testing caveat (learned the hard way):** under
+`chromium --headless --virtual-time-budget --dump-dom`, `window.scrollTo()`
+leaves `scrollY` at 0, so the header never gains `is-scrolled`; and an element
+whose transition has not finished is sampled at its *start* opacity (so
+`reveal-left`/`reveal-right` can read `opacity: 0` even though they carry
+`.visible`). Both reproduce on the **original** code, so they are artifacts of
+that dump mode, not regressions — do not chase them. Use
+`--force-prefers-reduced-motion` to assert the reduced-motion path.
+
 
 ## Working rules for agents
 

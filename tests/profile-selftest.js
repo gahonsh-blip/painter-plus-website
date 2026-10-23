@@ -24,6 +24,16 @@
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   const $ = (id) => document.getElementById(id);
   const txt = (id) => { const el = $(id); return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; };
+  // The work-record numbers count up from zero, so a single read can catch an
+  // intermediate value. Poll until the figure settles (or time out).
+  const waitForText = async (id, needle, timeout) => {
+    const end = Date.now() + (timeout || 2000);
+    while (Date.now() < end) {
+      if (txt(id).indexOf(needle) !== -1) return true;
+      await sleep(50);
+    }
+    return false;
+  };
 
   window.addEventListener('error', (e) => log('!! window error: ' + (e.message || e.error)));
 
@@ -113,20 +123,59 @@
 
     // ---- WORK RECORD (derived) ----
     const record = $('ppRecord');
-    const recText = record ? record.textContent.replace(/\s+/g, ' ') : '';
     const nowYear = new Date().getFullYear();
+
+    // The figures animate 0 -> value, so wait for the section to settle before
+    // snapshotting it; sampling mid-count would read an intermediate number.
+    check(await waitForText('ppRecord', '120 sq ft'), 'area painted is derived (100 + 20 = 120 sq ft)');
+    const recText = record ? record.textContent.replace(/\s+/g, ' ') : '';
     check(recText.indexOf('Projects logged') !== -1 || recText.indexOf('Project logged') !== -1,
       'work record shows a projects figure');
     check(recText.indexOf((nowYear - 2018) + '+') !== -1,
       'years on the tools derives from the declared start year (' + (nowYear - 2018) + '+)');
-    check(recText.indexOf('120 sq ft') !== -1, 'area painted is derived (100 + 20 = 120 sq ft)');
     check(recText.indexOf('Profile Test Site') !== -1, 'project name is resolved through the ERP');
     check(recText.indexOf('Co-workers') !== -1, 'co-workers figure is shown (shared project)');
+
+    // The count-up must land on exactly the derived figure, never a rounded
+    // intermediate — and the rendered text must stay formatted (the area card
+    // carries " sq ft", so it counts up and settles on "120 sq ft").
+    const nums = Array.prototype.map.call(
+      document.querySelectorAll('#ppRecord .pp-record-num'), (el) => el.textContent.trim());
+    check(nums.indexOf('120 sq ft') !== -1, 'the counted-up area settles on exactly 120 sq ft');
+    check(nums.indexOf('2') !== -1, 'the counted-up day count settles on exactly 2');
+    check(nums.indexOf('1') !== -1, 'the counted-up project count settles on exactly 1');
+    check(nums.indexOf((nowYear - 2018) + '+') !== -1, 'the counted-up years settle on exactly ' + (nowYear - 2018) + '+');
 
     const r = G.workRecord(MEMBER);
     check(r.sqft === 120, 'workRecord.sqft === 120 (no double-count of the tagged entry)');
     check(r.projects === 1, 'workRecord.projects === 1');
     check(r.coworkers === 1, 'workRecord.coworkers === 1 (Suresh)');
+
+    // ---- SPECIALISATIONS follow the member's role ----
+    // A painter must not be shown a helper's cards (and vice versa), so the
+    // section has to be driven by the role rather than hardcoded once.
+    const specText = txt('ppSpecs');
+    check(!!specText, 'the specialisations section renders');
+    check(specText.indexOf('Interior Finishes') !== -1, 'a painter sees painter specialisations');
+    check(specText.indexOf('Material Handling') === -1, "a painter does not see a helper's specialisations");
+    check((txt('ppSpecSub') || '').indexOf('Painter') !== -1, 'the specialisations subtitle names the role');
+
+    // Switch the member to Helper and confirm the section follows the role.
+    const helper = T.setRole(MEMBER, 'helper');
+    if (helper && helper.ok) {
+      check(txt('ppSpecs').indexOf('Material Handling') !== -1, 'a helper sees helper specialisations');
+      check(txt('ppSpecs').indexOf('Interior Finishes') === -1, "a helper no longer sees the painter's specialisations");
+      T.setRole(MEMBER, 'painter');   // restore for the rest of the run
+    }
+
+    // ---- SHARE ----
+    check(!!$('ppCopy'), 'the profile offers a copy-link button');
+    const wa = document.querySelector('#ppShare a[href^="https://wa.me/?text="]');
+    check(!!wa, 'the profile offers a WhatsApp share link');
+    check((wa && decodeURIComponent(wa.getAttribute('href')) || '').indexOf(MEMBER) !== -1,
+      'the share link carries this member\'s id');
+    const mail = document.querySelector('#ppShare a[href^="mailto:"]');
+    check(!!mail, 'the profile offers an email share link');
 
     // ---- SELF-EDIT: the profile is passcode-gated ----
     // A public visitor must NOT be able to edit: the edit form stays hidden

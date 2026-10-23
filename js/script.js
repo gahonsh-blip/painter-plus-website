@@ -65,6 +65,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ----- REVEAL ON SCROLL (Intersection Observer) -----
     // Reveals elements and triggers paint-roller image reveals as they enter view.
+    // Motion is opt-out: a visitor who asks for reduced motion gets the content
+    // immediately, with no stagger and no transitions (see css/style.css).
+    let reduceMotion = false;
+    try { reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { /* unsupported */ }
+
+    // Siblings reveal in a soft cascade rather than all at once: each element
+    // in a group of `.reveal` peers starts a little later than the one before.
+    // The delay is written as a custom property so CSS owns the timing, and it
+    // is capped so a long list never makes the last card wait.
+    const STAGGER_STEP = 70;
+    const STAGGER_MAX = 420;
+    const stagger = (el) => {
+      if (reduceMotion) return;
+      const parent = el.parentElement;
+      if (!parent) return;
+      const peers = Array.prototype.filter.call(
+        parent.children,
+        (c) => c.classList.contains('reveal') ||
+               c.classList.contains('reveal-left') ||
+               c.classList.contains('reveal-right')
+      );
+      const idx = peers.indexOf(el);
+      if (idx <= 0) return;
+      el.style.setProperty('--reveal-delay', Math.min(idx * STAGGER_STEP, STAGGER_MAX) + 'ms');
+    };
+
     const revealElements = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .roller-reveal');
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -73,8 +99,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }, { threshold: 0.15 });
-    revealElements.forEach(el => observer.observe(el));
+    revealElements.forEach(el => { stagger(el); observer.observe(el); });
     window.__ppRevealObserver = observer;
+    // Dynamic renders (profile, team, crew gallery) build their cards after
+    // load and observe them here, so they need the same stagger helper.
+    window.__ppStagger = stagger;
+
+    // ----- HEADER: lift it once the page is scrolled -----
+    // A soft shadow tells the visitor the sticky bar is floating above the
+    // content rather than part of it. Only paint properties change (see CSS),
+    // so scrolling never shifts the layout underneath.
+    const siteHeader = document.querySelector('header');
+    if (siteHeader) {
+        const syncHeader = () => {
+            siteHeader.classList.toggle('is-scrolled', window.scrollY > 8);
+        };
+        window.addEventListener('scroll', syncHeader, { passive: true });
+        syncHeader();
+    }
 
     // ----- PROCESS LINE: fills as the process section enters view -----
     // Visualises the project journeying from step 1 to step 3 (CSS handles the fill).

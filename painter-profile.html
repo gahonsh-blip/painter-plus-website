@@ -78,6 +78,12 @@
               <a href="https://wa.me/918825183628" class="btn-ghost" target="_blank" rel="noreferrer">💬 WhatsApp</a>
               <a href="./team.html" class="btn-ghost">👥 All team</a>
             </div>
+            <!-- Share this member's profile. Rendered by js/profile-page.js;
+                 the no-JS fallback is the contact page. -->
+            <div class="pp-share" id="ppShare">
+              <a href="./contact.html" class="btn-ghost btn-sm">🔗 Share this profile</a>
+            </div>
+            <p class="pp-share-note" id="ppShareNote" role="status" aria-live="polite"></p>
           </div>
         </div>
       </section>
@@ -173,11 +179,13 @@
         </div>
       </section>
 
-      <!-- Specialisations / skills -->
+      <!-- Specialisations / skills — matched to the member's role by
+           js/profile-page.js. The cards below are the no-JS fallback. -->
       <section class="section">
         <div class="container">
           <h2 class="section-title">Specialisations</h2>
-          <div class="grid-3">
+          <p class="pp-record-sub" id="ppSpecSub">What this member brings to a site — chosen to match their role on the crew.</p>
+          <div class="grid-3" id="ppSpecs">
             <article class="card reveal">
               <div class="icon">🖌️</div>
               <h3>Interior Finishes</h3>
