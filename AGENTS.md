@@ -89,11 +89,15 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 38. **Stored invoice amounts were un-rounded — FIXED.** `money()` rounded for *display* only, so an amount like `95.89999999999999` was stored raw and later sums drifted. `addBill()` runs every amount through `round2()`; `money()` uses it too. See §50. **And** an empty bill no longer claims a "(day rate)" label (`billedRateInfo().fromDay` is now `rates.length > 0`). See §51.
 
+39. **`hidden` elements still rendered — FIXED.** The UA sheet's `[hidden]{display:none}` is an author-beatable default: *any* author rule that sets `display` wins, whatever its specificity. So `<div hidden class="adm-gate">` (`.adm-gate{display:flex}`) stayed on screen after the correct passcode, the work-log/ERP login card sat on top of the panel it had just unlocked, and `#wlMeasurePanel` (`.wl-measure{display:flex}`), `#wlCancelEdit` / `#wlReopen` (`.btn-ghost{display:inline-block}`) all rendered though the markup marked them `hidden` — a phantom **Reopen day** could write a day and withdraw an approval. `css/style.css` now carries a global `[hidden]{display:none !important}` with the reset. Guarded by the **HIDDEN-ATTRIBUTE audit** (`tests/hidden-audit.js`, run by `run-all-headless.sh`) and two static checks in `tests/exposure.test.js`. See §52-53.
+
 **Money-path gotcha:** the ERP's job is to *not* charge the wrong amount. Three invariants must hold and each has a test that fails if it breaks: (1) unapproved work is never billed; (2) approved work is billed **once** — a bill must record the dates it covers; (3) a report and an invoice must resolve a day's project by the *same* rule (`dayMatchesProject`, id authoritative). Also round money at *storage* (`round2`), not only at display.
 
 
 
 **Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`). And a stored value that is an **id** must be resolved to a display name through `PPTeam` before it is shown to a person — never print the raw id. And a UMD wrapper must actually pass its global into the factory: `factory()` with a body that uses `root` passes in Node (where the in-memory store hides it) and fails silently in the browser. And a value read from `localStorage` is untrusted input — a colour must be coerced to a real hex (`safeHex`) before it reaches the DOM, or a hand-edited store crashes the render.
+
+**CSS gotcha:** the `hidden` attribute is only a *default*. The UA rule `[hidden]{display:none}` is beaten by any author rule that sets `display` on the element, at any specificity — so `<div hidden class="adm-gate">` renders, because `.adm-gate{display:flex}` wins. Never assume `el.hidden = true` hides an element that also has a class with a `display` value; the global `[hidden]{display:none !important}` in `css/style.css` is what makes the attribute reliable, and the **HIDDEN-ATTRIBUTE audit** (`tests/hidden-audit.js`) fails if any `[hidden]` element still renders.
 
 **Untrusted-shape gotcha (see `docs/BUG_AUDIT.md` §45):** it is not enough to guard a stored *value* — the stored *shape* is untrusted too. A `null` or a scalar where an array/object belongs (`projects: [null]`, `entries: "nope"`, a member's gallery that is a string, a `null` work-log day) used to crash **7 of 15 pages** on `null.name` / `.forEach is not a function` / `img.replace`. Every store reader now normalises its data once at the boundary and **drops** anything that is not a plain object (or, for a per-member map, anything that is not an array): `erp.js read()`/`readWorkLog()`, `gallery.js readRaw()`/`sortItems()`/`count()`/`feed()`/`objectList()`, `script.js ppRead()`, `worklog.js getDay()`/`totals()`, `team.js read()`. When you add a new stored collection, filter its elements there — do not assume the array holds objects. Verify with `bash tests/run-corrupt-sweep.sh` (seed in `tests/corrupt-seed.js`), which loads all 15 pages against a hostile store.
 
@@ -461,6 +465,12 @@ Prefer running code over inspection. Two layers:
   of a real page with the harness appended and serves it; open the printed URL
   and read the `ok …` / `FAIL …` lines. `tests/run-page-sweep.sh` loads **every**
   page in a reused iframe and reports uncaught JS errors per page.
+  `tests/run-all-headless.sh` runs all of them plus three whole-site sweeps that
+  append a probe to every page: the **VISITOR EXPOSURE sweep**
+  (`tests/visitor-probe.js` — a cold anonymous visitor must see no staff panel,
+  editable field, reachable file upload or printed passcode), the
+  **HIDDEN-ATTRIBUTE audit** (`tests/hidden-audit.js` — no `[hidden]` element may
+  render) and the corrupt-store sweep.
 
 Caveats learned the hard way:
 
@@ -475,6 +485,14 @@ Caveats learned the hard way:
 - **`type="button"` applies to JS-generated buttons too.** Adding a button in a
   template string (`'<button class="x">…'`) must include `type="button"`; only
   the static HTML was swept in the original fix.
+- **A `hidden` element with a `display` class is not hidden.** `el.hidden = true`
+  cannot beat `.some-class{display:flex}`. When you add an element that is
+  toggled with the `hidden` attribute, do not give it a class that sets
+  `display` and expect the attribute to win — the global
+  `[hidden]{display:none !important}` is what makes it work, and the
+  **HIDDEN-ATTRIBUTE audit** (`tests/hidden-audit.js`, part of
+  `run-all-headless.sh`) catches a regression. A cold-visit sweep will *not*
+  catch it when the element sits inside a panel that is itself hidden.
 
 
 ## Useful commands
@@ -487,9 +505,10 @@ grep -rn "^<<<<<<<\|^=======\|^>>>>>>>" .
 node --check js/script.js
 
 # Pure unit tests (no dependencies)
-node tests/gallery.test.js && node tests/erp.test.js && node tests/measure.test.js && node tests/photo-studio.test.js
+node tests/gallery.test.js && node tests/erp.test.js && node tests/measure.test.js && node tests/photo-studio.test.js && node tests/exposure.test.js
 
 # Browser self-tests, headless — builds every page, runs chromium, exits non-zero on any FAIL
+# (includes the VISITOR EXPOSURE sweep and the HIDDEN-ATTRIBUTE audit)
 bash tests/run-all-headless.sh 8170
 
 # Browser self-tests (interactive: open the printed URL, read the ok/FAIL lines)
