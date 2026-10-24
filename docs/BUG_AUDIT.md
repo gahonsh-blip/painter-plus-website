@@ -63,6 +63,14 @@ and a colour swatch that never highlighted.
 | 35 | Low | `billTotal()` dropped the paint cost | Fixed |
 | 36 | Low | A decorative social image was on the critical PWA-install path | Fixed |
 | 37 | Low | The work-log copyable summary printed the crew id | Fixed |
+| 38–44 | — | Nav wrapping, Color Studio store/overflow, mascot/WhatsApp overlap, a11y (`aria-expanded`, `aria-current`) | Fixed |
+| 45 | **High** | A corrupt `localStorage` store crashed 7 of 15 pages | Fixed |
+| 46 | **High** | The same approved work could be invoiced twice (double billing) | Fixed |
+| 47 | **High** | Deleting a project left its approvals behind, billable under another project | Fixed |
+| 48 | Medium | The daily report and the invoice disagreed about a day's project | Fixed |
+| 49 | Medium | Invoice numbers were unique per project, not per business (two `PP-001`s) | Fixed |
+| 50 | Low | An invoice stored an un-rounded amount (`95.89999999999999`) | Fixed |
+| 51 | Low | An empty bill claimed a "(day rate)" label | Fixed |
 
 ---
 
@@ -1156,3 +1164,191 @@ if any reader starts trusting the stored shape again.
 - Service-worker cache bumped `painter-plus-v26` → `v27` (this pass changed
   `js/erp.js`, `js/gallery.js`, `js/script.js`, `js/team.js`, `js/worklog.js`,
   all precached).
+
+## Ninth pass — 2026-10-22 (deep ERP audit)
+
+**Theme.** A full, line-by-line audit of the ERP subsystem — `js/erp.js` (the
+pure engine), `js/erp-page.js` (the page controller), `erp.html`, and the
+work-log → ERP hand-off. Where earlier passes hardened the store's *shape* and
+the costing model's *values*, this pass followed the **money path** end to end:
+measurement → approval → invoice → report, asking at each step whether the
+figures could be wrong, duplicated, or attributed to the wrong project.
+
+**How it was found.** A probe script drove the real engine through the whole
+lifecycle (create project, seed days, approve, bill, re-bill, delete, report)
+and asserted invariants a business would care about: *an invoice must not be
+raised twice for the same work; total invoiced must never exceed approved work;
+a sign-off must die with the project it covered; the report and the invoice must
+agree on which project a day belongs to*. Two of those invariants failed
+outright, and five smaller inconsistencies fell out of the same reading.
+
+### 46. High — the same work could be invoiced twice (double billing)
+
+**Symptom.** `billFor()` returned **all** of a project's approved days every
+time it was called, and `addBill()` recorded only an amount — never *which*
+days that amount covered. So "Record this bill" could be clicked again (or a
+second invoice raised later) and the client was billed the same measurements
+twice:
+
+```
+[A] after 1st bill: approved total = ₹2,515.38 | bills: PP-001:2515.38
+[A] after 2nd bill: invoices total = ₹5,030.76 vs work actually done = ₹2,515.38
+```
+
+Nothing in the store remembered that the work had been billed, and the dashboard
+KPI "Approved & billable" kept advertising the full amount as still owed.
+
+**Root cause.** Two gaps, one on each side of the ledger:
+1. The engine had no notion of "already invoiced". `bucketDays()` split days
+   into approved / pending / open / rejected, but *approved* meant "billable
+   forever", and `billFor().totals` was that whole set.
+2. A bill record carried `amount`, `sqft`, `labour`… but not the work-log
+   **dates** it covered, so even a caller that wanted to avoid a double bill had
+   nothing to compare against.
+
+**Fix.** An invoice now records the `dates` it covers, and the engine treats a
+billed date as no longer billable:
+- `bucketDays()` reads the set of billed dates for the project
+  (`billedDateSet()`) and splits the approved days into `unbilled` and `billed`.
+- `billFor().totals` is the **unbilled** set — what a *new* invoice would cover
+  — with the already-invoiced work exposed separately as `billedTotals` /
+  `billedLines`. A new day approved after a bill is genuinely new work and is
+  billable; an old one is not.
+- `addBill()` derives the covered dates itself (`bucketDays(project).unbilled`)
+  rather than trusting the caller, so the hole cannot be re-opened by a caller
+  that forgets to pass them. An explicit `dates` list still wins (a back-dated
+  invoice).
+- The Billing tab disables **Record this bill** when nothing is unbilled, shows
+  a green "N day(s) already invoiced — not billed again" callout, and
+  `invoiceText()` names the already-invoiced work instead of quietly folding it
+  into the total. The dashboard gained an **Invoiced** KPI (invoiced total, and
+  the amount approved-but-not-yet-invoiced).
+
+**Verified:** `tests/erp.test.js` now asserts that after one bill `totals.total
+=== 0`, that `billedTotals.sqft` holds the invoiced work, that total invoiced
+never exceeds approved work, that a *new* approval becomes billable again, and
+that deleting an invoice releases its days. `tests/erp-selftest.js` drives the
+real page through approve → bill → change rate → bill-again and confirms the
+second attempt has nothing to bill.
+
+### 47. High — a deleted project left its sign-offs behind (orphaned approvals)
+
+**Symptom.** `removeProject()` dropped the project and its invoices but left
+every approval keyed by date in `approvals`. Because `dayMatchesProject()` falls
+back to a **name** match when a day has no project id, those days — and their
+stale sign-offs — were re-attributed to *any other* project that happened to
+share the name, and billed there:
+
+```
+[D] approvals surviving removeProject: {"2026-10-10":{...sig:"…|p1|p1|e1|100|0|0"}}
+```
+
+The audit also confirmed that creating a fresh project named "Sharma House"
+inherited the old approval and billed the old day.
+
+**Root cause.** An approval is stored in a flat `{ date: {…} }` map with no link
+back to the project it was granted for. Deleting the project (and its bills)
+never touched that map.
+
+**Fix.** `removeProject()` now walks the project's days (`daysForProject`) and
+deletes each one's approval before dropping the project, so a sign-off dies with
+the site it covered. Re-creating a project with the same name starts from a clean
+slate.
+
+**Verified:** `tests/erp.test.js` "an orphaned approval cannot bill under another
+project" — approve a day, delete its project, assert the approval reads
+`pending`, re-create the project and assert the bill is ₹0.
+
+### 48. Medium — the daily report and the invoice disagreed about a day's project
+
+**Symptom.** A day whose `projectId` pointed at a project that no longer existed
+(but whose free-text `project` name matched a real one) showed that project in
+the **daily report** while billing it under **no** project:
+
+```
+[J] daily report project = P2 | bill for P2 sqft = 0
+```
+
+**Root cause.** Two different resolution rules. `projectForDay()` did
+`projectId` lookup *then* a name fallback, but `dayMatchesProject()` — used by
+`daysForProject()` and therefore by billing — treats an explicit `projectId` as
+**authoritative** (a deliberate rule from bug #32, so one day can never match two
+projects). `reportDaily()`/`reportByPainter()` used their own ad-hoc lookup
+(`getProject(day.projectId) || d.projects.find(p => dayMatchesProject(...))`),
+which fell through to the name match when the id was stale — the opposite of the
+billing rule.
+
+**Fix.** `projectForDay()` now delegates to `dayMatchesProject()`, so there is
+exactly one rule. `reportDaily()` and `reportByPainter()` call `projectForDay()`
+instead of rolling their own. A stale id now matches nothing in both places, and
+the day's free-text name is shown as a plain label with no project id.
+
+**Verified:** `tests/erp.test.js` "the reports and billing agree on a day's
+project" pins `reportDaily()[0].projectId === ''` and `billFor().totals.sqft === 0`
+for the same stale-id day.
+
+### 49. Medium — invoice numbers were unique per project, not per business
+
+**Symptom.** `nextBillNo()` scanned only the *current* project's bill list, so
+two different projects each issued a `PP-001`:
+
+```
+[H] invoice numbers: PP-001 / PP-001
+```
+
+**Root cause.** The number counter was scoped to the list passed in, and
+`addBill()` passed the current project's list.
+
+**Fix.** `nextBillNo()` now scans **every** project's bills and returns one past
+the highest `PP-nnn` ever used. `addBill()` passes the whole store.
+
+**Verified:** `tests/erp.test.js` "invoice numbers are unique across the whole
+business" — bill project A then project B, assert `PP-001` / `PP-002`.
+
+### 50. Low — an invoice stored an un-rounded amount
+
+**Symptom.** `money()` rounded to paise **for display only**, so an invoice
+amount was stored at full float precision and every later sum drifted:
+
+```
+[K] stored amount = 95.89999999999999 display = ₹95.9
+```
+
+**Root cause.** No round-at-storage step; `addBill()` kept whatever the caller
+passed.
+
+**Fix.** A `round2()` helper rounds a value to two decimals and is applied to
+every stored money/quantity field in `addBill()` (`amount`, `sqft`, `litres`,
+`paintCost`, `labour`); `money()` uses it too. `round2` is exported and the
+dashboard's `invoicedTotal` is rounded with it.
+
+**Verified:** `tests/erp.test.js` "a stored invoice amount is a real money value"
+and `round2(95.89999999999999) === 95.9`.
+
+### 51. Low — an empty bill claimed a "(day rate)"
+
+**Symptom.** A project with no approved days at all rendered "Labour rate: ₹0 /
+sq ft **(day rate)**" — a rate label for work that does not exist.
+
+**Root cause.** `billedRateInfo()` hard-coded `fromDay: true` on the
+project-rate-unset branch, even when `rows` was empty.
+
+**Fix.** `fromDay` is now `rates.length > 0` — the "(day rate)" qualifier only
+appears when there is day-rate work to quote.
+
+**Verified:** `tests/erp.test.js` "an empty bill does not claim a day rate".
+
+### Ninth-pass verification summary
+
+- `node tests/erp.test.js` **78/78** (11 new), `gallery.test.js` **27/27**,
+  `measure.test.js` **16/16**, `photo-studio.test.js` **50/50**,
+  `passcode.test.js` **13/13**, `exposure.test.js` **10/10** — green.
+- The 10 new double-billing / orphan-approval / numbering / rounding
+  regressions were proved to have teeth: stashing `js/erp.js` and re-running
+  yields **10 failures**, restoring it yields **78/78**.
+- A corrupt-store stress probe (nulls, scalars, arrays-where-objects, `null`
+  bill dates, `null` days) drives every read *and* write path with **0 crashes**.
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED**, including the
+  updated ERP selftest and the corrupt-store and full-site sweeps.
+- Service-worker cache bumped `painter-plus-v27` → `v28` (this pass changed
+  `js/erp.js`, `js/erp-page.js`, `css/style.css`, all precached).

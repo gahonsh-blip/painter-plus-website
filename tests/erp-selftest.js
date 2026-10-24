@@ -188,18 +188,23 @@
 
       // ---- 13. paint quantity + material cost reach the bill ----
       // Give the project a paint rate. That is a costing change, so the
-      // approval that covered the old costing is withdrawn (bug 25) — the day
-      // must be re-approved before it can bill again. This proves a project
-      // rate change can never silently re-bill an already-approved day.
+      // approval that covered the old costing is withdrawn (bug 25).
       const E2 = window.PPERP;
       const p2 = E2.getProject(proj.id);
       p2.paintRate = 200;
       E2.saveProject(p2);
       check(E2.approvalOf('2026-10-10').status === 'pending',
         'a project paint-rate change withdraws the approval (bug 25)');
-      check(E2.billFor(proj.id).totals.total === 0, 'the unapproved day is not billed at the new rate');
-      // Re-approve the day so the new costing is signed off.
+      // The day already invoiced (₹960) must never come back into a bill — not
+      // even after being re-approved at the new rates.
       E2.approveDay('2026-10-10', 'gahonsh');
+      check(E2.billFor(proj.id).totals.total === 0,
+        'an already-invoiced day is not billed again after a rate change');
+
+      // A NEW day is the real workflow for billing at the new rates.
+      seedDay('2026-10-13', 'Sharma House', proj.id, 10, 8, 'gahonsh'); // 80 sq ft
+      WL.submitDay('2026-10-13', 'gahonsh');
+      E2.approveDay('2026-10-13', 'gahonsh');
       document.querySelector('#tabBill').click();
       await sleep(80);
       $('erpBillProject').value = proj.id;
@@ -210,6 +215,7 @@
       check(bill2.indexOf('Paint needed') !== -1, 'bill shows a Paint needed figure once a paint rate is set');
       check(bill2.indexOf('1.4 L') !== -1, 'bill shows the paint quantity (1.4 L)');
       check(bill2.indexOf('Grand total') !== -1, 'bill shows a Grand total (labour + paint)');
+      check(bill2.indexOf('already invoiced') !== -1, 'the earlier invoice is called out, not re-billed');
       const bd = E2.billFor(proj.id);
       check(bd.totals.paintCost > 0, 'approved paint cost is non-zero: ' + bd.totals.paintCost);
       check(Math.abs(bd.totals.total - (bd.totals.labour + bd.totals.paintCost)) < 1e-6,
@@ -222,7 +228,10 @@
       await sleep(80);
       const rep2 = txt('erpReportOut');
       check(rep2.indexOf('Paint') !== -1, 'painter report has a Paint column');
-      check(rep2.indexOf('1.4 L') !== -1, 'painter report shows the approved paint litres');
+      const pr = E2.reportByPainter().find((r) => r.crew === 'Gahonsh');
+      check(!!pr && pr.approvedLitres > 0, 'painter report carries approved paint litres: ' + (pr && pr.approvedLitres));
+      check(!!pr && rep2.indexOf(E2.fmtLitres(pr.approvedLitres)) !== -1,
+        'painter report shows the approved paint litres (' + (pr && E2.fmtLitres(pr.approvedLitres)) + ')');
     } catch (err) {
       fail('threw: ' + (err && err.message));
       console.error(err);

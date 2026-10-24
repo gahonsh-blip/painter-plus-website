@@ -62,8 +62,16 @@
   }
 
   function money(n) {
-    const v = Math.round((parseFloat(n) || 0) * 100) / 100;
-    return '₹' + v.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    return '₹' + round2(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  }
+
+  // A real money/quantity value to two decimal places. `money()` only rounds
+  // for *display*, so a stored figure (an invoice amount) kept full float
+  // precision — ₹95.89999999999999 — and every later sum drifted. Round once,
+  // at the point the value is stored.
+  function round2(n) {
+    const v = parseFloat(n);
+    return isFinite(v) ? Math.round(v * 100) / 100 : 0;
   }
 
   function fmtSqft(n) {
@@ -286,6 +294,18 @@
 
   function removeProject(id, data) {
     const d = data || read();
+    const project = d.projects.find((p) => p.id === id) || null;
+    // Withdraw the sign-offs covering this project's days. An approval is a
+    // decision about work on one site; once that site is gone the decision is
+    // meaningless — and actively dangerous, because `dayMatchesProject` falls
+    // back to a name match, so those days (and their stale approval) would be
+    // re-attributed to any *other* project sharing the name and billed there.
+    if (project) {
+      const wl = readWorkLog();
+      daysForProject(project, wl).forEach((day) => {
+        if (day && day.date) delete d.approvals[day.date];
+      });
+    }
     d.projects = d.projects.filter((p) => p.id !== id);
     if (d.bills) delete d.bills[id];
     if (data === undefined && !write(d)) return { ok: false, error: STORAGE_ERROR };
@@ -375,14 +395,12 @@
     return a;
   }
 
-  // The project a day belongs to (by id first, then by name), or null.
+  // The project a day belongs to, or null. Uses the same rule as
+  // `dayMatchesProject` (and therefore as billing), so the reports and the
+  // invoice can never disagree about which project a day belongs to.
   function projectForDay(day, data) {
     const d = data || read();
     if (!day) return null;
-    if (day.projectId) {
-      const p = d.projects.find((x) => x.id === day.projectId);
-      if (p) return p;
-    }
     return d.projects.find((p) => dayMatchesProject(day, p)) || null;
   }
 
@@ -453,6 +471,10 @@
   function bucketDays(project, data, worklog) {
     const d = data || read();
     const days = daysForProject(project, worklog);
+    // Which of this project's days have already been billed. A day's date is
+    // the unit that gets billed, and each date appears in exactly one bill —
+    // so the set of billed dates is the whole answer.
+    const billedDates = billedDateSet(d, project.id);
     const approved = [], pending = [], open = [], rejected = [];
     days.forEach((day) => {
       const a = approvalOf(day.date, d);
@@ -462,6 +484,7 @@
         status: day.status,
         approval: a.status,
         approvedBy: a.by || '',
+        billed: billedDates.has(String(day.date)),
         costing: dayCosting(day, project)
       };
       if (a.status === 'approved' && day.status === 'submitted') approved.push(row);
@@ -473,7 +496,28 @@
       else if (day.status === 'submitted') pending.push(row);
       else open.push(row);
     });
-    return { approved: approved, pending: pending, open: open, rejected: rejected, all: days };
+    // Split the approved work into what has already been invoiced and what is
+    // still owed. Without this split a project's *entire* approved work stayed
+    // billable forever, so "Record this bill" could be clicked twice and the
+    // same measurements were invoiced (and paid) twice over.
+    const unbilled = approved.filter((r) => !r.billed);
+    const billed = approved.filter((r) => r.billed);
+    return {
+      approved: approved, unbilled: unbilled, billed: billed,
+      pending: pending, open: open, rejected: rejected, all: days,
+      billedDates: billedDates
+    };
+  }
+
+  // Every date that appears in any invoice for this project.
+  function billedDateSet(data, projectId) {
+    const d = data || read();
+    const set = new Set();
+    const list = Array.isArray(d.bills && d.bills[projectId]) ? d.bills[projectId] : [];
+    list.forEach((b) => {
+      (b && Array.isArray(b.dates) ? b.dates : []).forEach((x) => set.add(String(x)));
+    });
+    return set;
   }
 
   function sumRows(rows) {
@@ -516,7 +560,10 @@
       rate: distinct.length === 1 ? distinct[0] : 0,
       mixed: distinct.length > 1,
       coverage: r0.coverage, coats: r0.coats, paintRate: r0.paintRate,
-      fromDay: true
+      // "day rate" is only meaningful when there is day-rate work to quote.
+      // With no rows at all this used to say "₹0 / sq ft (day rate)" on an
+      // empty bill.
+      fromDay: rates.length > 0
     };
   }
 
@@ -528,40 +575,48 @@
     if (!project) return { ok: false, error: 'Project not found.' };
     const b = bucketDays(project, d, worklog);
     const approved = sumRows(b.approved);
+    const unbilled = sumRows(b.unbilled);
+    const billed = sumRows(b.billed);
     const pending = sumRows(b.pending);
     const open = sumRows(b.open);
     const rejected = sumRows(b.rejected);
-    // The rates the APPROVED work was actually costed at. The project's when
-    // set, else the days' own (see effectiveRates) — so the invoice quotes the
-    // rate that produced the money instead of the project's blank ₹0.
-    const rateInfo = billedRateInfo(project, b.approved, worklog);
+    // The rates the *unbilled* approved work was costed at — that is the work a
+    // new invoice will cover, so the summary must describe it, not the whole
+    // project history. The project's rate when set, else the days' own (see
+    // effectiveRates) — so the invoice quotes the rate that produced the money
+    // instead of the project's blank ₹0.
+    const rateInfo = billedRateInfo(project, b.unbilled, worklog);
     return {
       ok: true,
       project: project,
       rateInfo: rateInfo,
-      lines: b.approved,
+      // `lines` is what a NEW invoice covers: approved and not yet invoiced.
+      lines: b.unbilled,
+      billedLines: b.billed,
       pendingLines: b.pending,
       openLines: b.open,
       rejectedLines: b.rejected,
-      totals: approved,
+      totals: unbilled,
+      approvedTotals: approved,
+      billedTotals: billed,
       pending: pending,
       open: open,
       rejected: rejected,
       // Explicit so no caller can accidentally bill unapproved work.
-      billableSqft: approved.sqft,
-      billableLabour: approved.labour,
-      billableLitres: approved.litres,
-      billablePaintCost: approved.paintCost,
-      billableTotal: approved.total,
+      billableSqft: unbilled.sqft,
+      billableLabour: unbilled.labour,
+      billableLitres: unbilled.litres,
+      billablePaintCost: unbilled.paintCost,
+      billableTotal: unbilled.total,
       bills: (d.bills[projectId] || []).slice()
     };
   }
 
   // Alias kept for readability at call sites that only want the number.
-  // Returns the FULL amount owed for approved work — labour plus paint — to
-  // match the module's own rule that a bill is labour + material. (It used to
-  // return labour only, so any caller of this alias silently dropped the paint
-  // cost.)
+  // Returns the amount still OWED for approved work — labour plus paint, and
+  // only the part not already invoiced — to match the module's own rule that a
+  // bill is labour + material. (It used to return the whole approved history,
+  // so it kept counting work that had already been invoiced.)
   function billTotal(projectId, data, worklog) {
     const b = billFor(projectId, data, worklog);
     return b.ok ? b.totals.total : 0;
@@ -571,18 +626,36 @@
     const d = data || read();
     if (!d.bills[projectId]) d.bills[projectId] = [];
     const list = d.bills[projectId];
+    // The dates this invoice covers. Derived here rather than trusted from the
+    // caller: `bucketDays` needs it to stop the same measurements being billed
+    // twice, and a caller that forgot to pass it would silently re-open the
+    // double-billing hole. An explicit list (a back-dated invoice) still wins.
+    const project = getProject(projectId, d);
+    const derived = project
+      ? bucketDays(project, d).unbilled.map((r) => String(r.date))
+      : [];
+    const dates = (entry && Array.isArray(entry.dates)) ? entry.dates.map(String) : derived;
     const e = {
       // Two bills raised in the same millisecond must not share an id, or
       // deleting one would delete both (removeBill filters by id).
       id: 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      no: (entry && entry.no) || nextBillNo(list),
+      // Invoice numbers are unique across the whole business, not per project:
+      // numbering each project from PP-001 produced two different invoices
+      // both called PP-001.
+      no: (entry && entry.no) || nextBillNo(d),
       date: (entry && entry.date) || new Date().toISOString().slice(0, 10),
       note: (entry && entry.note) || '',
-      amount: (entry && entry.amount) || 0,
-      sqft: (entry && entry.sqft) || 0,
-      litres: (entry && entry.litres) || 0,
-      paintCost: (entry && entry.paintCost) || 0,
-      labour: (entry && entry.labour) || 0,
+      // Round at the point of storage. `money()` only rounds for display, so an
+      // amount like 95.89999999999999 was stored raw and later sums drifted.
+      amount: round2((entry && entry.amount) || 0),
+      sqft: round2((entry && entry.sqft) || 0),
+      litres: round2((entry && entry.litres) || 0),
+      paintCost: round2((entry && entry.paintCost) || 0),
+      labour: round2((entry && entry.labour) || 0),
+      // The work-log dates this invoice covers (see `derived` above). This is
+      // what stops the same measurements being billed twice: a day already
+      // named here is no longer billable (see bucketDays).
+      dates: dates,
       createdAt: new Date().toISOString()
     };
     list.push(e);
@@ -591,13 +664,17 @@
   }
 
   // The next invoice number, derived from the highest number already used
-  // rather than the list length — deleting a bill must not free its number
-  // for reuse, or two invoices would end up sharing a number.
-  function nextBillNo(list) {
+  // across EVERY project rather than the list length — deleting a bill must
+  // not free its number for reuse, or two invoices would end up sharing one.
+  function nextBillNo(data) {
+    const d = (data && typeof data === 'object') ? data : read();
     let max = 0;
-    (list || []).forEach((b) => {
-      const m = /^PP-(\d+)$/.exec(String(b && b.no || ''));
-      if (m) max = Math.max(max, parseInt(m[1], 10));
+    Object.keys(d.bills || {}).forEach((pid) => {
+      const list = d.bills[pid];
+      (Array.isArray(list) ? list : []).forEach((b) => {
+        const m = /^PP-(\d+)$/.exec(String(b && b.no || ''));
+        if (m) max = Math.max(max, parseInt(m[1], 10));
+      });
     });
     return 'PP-' + String(max + 1).padStart(3, '0');
   }
@@ -621,9 +698,11 @@
     if (p.address) lines.push('Site: ' + p.address);
     lines.push('');
     if (!b.lines.length) {
-      lines.push('No approved measurements yet — nothing to bill.');
+      lines.push(b.billedLines.length
+        ? 'Nothing new to bill — all approved work is already invoiced.'
+        : 'No approved measurements yet — nothing to bill.');
     } else {
-      lines.push('Approved work:');
+      lines.push('Approved work (not yet invoiced):');
       b.lines.forEach((r) => {
         lines.push('  ' + r.date + '  ' + fmtSqft(r.costing.sqft) +
           '  × ' + money(r.costing.rate) + '/sq ft  = ' + money(r.costing.labour) +
@@ -642,6 +721,14 @@
         money(ri.paintRate) + '/L = ' + money(b.totals.paintCost));
     }
     lines.push('GRAND TOTAL:  ' + money(b.totals.total));
+    // Work already invoiced must be named, not silently folded into the total —
+    // otherwise a second invoice for the same measurements looks legitimate.
+    if (b.billedLines.length) {
+      lines.push('');
+      lines.push('ALREADY INVOICED (not billed again): ' +
+        b.billedLines.length + ' day(s), ' + fmtSqft(b.billedTotals.sqft) +
+        ', ' + money(b.billedTotals.total));
+    }
     if (b.pending.count) {
       lines.push('');
       lines.push('NOT INCLUDED (awaiting approval): ' +
@@ -665,14 +752,19 @@
     const wl = worklog || readWorkLog();
     return Object.keys(wl).sort().reverse().map((date) => {
       const day = wl[date];
-      const project = day.projectId ? getProject(day.projectId, d) : null;
-      const byName = project || d.projects.find((p) => dayMatchesProject(day, p)) || null;
+      // Resolve the project exactly the way billing does (`projectForDay`:
+      // projectId first, then a name match). This used to skip the id lookup
+      // when the id pointed at a missing project and fall straight through to
+      // the name match, so a day whose id was stale showed one project in the
+      // daily report while billing it under none — the report and the invoice
+      // disagreed about where the work was.
+      const project = projectForDay(day, d);
       const a = approvalOf(date, d);
-      const c = dayCosting(day, byName);
+      const c = dayCosting(day, project);
       return {
         date: date,
-        project: byName ? byName.name : (day.project || '—'),
-        projectId: byName ? byName.id : '',
+        project: project ? project.name : (day.project || '—'),
+        projectId: project ? project.id : '',
         // A human name, never the stored member id.
         crew: crewName(day.crew),
         crewId: (day.crew && crewIdentity(day.crew).key !== 'Unassigned') ? crewIdentity(day.crew).key : '',
@@ -716,7 +808,7 @@
       const ident = crewIdentity(day.crew);
       const who = ident.key;
       if (!map[who]) map[who] = { crew: ident.name, crewId: who === 'Unassigned' ? '' : who, days: 0, sqft: 0, labour: 0, litres: 0, paintCost: 0, approvedSqft: 0, approvedLabour: 0, approvedLitres: 0, approvedPaintCost: 0 };
-      const project = d.projects.find((p) => dayMatchesProject(day, p)) || null;
+      const project = projectForDay(day, d);
       const c = dayCosting(day, project);
       const a = approvalOf(date, d);
       map[who].days++;
@@ -743,6 +835,14 @@
     let pendingCount = 0, pendingSqft = 0, pendingLabour = 0;
     let openCount = 0, openSqft = 0, openLabour = 0;
     let rejectedSqft = 0, rejectedLabour = 0;
+    // Money that has actually been invoiced, across every project. Without it
+    // "Approved & billable" kept counting work that was already on an invoice,
+    // so the dashboard never showed what was still owed.
+    let invoicedTotal = 0;
+    Object.keys(d.bills || {}).forEach((pid) => {
+      const list = d.bills[pid];
+      (Array.isArray(list) ? list : []).forEach((b) => { invoicedTotal += num(b && b.amount); });
+    });
     daily.forEach((r) => {
       sqft += r.sqft; labour += r.labour; litres += r.litres; paintCost += r.paintCost;
       if (r.approval === 'approved' && r.status === 'submitted') {
@@ -771,6 +871,7 @@
       approvedLitres: approvedLitres,
       approvedPaintCost: approvedPaintCost,
       approvedTotal: approvedLabour + approvedPaintCost,
+      invoicedTotal: round2(invoicedTotal),
       pendingDays: pendingCount,
       pendingSqft: pendingSqft,
       pendingLabour: pendingLabour,
@@ -789,7 +890,7 @@
   return {
     STORE_KEY, WORKLOG_KEY, PROJECT_STATUS, APPROVAL_STATUS, DEFAULTS,
     // numbers
-    num, money, fmtSqft, fmtLitres,
+    num, money, fmtSqft, fmtLitres, round2,
     // store
     read, write, _setStore, STORAGE_ERROR,
     readWorkLog, dayTotals, dayCosting, paintLitres, effectiveRates, projectForDay,
@@ -801,7 +902,7 @@
     // approvals
     approvalOf, canApprove, setApproval, approveDay, rejectDay, clearApproval, daySignature,
     // billing
-    bucketDays, sumRows, billFor, billTotal, addBill, removeBill, nextBillNo, invoiceText,
+    bucketDays, sumRows, billedDateSet, billedRateInfo, billFor, billTotal, addBill, removeBill, nextBillNo, invoiceText,
     // reports
     reportDaily, reportByProject, reportByPainter, overview
   };

@@ -122,6 +122,9 @@
       k.innerHTML =
         kpi('Approved & billable', E.money(o.approvedTotal), E.fmtSqft(o.approvedSqft) + ' approved', 'ok') +
         kpi('Awaiting approval', E.money(o.unbilledLabour), o.pendingDays + ' day(s) submitted', 'warn') +
+        (o.approvedTotal > o.invoicedTotal
+          ? kpi('Invoiced', E.money(o.invoicedTotal), E.money(o.approvedTotal - o.invoicedTotal) + ' approved but not yet invoiced', 'ok')
+          : '') +
         (o.rejectedSqft ? kpi('Rejected', E.money(o.rejectedLabour), E.fmtSqft(o.rejectedSqft) + ' needs rework', 'bad') : '') +
         (o.openDays ? kpi('Open (in progress)', E.money(o.openLabour), o.openDays + ' day(s) not submitted') : '') +
         kpi('Paint needed', E.fmtLitres(o.approvedLitres), o.approvedPaintCost ? E.money(o.approvedPaintCost) + ' material' : 'approved work') +
@@ -376,7 +379,17 @@
           '<td>' + esc(E.fmtLitres(r.costing.litres)) +
             (r.costing.paintCost ? ' · ' + esc(E.money(r.costing.paintCost)) : '') + '</td></tr>').join('') +
         '</tbody></table>'
-      : '<p class="erp-empty">No approved work yet — approve a submitted day in the Approvals tab and it will appear here.</p>';
+      : (b.billedLines.length
+          ? '<p class="erp-empty">Nothing new to bill — every approved day for this project is already invoiced. Approve a new day and it will appear here.</p>'
+          : '<p class="erp-empty">No approved work yet — approve a submitted day in the Approvals tab and it will appear here.</p>');
+
+    // Approved work that has already been invoiced. Named so nobody re-raises a
+    // bill for measurements that are already on an invoice.
+    const billedNote = (b.billedLines && b.billedLines.length)
+      ? '<div class="erp-callout erp-callout-ok"><strong>' + b.billedLines.length +
+        ' day(s) already invoiced</strong> — ' + esc(E.fmtSqft(b.billedTotals.sqft)) + ', ' +
+        esc(E.money(b.billedTotals.total)) + '. <em>Not billed again.</em></div>'
+      : '';
 
     const pendingNote = b.pending.count
       ? '<div class="erp-callout erp-callout-warn"><strong>' + b.pending.count + ' day(s) awaiting approval</strong> — ' +
@@ -420,26 +433,30 @@
         (b.totals.paintCost ? '<div><span>Paint cost</span><strong>' + esc(E.money(b.totals.paintCost)) + '</strong></div>' : '') +
         '<div class="erp-grand"><span>' + (b.totals.paintCost ? 'Grand total' : 'Total due') + '</span><strong>' + esc(E.money(b.totals.total)) + '</strong></div>' +
       '</div>' +
-      pendingNote + rejectedNote + openNote +
+      billedNote + pendingNote + rejectedNote + openNote +
       '<div class="erp-actions">' +
-        '<button class="btn-primary" id="erpRaiseBill" type="button">🧾 Record this bill</button>' +
+        '<button class="btn-primary" id="erpRaiseBill" type="button"' + (b.totals.total ? '' : ' disabled') + '>🧾 Record this bill</button>' +
         '<button class="btn-secondary" id="erpCopyInvoice" type="button">📋 Copy invoice</button>' +
       '</div>' +
       '<h4 class="erp-h4">Invoices raised</h4>' + bills;
 
     const raise = $('erpRaiseBill');
     if (raise) raise.addEventListener('click', () => {
-      if (!b.totals.total) { alert('Nothing approved to bill yet.'); return; }
+      if (!b.totals.total) { alert('Nothing new to bill — this project\'s approved work is already invoiced.'); return; }
       const r = E.addBill(id, {
         amount: b.totals.total,
         sqft: b.totals.sqft,
         litres: b.totals.litres,
         labour: b.totals.labour,
         paintCost: b.totals.paintCost,
+        // Pin the invoice to the days it covers, so the same measurements can
+        // never be billed a second time.
+        dates: b.lines.map((r2) => r2.date),
         note: b.totals.paintCost ? 'Approved work + paint' : 'Approved work'
       });
       if (!r.ok) alert(r.error);
       renderBilling();
+      renderDashboard();
     });
     const copy = $('erpCopyInvoice');
     if (copy) copy.addEventListener('click', () => {
