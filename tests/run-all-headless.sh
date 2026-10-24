@@ -78,6 +78,57 @@ html = html.replace('</body>', '<script src="./tests/portfolio-selftest.js?v=%s"
 open(root + '/_portfolio-selftest.html', 'w', encoding='utf-8').write(html)
 PY
 
+# Hidden-attribute audit: append tests/hidden-audit.js to every page and check
+# that no element carrying `hidden` still renders (the UA `[hidden]` default
+# loses to an author display rule). One index loads each page in an iframe.
+python3 - "$ROOT" "$BUST" <<'PY'
+import sys, os, re
+root, bust = sys.argv[1], sys.argv[2]
+pages = []
+for name in sorted(os.listdir(root)):
+    if not name.endswith('.html') or name.startswith('_'): continue
+    html = open(os.path.join(root, name), encoding='utf-8').read()
+    html = re.sub(r'(src="\./(?:js|tests)/[a-z-]+\.js)"', lambda m: m.group(1)+'?v='+bust+'"', html)
+    html = html.replace('</body>', '<script src="./tests/hidden-audit.js?v='+bust+'" defer></script>\n</body>', 1)
+    open(os.path.join(root, '_hidden-'+name), 'w', encoding='utf-8').write(html)
+    pages.append(name)
+idx = ['<!DOCTYPE html><html><head><meta charset="utf-8"><title>hidden</title></head><body>',
+       '<pre id="hiddenOut" style="font:13px/1.5 monospace">running...</pre>',
+       '<iframe id="hiddenFrame" style="width:1024px;height:700px" hidden></iframe><script>',
+       'var PAGES='+repr(pages)+';var out=document.getElementById("hiddenOut");var fails=0;var i=0;var fr=document.getElementById("hiddenFrame");',
+       'function next(){if(i>=PAGES.length){fr.remove();out.textContent=out.textContent.replace("running...","")+(fails?("DONE: "+fails+" page(s) with a leaked [hidden] element"):"DONE: all pages clean");return;}',
+       'var name=PAGES[i++];fr.onload=function(){setTimeout(function(){var txt="";try{txt=fr.contentDocument.getElementById("hidden-audit").textContent;}catch(e){txt="<cross-origin>";}',
+       'var lines=txt.split("\\n");var bad=lines.filter(function(l){return l.indexOf("FAIL")===0;});',
+       'out.textContent+=(bad.length?("FAIL "+name+"\\n"+bad.map(function(x){return "   - "+x;}).join("\\n")+"\\n"):("ok   "+name+"\\n"));if(bad.length)fails++;next();},400);};fr.src="./_hidden-"+name;}next();',
+       '</script></body></html>']
+open(os.path.join(root, '_hidden.html'), 'w', encoding='utf-8').write('\n'.join(idx))
+PY
+
+# Visitor-exposure sweep: append tests/visitor-probe.js to every page and load
+# each in a reused iframe, asserting a cold anonymous visitor sees no staff
+# panel, no editable field, no reachable file upload and no printed passcode.
+python3 - "$ROOT" "$BUST" <<'PY'
+import sys, os, re
+root, bust = sys.argv[1], sys.argv[2]
+pages = []
+for name in sorted(os.listdir(root)):
+    if not name.endswith('.html') or name.startswith('_'): continue
+    html = open(os.path.join(root, name), encoding='utf-8').read()
+    html = re.sub(r'(src="\./(?:js|tests)/[a-z-]+\.js)"', lambda m: m.group(1)+'?v='+bust+'"', html)
+    html = html.replace('</body>', '<script src="./tests/visitor-probe.js?v='+bust+'" defer></script>\n</body>', 1)
+    open(os.path.join(root, '_vex-'+name), 'w', encoding='utf-8').write(html)
+    pages.append(name)
+idx = ['<!DOCTYPE html><html><head><meta charset="utf-8"><title>vex</title></head><body>',
+       '<pre id="vexOut" style="font:13px/1.5 monospace">running...</pre>',
+       '<iframe id="vexFrame" style="width:1024px;height:700px" hidden></iframe><script>',
+       'var PAGES='+repr(pages)+';var out=document.getElementById("vexOut");var fails=0;var i=0;var fr=document.getElementById("vexFrame");',
+       'function next(){if(i>=PAGES.length){fr.remove();out.textContent=out.textContent.replace("running...","")+(fails?("DONE: "+fails+" page(s) with an exposure"):"DONE: all pages clean");return;}',
+       'var name=PAGES[i++];fr.onload=function(){setTimeout(function(){var bad=[];try{bad=(fr.contentWindow.__visitorProbe||{bad:[]}).bad||[];}catch(e){bad=["<cross-origin>"];}',
+       'out.textContent+=(bad.length?("FAIL "+name+"\\n"+bad.map(function(x){return "   - "+x;}).join("\\n")+"\\n"):("ok   "+name+"\\n"));if(bad.length)fails++;next();},400);};fr.src="./_vex-"+name;}next();',
+       '</script></body></html>']
+open(os.path.join(root, '_vex.html'), 'w', encoding='utf-8').write('\n'.join(idx))
+PY
+
 # Corrupt-store sweep: seed every storage key with hostile data before any
 # page script runs, then load every page and fail on any uncaught error.
 python3 - "$ROOT" "$BUST" <<'PY'
@@ -139,7 +190,9 @@ cleanup() {
         "$ROOT"/_team-selftest.html "$ROOT"/_gallery-selftest.html "$ROOT"/_profile-selftest.html \
         "$ROOT"/_pmp-selftest.html "$ROOT"/_portfolio-selftest.html "$ROOT"/_cs-selftest.html \
         "$ROOT"/_ui-selftest.html "$ROOT"/_sweep.html "$ROOT"/_sweep-*.html \
-        "$ROOT"/_corrupt.html "$ROOT"/_corrupt-*.html
+        "$ROOT"/_corrupt.html "$ROOT"/_corrupt-*.html \
+        "$ROOT"/_hidden.html "$ROOT"/_hidden-*.html \
+        "$ROOT"/_vex.html "$ROOT"/_vex-*.html
   pkill -f "http.server $PORT" 2>/dev/null
 }
 trap cleanup EXIT
@@ -195,6 +248,8 @@ run_pre _cs-selftest.html      cs-selftest        "COLOR STUDIO selftest"
 run_pre _ui-selftest.html      ui-selftest        "PAGE UI selftest (FAQ, mobile menu, active nav)"
 run_pre _portfolio-selftest.html portfolio-selftest "PORTFOLIO injection selftest"
 run_pre _corrupt.html          corruptOut         "CORRUPT STORE sweep (every page, hostile localStorage)"
+run_pre _hidden.html           hiddenOut          "HIDDEN-ATTRIBUTE audit (no [hidden] element still renders)"
+run_pre _vex.html              vexOut             "VISITOR EXPOSURE sweep (anonymous visitor sees no staff control)"
 run_pre _sweep.html            sweepOut           "FULL-SITE SWEEP"
 
 if [ "$FAILED" -eq 0 ]; then echo "ALL BROWSER CHECKS PASSED"; else echo "SOME BROWSER CHECKS FAILED"; fi

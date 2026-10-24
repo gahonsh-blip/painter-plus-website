@@ -39,6 +39,12 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+/* The UA sheet's `[hidden]{display:none}` loses to any author `display` rule,
+   so an element like `<div hidden class="wl-measure">` (display:flex) or
+   `<button hidden class="btn-ghost">` (display:inline-block) still renders and
+   its author-set hidden attribute is silently ignored. Restore the intent,
+   globally and with enough weight to beat a single class rule. */
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body {
   font-family: var(--font-sans);

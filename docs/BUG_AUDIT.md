@@ -71,6 +71,8 @@ and a colour swatch that never highlighted.
 | 49 | Medium | Invoice numbers were unique per project, not per business (two `PP-001`s) | Fixed |
 | 50 | Low | An invoice stored an un-rounded amount (`95.89999999999999`) | Fixed |
 | 51 | Low | An empty bill claimed a "(day rate)" label | Fixed |
+| 52 | **High** | The staff login gate stayed on screen after unlocking (`[hidden]` lost to `.adm-gate{display:flex}`) | Fixed |
+| 53 | Medium | Hidden work-log controls (`#wlMeasurePanel`, `#wlCancelEdit`, `#wlReopen`) rendered anyway | Fixed |
 
 ---
 
@@ -1352,3 +1354,141 @@ appears when there is day-rate work to quote.
   updated ERP selftest and the corrupt-store and full-site sweeps.
 - Service-worker cache bumped `painter-plus-v27` → `v28` (this pass changed
   `js/erp.js`, `js/erp-page.js`, `css/style.css`, all precached).
+
+## Tenth pass — 2026-10-22 (access-gating & hidden-attribute audit)
+
+**Theme.** The request was narrow and specific: *verify that file/profile edit
+access is properly gated, so an anonymous visitor can never reach a staff-only
+control.* The first two tasks (below) confirmed the **gate logic** is sound. But
+while probing *rendered* visibility — not just the `hidden` attribute — a new
+bug class surfaced: an element marked `hidden` that still renders, because the
+UA stylesheet's `[hidden]{display:none}` loses to any author `display` rule.
+
+**How it was found.** A probe (`tests/visitor-probe.js`) measured the
+*computed* visibility of every staff control on all 15 pages as a cold,
+anonymous visitor. Separately, `tests/hidden-audit.js` reported every element
+carrying the `hidden` attribute whose own computed `display` is not `none`. The
+visitor probe was clean; the hidden audit was not — and, crucially, the defect
+was invisible to the visitor probe because the leaked elements sit inside a
+panel that is itself hidden on a cold visit.
+
+### 52. High — the staff login gate stayed on screen after unlocking
+
+**Symptom.** On `worklog.html` and `erp.html`, entering the correct passcode
+opened the staff panel **and left the login card visible above it**:
+
+```
+WORKLOG VISIBILITY (unlocked)
+wlGate:         attr-hidden / display:flex   <- still on screen
+wlPanel:        shown      / display:block
+```
+
+The gate's `hidden` attribute was set (`gate.hidden = true`) but had no effect:
+the element is `<div class="adm-gate" id="wlGate" hidden>` and
+`.adm-gate{display:flex}` is an author rule that overrides the UA default. So
+the crew saw "🔒 Crew login / Enter the Owner/Head passcode" *on top of* the
+day book they had just unlocked. `admin.html` was unaffected only because its
+gate is `<div class="adm-gate" id="admGate">` with **no** `hidden` attribute —
+it is hidden by a different mechanism, which masked the bug there.
+
+**Root cause.** `[hidden]{display:none}` is a **user-agent** rule. Author styles
+always beat the UA sheet, so *any* author rule that sets `display` on the
+element wins — regardless of specificity. `js/worklog.js` (`openPanel`) and
+`js/erp-page.js` (`openPanel`) both do `gate.hidden = true`, which is correct
+JavaScript that simply cannot take effect against `.adm-gate{display:flex}`.
+
+### 53. Medium — hidden work-log controls rendered inside the panel
+
+**Symptom.** Three controls that the markup marks `hidden` still occupied space
+inside the (now-visible) work-log panel:
+
+```
+wlMeasurePanel: attr-hidden / display:flex    (.wl-measure)
+wlCancelEdit:   attr-hidden / display:block   (.btn-ghost)
+wlReopen:       attr-hidden / display:block   (.btn-ghost)
+```
+
+`#wlMeasurePanel` is the photo-measurement editor — it should appear only once a
+photo is chosen (`measurePanel.hidden = false` in the change handler). Instead
+it was always on screen. `#wlCancelEdit` and `#wlReopen` are action buttons
+toggled by day state; both were always visible, so **Reopen day** showed on a
+day that had never been submitted and **Cancel edit** showed with no edit in
+progress. Clicking the phantom **Reopen day** ran `PPWorkLog.reopenDay()` on the
+current date, writing a day and (via `PPERP.clearApproval`) withdrawing any
+approval — from a button that should not have been clickable.
+
+**Root cause.** The same one: `.wl-measure{display:flex}` and
+`.btn-ghost{display:inline-block}` are author rules that beat the UA `[hidden]`
+default. The codebase already knew this shape — `.pmp-empty[hidden]{display:none}`
+was added in an earlier pass — but the fix was applied to one class instead of
+globally, so every other hidden element with a `display` class regressed.
+
+**Fix (both 52 and 53).** One global rule in `css/style.css`, placed with the
+reset so it governs every page:
+
+```css
+[hidden] { display: none !important; }
+```
+
+`!important` is the minimal correct weight here: it must beat a single class
+rule such as `.wl-measure{display:flex}` or `.btn-ghost{display:inline-block}`,
+and there is no legitimate case in this codebase where an element should carry
+`hidden` and still be displayed — the JS toggles visibility by adding/removing
+the attribute, never by fighting it with an inline `display`. The now-redundant
+`.pmp-empty[hidden]{display:none}` special case is left in place (harmless, and
+documented history) rather than churned.
+
+**Verified.**
+- `tests/hidden-audit.js` (new, wired into `tests/run-all-headless.sh` as the
+  **HIDDEN-ATTRIBUTE audit**) loads all 15 pages and asserts no `[hidden]`
+  element has a computed `display` other than `none`. Before the fix it reported
+  `FAIL worklog.html`; after, every page is clean.
+- The same audit run against a **seeded unlocked session** shows the three
+  work-log elements and the two gate cards, which is how the defect was caught
+  despite the panel being closed on a cold visit.
+- `tests/exposure.test.js` gained two static checks: the
+  `[hidden]{display:none !important}` rule must exist, and the audit harness +
+  runner wiring must exist. Weakening the rule (negative test) makes both the
+  static check and the browser audit fail; restoring it returns them to green.
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED**, including
+  the new **VISITOR EXPOSURE sweep** and **HIDDEN-ATTRIBUTE audit**.
+
+### Access-gating verification (the original request) — confirmed sound
+
+The narrow question — *is file/profile edit access gated?* — was answered yes,
+by measurement rather than by reading:
+
+- **Profile edit form.** `js/profile-page.js` keeps `#ppEditBody` hidden until
+  `PPTeam.isMe(member.id)`, which is true only for the self-claimed member in an
+  active session, or for anyone while an Owner/Head is signed in.
+  `tests/visitor-probe.js` confirms that a **cold anonymous visitor** sees zero
+  editable fields, and that submitting a **wrong passcode** reveals nothing.
+  `tests/profile-selftest.js` asserts the form stays hidden, and that the real
+  passcode is what reveals it.
+- **No anonymous write path.** Every mutator (`PPTeam.claim`, role changes,
+  gallery add/remove, work-log/ERP writes) sits behind the Owner/Head gate; the
+  public page scripts (`team-page.js`, `gallery-page.js`, `script.js`,
+  `color-studio.js`, `photo-studio.js`) contain **no** write calls.
+- **No staff-tool leak.** No public page links to `admin.html` / `worklog.html`
+  / `erp.html`, prints the passcode, or ships a reachable `input[type=file]`.
+  `tests/exposure.test.js` locks all of this in.
+- **Known, accepted limitation.** The gate is **client-side only** — a visitor
+  who opens devtools can set `sessionStorage.ppAdminUnlocked` and see the staff
+  UI. This is documented in `AGENTS.md` and is inherent to a backend-less static
+  site; it is not a regression, and the passcode digest in `js/team.js` is a
+  gate, not a security boundary. Not fixed here, by design.
+
+### Tenth-pass verification summary
+
+- `node tests/exposure.test.js` **12/12** (2 new), `erp.test.js` **78/78**,
+  `gallery.test.js` **27/27**, `measure.test.js` **16/16**,
+  `photo-studio.test.js` **50/50**, `passcode.test.js` **13/13** — green.
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED**: every
+  self-test, the **VISITOR EXPOSURE sweep** (new), the **HIDDEN-ATTRIBUTE audit**
+  (new), the corrupt-store sweep and the full-site sweep.
+- Both new checks were proved to have teeth: deleting the `[hidden]` rule makes
+  the static test report 1 failure and the browser audit report
+  `FAIL worklog.html`; restoring it returns both to green.
+- Service-worker cache bumped `painter-plus-v28` → `v29` (this pass changed
+  `css/style.css`, which is precached).
+

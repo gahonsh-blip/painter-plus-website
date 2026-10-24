@@ -137,5 +137,30 @@ test('robots.txt does not advertise internal paths', () => {
   }
 });
 
+// ---------- a `hidden` element must actually be hidden ----------
+// The UA sheet's `[hidden]{display:none}` loses to any author `display` rule,
+// so `<div hidden class="wl-measure">` (display:flex) or
+// `<button hidden class="btn-ghost">` (display:inline-block) render anyway and
+// the author's intent is ignored. In the tenth audit pass this left the
+// work-log and ERP login gate on screen after a successful unlock. The global
+// `[hidden]{display:none !important}` rule in css/style.css fixes it; these
+// checks fail if that rule is weakened or removed.
+test('css/style.css restores the [hidden] default with !important', () => {
+  const css = read('css/style.css');
+  assert.ok(/\[hidden\]\s*\{[^}]*display:\s*none\s*!important/.test(css),
+    'the global [hidden]{display:none !important} rule is missing from css/style.css');
+});
+
+test('the hidden-attribute audit harness exists', () => {
+  const js = read('tests/hidden-audit.js');
+  assert.ok(js.indexOf("querySelectorAll('[hidden]')") !== -1,
+    'tests/hidden-audit.js no longer inspects [hidden] elements');
+  const runner = read('tests/run-all-headless.sh');
+  assert.ok(runner.indexOf('hidden-audit.js') !== -1,
+    'run-all-headless.sh does not run the hidden-attribute audit');
+  assert.ok(runner.indexOf('_hidden.html') !== -1,
+    'run-all-headless.sh does not check the hidden-audit index page');
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
