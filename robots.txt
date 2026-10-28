@@ -1,3 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /login.html
+Disallow: /admin.html
+Disallow: /worklog.html
+Disallow: /erp.html
 Sitemap: https://gahonsh-blip.github.io/painter-plus-website/sitemap.xml

@@ -136,7 +136,8 @@ Use these exact values when fixing contact info across all pages:
 | Team roster | `team.html` (roster page, cards show a derived evidence row), `painter-profile.html` (per-member profile + gallery + self-edit), `js/team.js` (shared data + roles + self-claim) |
 | Crew work gallery | `gallery.html` + `js/gallery-page.js` — every member's work photos in one place, attributed to painter and project, filterable |
 | Gallery + work-record engine | `js/gallery.js` (`window.PPGallery`) — photo CRUD, crew `feed`, and the **derived work record** (years, projects, sq ft, days, co-workers) |
-| Admin | `admin.html` (Owner/Head login: Team & Roles, profile, Portfolio projects) |
+| Admin | `admin.html` (Owner/Head login: Team & Roles, **Accounts & Access**, profile, Portfolio projects) |
+| Crew accounts, login & RBAC | `login.html` + `js/login-page.js`, `js/auth.js` (`window.PPAuth`), `js/auth-config.js` (`window.PP_AUTH_CONFIG`), `js/accounts-page.js` (Admin Accounts & Access pane). Full write-up: `docs/AUTH.md` |
 | Daily work log | `worklog.html` + `js/worklog.js` — each day the crew adds a photo entry per painted surface, **measures its square feet on the photo** (or types length × height), sees one running day total plus labour and paint, then does a **Final submit** |
 | ERP | `erp.html` + `js/erp.js` (`window.PPERP`) + `js/erp-page.js` — the layer above the work log: projects, approvals, billing (**approved work only, billed once**) and daily/project/painter reports |
 | Photo measurement | `js/measure.js` (`window.PPMeasure`) — perspective-corrected area from a photo (4-corner calibration + shoelace), and the paint/labour maths |
@@ -303,6 +304,108 @@ pure-geometry half (no DOM, unit-testable in Node) and a browser editor half.
   `painterPlusWorkLog`, `painterPlusERP`, `painterPlusGallery`, `painterPlusTeam`.
   Beware of external documents claiming a Firestore store or a "minimum 5 photos
   before submit" rule; neither exists (see `docs/PHOTO_AREA_MEASUREMENT.md`).
+
+## Crew accounts, login & RBAC — `js/auth.js` (`window.PPAuth`) + `js/auth-config.js`
+
+The account layer that sits **above** the shared Owner/Head passcode gate: real
+per-person logins, professional painter profiles, self-service editing, profile
+privacy, and role-based access control. Full write-up: `docs/AUTH.md`.
+
+- **Two providers, two trust levels — do not conflate them.**
+  `js/auth-config.js` picks `provider: 'local'` (default) or `'supabase'`.
+  - `local` keeps PBKDF2-hashed accounts in **this browser's `localStorage`**
+    (`painterPlusAuth`, audit in `painterPlusAudit`). It is a **demo /
+    small-crew** mode: no server means the client gate can be bypassed by
+    anyone editing their own browser, and accounts do not sync between devices.
+    **Never claim production security for it.**
+  - `supabase` uses Supabase Auth (password) + PostgREST tables
+    (`pp_profiles`, `pp_audit_log`) with **row-level security** doing the real
+    authorisation. The `anonKey` is a *publishable* key — it is meant to ship in
+    the browser. Security comes from the RLS policies, never from hiding the key.
+    **Never put a `service_role` key or any other secret in `js/auth-config.js`.**
+- **Passwords are never stored in plain text.** `hashPassword()` returns
+  `{ algo:'PBKDF2-SHA256', iter, salt, hash }` — PBKDF2-HMAC-SHA256 via
+  `crypto.subtle`, a **unique random 16-byte salt** per account, default
+  **150,000** iterations (`PP_AUTH_CONFIG.iterations`), and a **constant-time**
+  compare on verify. If `crypto.subtle` is missing it fails closed
+  (`ERR.NO_CRYPTO`), never falling back to a weak hash.
+- **A new account is `pending` and cannot log in** until an Admin/Head approves
+  it (`status: pending|active|suspended|rejected`). No default password ships.
+  The first Admin on a fresh install is created by `promoteBootstrapAdmin(actor,
+  id, passcode)` — **gated by an operator passcode** whose SHA-256 digest lives
+  in `PP_AUTH_CONFIG.bootstrapPasscodeSha256` (`''` = the path is CLOSED, the
+  safe default). The passcode is the approval gate, so bootstrap *may* activate
+  a still-`pending` target — that is the one intended exception, and it is
+  refused the moment any Admin exists (`needsBootstrapAdmin()`), for a forged
+  actor, for a wrong passcode, and for a `suspended`/`rejected` target.
+- **Authorisation is one function, `can(actor, action, target, extra)`, and every
+  mutator calls it.** `extra` carries the action-specific datum — for
+  `role.assign` it is the **role being granted**, so a lead can never hand out a
+  role at or above their own. Hiding a button is never the security. A painter
+  cannot edit another painter, cannot change a role/status, and a crafted
+  `updateProfile()` **cannot smuggle a role or status** — only the fields
+  `editableFields()` allows are applied, everything else in the patch is
+  dropped. A Head cannot manage an Admin **or a peer Head**, cannot grant the
+  `head`/`admin` role, and the **last active Admin cannot be demoted or
+  suspended** (`ERR.LAST_ADMIN`).
+- **An approval is bound to the password it signed.** `pwAt` (the password's
+  change time) is stored on the account and copied into the session; a password
+  change/reset bumps `pwAt`, so `currentUser()`/`isLoggedIn()` **invalidate any
+  live session** issued before the change. A lead resetting a member's password
+  therefore logs that member out everywhere at once.
+- **Login is throttled.** Repeated failed logins for one account lock it for a
+  cool-off window (`ERR.THROTTLED`, "too many attempts"); a correct password is
+  refused while the lock stands. The counter clears on a successful login.
+- **Password recovery is issued by a lead, never by the form.**
+  `requestRecovery(email)` always answers identically and returns **no code**
+  (no account enumeration). Only `issueRecoveryCode(actor, targetId)` — a lead
+  who outranks the target — mints one; the code is stored **hashed**
+  (`SALT_RECOVERY`), is **single-use**, is **burnt after `RECOVERY_MAX_TRIES`
+  wrong attempts**, and only works on an `active` account. `resetWithCode(email,
+  code, next)` consumes it.
+- **Field groups:** `SELF_FIELDS` (`name,title,tagline,bio,photo,startYear,quote`)
+  a painter owns; `COMPANY_FIELDS` (`phone,email,address,note`) are
+  company-authoritative and only editable by a painter when granted the
+  `contact` edit right; `ADMIN_FIELDS` (`role,status,editRights,memberId`) are
+  Admin/Head only.
+- **Privacy:** `privacy: 'public'|'private'`. `isPublic()` is the one rule —
+  visible to a cold visitor only when `status==='active'` **and** not private; a
+  pending/suspended/rejected account is never public. Company-required
+  information and Admin/Head rules still apply.
+- **The provider dispatch keeps the public API stable.** `register`/`login`/
+  `logout`/`changePassword` etc. are `async` and await the Supabase call when it
+  is active; **reads stay synchronous** and, in Supabase mode, serve a cache
+  that `refresh()` fills and then announces with `ppauth:change`.
+- **`ppauth:change` is dispatched on `document`** (like `ppteam:change`), so a
+  `document.addEventListener('ppauth:change', …)` listener receives it. An event
+  fired on `window` does **not** reach a document-level listener — that bug made
+  the whole reactive re-render silently dead.
+- `admin.html` → **Accounts & Access** (`js/accounts-page.js`) is gated on a
+  **real signed-in Admin** (not just the passcode shell): with no account it
+  renders a "sign in as an Admin or Head" message and **no controls**; a
+  signed-in Painter sees no controls. It lists accounts (filter by status),
+  approve/reject, set role, set per-field edit rights, and shows the audit log.
+- A signed-in Admin/Head also auto-opens the `admin.html` panel (no second
+  passcode prompt); `js/script.js` calls `Team.unlockHead(Team.PASSCODE_SHA256)`
+  so the roster's own manager check agrees.
+- Pages: `login.html` (`js/login-page.js`), `painter-profile.html`
+  (`js/profile-page.js` — account-aware `canEditThis()`, privacy hiding of the
+  personal sections, role controls), `admin.html` (`js/accounts-page.js`).
+- Tests: `node tests/auth.test.js` (45 checks — engine, real PBKDF2 with a unique
+  salt, session expiry/revocation, RBAC **incl. the Head escalation boundary**,
+  the passcode-gated bootstrap, single-use recovery, login throttling, privacy,
+  hostile-store), `node
+  tests/supabase-auth.test.js` (9 checks — the Supabase provider with a fake
+  `fetch`: signup → pending row, login → token, a refused write **and a refused
+  Head→Admin escalation** never reach the network, nothing hits `localStorage`),
+  plus the browser self-tests
+  `tests/run-auth-selftest.sh` and `tests/run-admin-selftest.sh`.
+- **Headless KDF gotcha:** Chromium's `--virtual-time-budget` (the runner)
+  never resolves real WebCrypto, so PBKDF2 **hangs**. The browser self-tests
+  therefore install a deterministic, salt-sensitive KDF stand-in so the *flow*
+  can be driven end to end; the *real* PBKDF2 round-trip is covered by
+  `tests/auth.test.js` in Node. Do not "fix" the shim by removing it — the
+  suite will hang with no output.
 
 ## ERP — `erp.html` + `js/erp.js` (`window.PPERP`) + `js/erp-page.js`
 
@@ -505,7 +608,7 @@ grep -rn "^<<<<<<<\|^=======\|^>>>>>>>" .
 node --check js/script.js
 
 # Pure unit tests (no dependencies)
-node tests/gallery.test.js && node tests/erp.test.js && node tests/measure.test.js && node tests/photo-studio.test.js && node tests/exposure.test.js
+node tests/gallery.test.js && node tests/erp.test.js && node tests/measure.test.js && node tests/photo-studio.test.js && node tests/exposure.test.js && node tests/auth.test.js && node tests/supabase-auth.test.js
 
 # Browser self-tests, headless — builds every page, runs chromium, exits non-zero on any FAIL
 # (includes the VISITOR EXPOSURE sweep and the HIDDEN-ATTRIBUTE audit)
@@ -513,6 +616,8 @@ bash tests/run-all-headless.sh 8170
 
 # Browser self-tests (interactive: open the printed URL, read the ok/FAIL lines)
 bash tests/run-profile-selftest.sh 8132
+bash tests/run-auth-selftest.sh 8140    # login / register / approve / privacy (login.html)
+bash tests/run-admin-selftest.sh 8141   # Admin Accounts & Access pane (admin.html)
 bash tests/run-gallery-selftest.sh 8133
 bash tests/run-team-selftest.sh 8134
 bash tests/run-erp-selftest.sh 8135

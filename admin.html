@@ -65,6 +65,7 @@
             <!-- Tabs: Team & Roles / Painter Profile / Portfolio Projects -->
             <div class="adm-tabs" role="tablist">
               <button type="button" class="adm-tab active" id="tabTeam" role="tab" aria-selected="true">👥 Team &amp; Roles</button>
+              <button type="button" class="adm-tab" id="tabAccounts" role="tab" aria-selected="false">🔐 Accounts &amp; Access</button>
               <button type="button" class="adm-tab" id="tabProfile" role="tab" aria-selected="false">🧑‍🎨 Painter Profile</button>
               <button type="button" class="adm-tab" id="tabProjects" role="tab" aria-selected="false">🖼️ Portfolio Projects</button>
             </div>
@@ -145,7 +146,27 @@
               </div>
             </section>
 
-            <!-- TAB 1: Painter profile editor -->
+            <!-- TAB 1: Accounts & access control -->
+            <section class="adm-tabpane" id="paneAccounts" role="tabpanel" hidden>
+              <p class="adm-sub">Approve or reject new crew accounts, set each member's <strong>role</strong>, control which profile fields they may edit, and review the <strong>audit log</strong>. Every action here is authorised by the account engine — a Painter or anonymous visitor who reaches this page cannot perform them.</p>
+
+              <div class="adm-acct-tools" id="acctFilters" role="group" aria-label="Filter accounts by status"></div>
+              <p class="acct-empty" id="acctEmpty" hidden>No accounts in this view.</p>
+              <ul class="acct-list" id="acctList"></ul>
+
+              <div class="adm-list card" style="margin-top:24px">
+                <div class="adm-list-head">
+                  <h3>📜 Audit log</h3>
+                  <div class="adm-list-tools">
+                    <button type="button" class="btn-ghost btn-sm" id="auditRefresh">↻ Refresh</button>
+                  </div>
+                </div>
+                <ul class="audit-list" id="auditList"></ul>
+                <p class="acct-empty" id="auditEmpty" hidden>No activity recorded yet.</p>
+              </div>
+            </section>
+
+            <!-- TAB 2: Painter profile editor -->
             <section class="adm-tabpane" id="paneProfile" role="tabpanel" hidden>
               <p class="adm-sub">Edit the <strong>Owner/Head's</strong> profile shown on the <a href="./painter-profile.html">Painter Profile</a> page — add the real photo and details. To edit another member, open them from the <a href="./team.html">team page</a>.</p>
               <form class="adm-form card" id="profileForm" novalidate>
@@ -335,7 +356,10 @@
     </footer>
 
     <a href="https://wa.me/918825183628" class="whatsapp-float" target="_blank" rel="noreferrer">💬 WhatsApp</a>
+    <script src="./js/auth-config.js"></script>
+    <script src="./js/auth.js"></script>
     <script src="./js/team.js"></script>
+    <script src="./js/accounts-page.js" defer></script>
     <script src="./js/script.js"></script>
   </body>
 </html>

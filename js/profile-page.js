@@ -22,6 +22,7 @@
 
   const T = window.PPTeam;
   const G = window.PPGallery;
+  const A = window.PPAuth;
   if (!T) return;
 
   const nameEl = document.getElementById('ppName');
@@ -36,6 +37,13 @@
   };
   const $ = (id) => document.getElementById(id);
   const esc = (s) => T.esc(s);
+
+  // A write may be synchronous (local provider) or a promise (Supabase). Run
+  // `done(res)` when the result is known, whichever it is.
+  function settle(res, done) {
+    if (res && typeof res.then === 'function') { res.then(done).catch((e) => done({ ok: false, error: (e && e.message) || 'Action failed.' })); return; }
+    done(res);
+  }
 
   // ------------------------------------------------------------
   // PROFILE HEADER
@@ -68,6 +76,52 @@
       avatar.innerHTML = '<img class="pp-photo" src="' + esc(member.photo) +
         '" alt="' + esc(member.name) + '" onerror="this.remove()" />';
     }
+  }
+
+  // ------------------------------------------------------------
+  // ACCOUNT-AWARE AUTHORISATION
+  // ------------------------------------------------------------
+  // The account that maps to this roster member (by memberId), if any.
+  function accountFor(member) {
+    if (!A || !member) return null;
+    return A.findByMember(member.id) || null;
+  }
+
+  // The signed-in account, if any.
+  function meAccount() { return A ? A.currentUser() : null; }
+
+  // True when the signed-in account may edit THIS member's profile.
+  // Falls back to the legacy passcode claim when no account system is present
+  // (so the page still works if js/auth.js failed to load).
+  function canEditThis(member) {
+    const me = meAccount();
+    if (me) return A.can(me, 'profile.edit', accountFor(member) || { id: null, role: member.role });
+    return T.isMe(member.id);
+  }
+
+  // True when the signed-in account may change THIS member's privacy.
+  function canSetPrivacy(member) {
+    const me = meAccount();
+    if (!me) return false;
+    const acct = accountFor(member);
+    return A.can(me, 'self.privacy', acct) || A.can(me, 'account.manage', acct);
+  }
+
+  // The roster (display) roles are finer-grained than the account roles. Map a
+  // roster role onto the account role it implies, so the same authorisation
+  // rule can guard both.
+  function rosterToAccountRole(rosterRole) {
+    return rosterRole === 'owner' || rosterRole === 'admin' ? 'admin'
+      : rosterRole === 'head' ? 'head' : 'painter';
+  }
+
+  // Is this member's profile private to a cold visitor?
+  function isPrivateProfile(member) {
+    if (!A) return false;
+    const acct = accountFor(member);
+    // A member with no account is a public roster entry (company data).
+    if (!acct) return false;
+    return !A.isPublic(acct);
   }
 
   function observe(scope) {
@@ -194,14 +248,15 @@
   function renderEditor() {
     const section = $('ppEditSection');
     if (!section) return;
-    const mine = T.isMe(member.id);
+    const mine = canEditThis(member);
     const body = $('ppEditBody');
     const heading = $('ppEditHeading');
-    // Editing needs the staff passcode. Until someone signs in, the section
-    // shows only the sign-in prompt — no edit form, no "This is me" shortcut,
-    // so a public visitor can never change a member's details.
+    // Editing needs either a signed-in account that is allowed to edit this
+    // member, or the legacy staff passcode claim. Until then the section shows
+    // only the sign-in prompt — no edit form, no "This is me" shortcut, so a
+    // public visitor can never change a member's details.
     if (body) body.hidden = !mine;
-    if (heading) heading.textContent = mine ? '✏️ Edit my profile & gallery' : '🔒 Crew sign-in';
+    if (heading) heading.textContent = mine ? '✏️ Edit this profile & gallery' : '🔒 Crew sign-in';
     if (!mine) { renderClaim(); return; }
     fillEditor();
     renderClaim();
@@ -211,8 +266,22 @@
   function renderClaim() {
     const claimWrap = $('ppClaim');
     if (!claimWrap) return;
+    const me = meAccount();
     const isManager = T.isManager();
     const claimed = T.claimedId() === member.id;
+
+    // Signed in with a real account that may edit this profile.
+    if (me && canEditThis(member)) {
+      const isOwn = me.memberId === member.id;
+      claimWrap.innerHTML = '<span class="pp-claim-note">🔑 Signed in as <strong>' + esc(me.name || me.username) +
+        '</strong> (' + esc(me.role) + ')' + (isOwn ? ' — this is your profile.' : ' — you may edit this member.') + '</span> ' +
+        '<a class="btn-ghost btn-sm" href="./login.html">Account</a> ' +
+        '<button type="button" class="btn-ghost btn-sm" id="ppUnclaim">Sign out</button>';
+      const un = $('ppUnclaim');
+      if (un) un.addEventListener('click', () => { if (A) A.logout(); T.unclaim(); T.lockHead(); renderAll(); });
+      return;
+    }
+
     if (isManager) {
       claimWrap.innerHTML = '<span class="pp-claim-note">🔑 Signed in as Owner/Head — you can edit any member\'s profile.</span> ' +
         '<button type="button" class="btn-ghost btn-sm" id="ppUnclaim">Sign out</button>';
@@ -225,7 +294,7 @@
       if (un) un.addEventListener('click', () => { T.unclaim(); T.lockHead(); renderEditor(); });
     } else {
       claimWrap.innerHTML =
-        '<span class="pp-claim-note">👋 Enter the crew passcode to edit this profile and manage its work photos.</span>' +
+        '<span class="pp-claim-note">👋 <a href="./login.html">Sign in to your crew account</a>, or enter the crew passcode, to edit this profile and manage its work photos.</span>' +
         '<form class="pp-claim-form" id="ppClaimForm">' +
           '<input type="password" id="ppClaimPass" class="form-control" placeholder="Crew passcode" autocomplete="current-password" aria-label="Crew passcode" />' +
           '<button type="submit" class="btn-primary btn-sm">Sign in</button>' +
@@ -238,6 +307,69 @@
         if (T.claim(member.id, pass ? pass.value : '')) renderEditor();
         else { const err = $('ppClaimErr'); if (err) { err.textContent = 'Wrong passcode. Try again.'; err.classList.add('is-error'); } }
       });
+    }
+  }
+
+  // ------------------------------------------------------------
+  // PRIVACY
+  // ------------------------------------------------------------
+  function renderPrivacy() {
+    const section = $('ppPrivacySection');
+    const notice = $('ppPrivateNotice');
+    const privateNow = isPrivateProfile(member);
+    const viewerCanSee = canEditThis(member) || (meAccount() && A && A.can(meAccount(), 'profile.edit', accountFor(member) || {}));
+
+    // The privacy control is shown to the owner and to Admin/Head.
+    if (section) {
+      section.hidden = !canSetPrivacy(member);
+      if (!section.hidden) {
+        const acct = accountFor(member);
+        const isPrivate = acct && acct.privacy === 'private';
+        const state = $('ppPrivacyState');
+        if (state) {
+          state.textContent = isPrivate ? '🔒 Private' : '🌍 Public';
+          state.classList.toggle('is-private', !!isPrivate);
+          state.classList.toggle('is-public', !isPrivate);
+        }
+        const btn = $('ppPrivacyToggle');
+        if (btn) {
+          btn.textContent = isPrivate ? 'Make public' : 'Make private';
+          btn.onclick = () => {
+            const me = meAccount();
+            if (!me) return;
+            const status = $('ppPrivacyStatus');
+            settle(A.setPrivacy(me, acct.id, isPrivate ? 'public' : 'private'), (res) => {
+              if (!res.ok) { if (status) { status.textContent = res.error; status.classList.add('is-error'); } return; }
+              if (status) { status.textContent = '✅ Profile is now ' + (res.account.privacy === 'private' ? 'private' : 'public') + '.'; status.classList.remove('is-error'); }
+              renderAll();
+            });
+          };
+        }
+        const hint = $('ppPrivacyHint');
+        if (hint) hint.textContent = 'A private profile is hidden from anonymous visitors and search engines. Company contact details and Admin/Head rules stay in force.';
+      }
+    }
+
+    // A private profile hides the personal sections from everyone but the
+    // owner / an authorised Admin or Head.
+    const hidePersonal = privateNow && !viewerCanSee;
+    if (notice) notice.hidden = !hidePersonal;
+    ['ppRecordSection', 'ppGallerySection', 'ppSpecSection', 'ppPhilosophySection', 'ppContactSection', 'ppEditSection'].forEach((id) => {
+      const el = $(id);
+      if (el) el.hidden = hidePersonal;
+    });
+    const hero = $('ppHero');
+    if (hero) {
+      // Keep the name/role visible (it is the roster's public fact) but hide the
+      // personal bio/tagline when private.
+      const tagline = $('ppTagline'), bio = $('ppBio');
+      if (tagline) tagline.hidden = hidePersonal;
+      if (bio) bio.hidden = hidePersonal;
+    }
+    if (hidePersonal) {
+      const note = $('ppPrivateNote');
+      if (note) note.textContent = (member.name || 'This painter') + ' has chosen to keep their profile private. Sign in with a crew account to view it.';
+      document.title = 'Private profile | Painter Plus';
     }
   }
 
@@ -269,9 +401,43 @@
     if (form) {
       form.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (!T.isMe(member.id)) { flashEditor('You can only edit your own profile.', true); return; }
+        if (!canEditThis(member)) { flashEditor('You can only edit your own profile.', true); return; }
         const val = (id) => { const el = $(id); return el ? (el.value || '').trim() : ''; };
         if (!val('ppfName')) { flashEditor('Please enter a name.', true); return; }
+
+        // When a signed-in account is editing, route the write through the
+        // account engine so authorisation + the field whitelist are enforced
+        // (a painter cannot change role/status/company fields this way).
+        const me = meAccount();
+        if (me && A) {
+          const acct = accountFor(member);
+          if (acct && A.can(me, 'profile.edit', acct)) {
+            const patch = {
+              name: val('ppfName'), title: val('ppfTitle'), tagline: val('ppfTagline'),
+              bio: val('ppfBio'), startYear: val('ppfStartYear'), quote: val('ppfQuote')
+            };
+            if (A.can(me, 'profile.editContact', acct)) {
+              patch.phone = val('ppfPhone'); patch.email = val('ppfEmail');
+              patch.address = val('ppfAddress'); patch.note = val('ppfNote');
+            }
+            settle(A.updateProfile(me, acct.id, patch), (res) => {
+              if (!res.ok) { flashEditor(res.error, true); return; }
+              // Mirror the permitted fields into the roster so the public team
+              // page stays in step (the roster is the site's display layer).
+              const mirror = Object.assign({}, member, { id: member.id, role: member.role });
+              Object.keys(patch).forEach((k) => { if (k !== 'name' || A.can(me, 'profile.edit', acct)) mirror[k] = patch[k]; });
+              const rosterRes = T.save(mirror);
+              if (rosterRes.ok) member = rosterRes.member;
+              renderProfile(); renderRecord(); renderPrivacy(); flashEditor('✅ Profile saved.');
+            });
+            return;
+          }
+          // Signed in but not allowed to edit this member.
+          flashEditor('You are not allowed to edit this profile.', true);
+          return;
+        }
+
+        // Legacy passcode path (no account system loaded).
         const res = T.save(Object.assign({}, member, {
           id: member.id,
           name: val('ppfName'),
@@ -347,14 +513,25 @@
 
   function renderRoleControls() {
     if (!roleSection) return;
-    const isHead = T.isManager();
-    roleSection.hidden = !isHead;
-    if (!isHead || !optionsWrap) return;
+    // Prefer the account-based permission; fall back to the passcode manager.
+    const me = meAccount();
+    const canManageRoster = me
+      ? A.can(me, 'roster.manage', accountFor(member) || null)
+      : T.isManager();
+    roleSection.hidden = !canManageRoster;
+    if (!canManageRoster || !optionsWrap) return;
 
     optionsWrap.innerHTML = T.ROLES.map(r => {
-      const blocked = T.wouldStrandLeads(member.id, r.id);
+      // Two reasons a role may be blocked: it would strand the roster without a
+      // lead, or the signed-in account is not allowed to grant it (a Head cannot
+      // create an Owner/Head/Admin).
+      const strands = T.wouldStrandLeads(member.id, r.id);
+      const cannotGrant = me ? !A.can(me, 'role.assign', accountFor(member) || { id: null, role: member.role }, rosterToAccountRole(r.id)) : false;
+      const blocked = strands || cannotGrant;
+      const title = strands ? 'Promote another member to Owner or Head first'
+        : cannotGrant ? 'You cannot grant a role at or above your own' : '';
       return '<button type="button" class="pp-role-option' + (r.id === pendingRole ? ' active' : '') +
-        '" data-role="' + r.id + '"' + (blocked ? ' disabled title="Promote another member to Owner or Head first"' : '') + '>' +
+        '" data-role="' + r.id + '"' + (blocked ? ' disabled title="' + title + '"' : '') + '>' +
         '<span class="pro-ic">' + r.icon + '</span>' +
         '<span class="pro-label">' + esc(r.label) + '</span>' +
         '<span class="pro-desc">' + esc(r.desc) + '</span>' +
@@ -379,9 +556,33 @@
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
       if (pendingRole === member.role) { flash('This member is already ' + T.roleOf(member.role).label + '.'); return; }
+      const me = meAccount();
+      const acct = accountFor(member);
+      // The roster role is what the public team page shows, so authorise it
+      // exactly like the linked account role — a lead may only move a member to
+      // a role strictly below their own. Refuse BEFORE the roster write, so a
+      // refused promotion is never left half-applied to the display layer.
+      const mapped = rosterToAccountRole(pendingRole);
+      const allowed = me
+        ? A.can(me, 'role.assign', acct || { id: null, role: member.role }, mapped)
+        : T.isManager();
+      if (!allowed) { flash('You can only move painters to a role below your own.', true); return; }
+
       const res = T.setRole(member.id, pendingRole);
       if (!res.ok) { flash(res.error, true); return; }
       member = res.member;
+      // Keep the linked account's role in step (only when the signed-in account
+      // is allowed to manage accounts).
+      if (me && A && acct && A.can(me, 'account.manage', acct)) {
+        const acctRole = mapped;
+        settle(A.setRole(me, acct.id, acctRole), (r) => {
+          if (!r.ok) { flash(r.error, true); renderRoleControls(); return; }
+          renderProfile();
+          renderRoleControls();
+          flash('✅ ' + member.name + ' is now ' + T.roleOf(member.role).label + '.');
+        });
+        return;
+      }
       renderProfile();
       renderRoleControls();
       flash('✅ ' + member.name + ' is now ' + T.roleOf(member.role).label + '.');
@@ -391,6 +592,12 @@
   const removeBtn = $('ppRoleRemove');
   if (removeBtn) {
     removeBtn.addEventListener('click', () => {
+      const me = meAccount();
+      const acct = accountFor(member);
+      const allowed = me
+        ? A.can(me, 'roster.manage', acct || { id: null, role: member.role })
+        : T.isManager();
+      if (!allowed) { flash('You can only remove painters you manage.', true); return; }
       if (!confirm('Remove ' + member.name + ' from the team?')) return;
       const res = T.remove(member.id);
       if (!res.ok) { flash(res.error, true); return; }
@@ -406,6 +613,7 @@
     renderRecord();
     renderGallery();
     renderEditor();
+    renderPrivacy();
     renderRoleControls();
   }
 
@@ -413,5 +621,6 @@
   initEditor();
   document.addEventListener('DOMContentLoaded', renderAll);
   document.addEventListener('ppteam:change', renderAll);
+  document.addEventListener('ppauth:change', renderAll);
   document.addEventListener('ppgallery:change', () => { renderGallery(); renderRecord(); renderEditorGallery(); });
 })();

@@ -1492,3 +1492,106 @@ by measurement rather than by reading:
 - Service-worker cache bumped `painter-plus-v28` → `v29` (this pass changed
   `css/style.css`, which is precached).
 
+
+---
+
+## Eleventh pass — 2026-10-27 (auth, accounts & RBAC audit)
+
+The crew accounts / login / RBAC layer (`js/auth.js`, `js/auth-config.js`,
+`js/login-page.js`, `js/accounts-page.js`, `login.html`) was audited against its
+own threat model: **a painter must never be able to read or change what is not
+theirs, and no one may escalate a role.** Four real defects were found and fixed.
+
+### 54. Critical — a pending account could bootstrap itself to Admin
+
+`promoteBootstrapAdmin(actor, id)` trusted the caller's `actor` object: it never
+verified the actor existed in the store, and it treated "no Admin yet" as the
+only gate. So an attacker could register (an account lands `pending`), then call
+`PPAuth.promoteBootstrapAdmin({ id: 'forged' }, myId)` from the console and be
+made an **active Admin** — a total authentication bypass that needed no password.
+
+**Fix.** The bootstrap path is now gated by an **operator passcode**:
+`PP_AUTH_CONFIG.bootstrapPasscodeSha256` holds the salted SHA-256 digest of
+`pp-auth-bootstrap-v1:<passcode>` (generate with
+`node tests/hash-passcode.js --bootstrap "<passcode>"`; blank = closed, the safe
+default). `localPromoteBootstrapAdmin()` requires the passcode to match, refuses
+a `suspended`/`rejected` target, and is refused outright the moment any Admin
+exists. The forged-actor path is dead: a `null`/foreign actor cannot satisfy it.
+See `docs/AUTH.md` §3.
+
+### 55. High — password recovery let anyone take over any account
+
+`requestRecovery(email)` **returned the reset code to the caller** and
+`resetWithCode` accepted it. Typing a victim's email into the "forgot password"
+form therefore yielded a code that reset the victim's password — account
+takeover with no privileges at all.
+
+**Fix.** `requestRecovery()` is now inert to the caller: it always answers
+`{ ok: true, sent: true }` and **returns no code**, so it also cannot enumerate
+accounts. A code can only be minted by `issueRecoveryCode(actor, targetId)` — a
+lead who outranks the target — and it is stored **hashed** (`SALT_RECOVERY`),
+expires in 30 minutes, is **single-use**, is **burnt after `RECOVERY_MAX_TRIES`
+(5) wrong attempts**, and only works on an `active` account. `resetWithCode()`
+consumes it and bumps `pwAt`. See `docs/AUTH.md` §6.
+
+### 56. High — a Head could escalate to Admin and touch peer Heads
+
+`can()` blocked only "a non-admin managing an **admin** target". It never looked
+at *which* role was being granted, so a Head could:
+
+- promote themselves or a painter to **Admin** (`role.assign` ignored the role);
+- demote, suspend, edit or password-reset a **peer Head** (only an Admin target
+  was protected);
+- re-role a peer Head in the **roster**, which is what the public team page
+  shows — and the profile page wrote the roster *before* checking permission,
+  so a refused change was half-applied to the display layer.
+
+**Fix.** `can(actor, action, target, extra)` gained an `extra` argument that
+carries the role being granted; `role.assign` now requires both
+`outranks(target)` **and** `canGrantRole(role)` (strictly below the actor's own
+role, or an Admin). `account.manage`/`profile.edit`/`roster.manage` all use
+`outranks()`, so a peer or superior is never manageable. `localUpdateAccount()`
+re-checks `can(me, 'role.assign', target, p.role)` before applying a role. The
+profile page authorises the roster write **before** mutating it, disables
+ungrantable roles in the picker, and the Accounts pane only renders controls for
+accounts the actor actually outranks. See `docs/AUTH.md` §4.
+
+### 57. Medium — no login throttling and no session invalidation
+
+A script could grind passwords with no lockout, and a password change/reset left
+the victim's existing sessions valid — so a stolen session survived the very
+action meant to revoke it.
+
+**Fix.** `localLogin()` counts failures and locks an account for a cool-off
+window (`ERR.THROTTLED`, "too many attempts"), refusing even the correct password
+while the lock stands; a successful login clears the counter. Every account now
+carries `pwAt` (password change time) which the session copies; `currentUser()`
+refuses a session whose `pwAt` no longer matches, so a change/reset **invalidates
+every older session at once**. See `docs/AUTH.md` §6.
+
+### Supabase RLS documentation hardening
+
+The sample `own profile update` policy in `docs/AUTH.md` allowed a user to update
+their own row with **no column restriction** — the server-side equivalent of the
+Head→Admin bug. It now pins `role`, `status` and `edit_rights` to their previous
+values in the `with check`, so a member cannot escalate through a direct API
+call even if the client is bypassed.
+
+### Eleventh-pass verification summary
+
+- `node tests/auth.test.js` — **45/45** (was 33; +12 regression checks: the Head
+  escalation boundary, the passcode-gated bootstrap, single-use/burnt recovery,
+  session invalidation, login throttling).
+- `node tests/supabase-auth.test.js` — **9/9** (+1: a refused Head→Admin
+  escalation never reaches the network).
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED**, including
+  the extended `AUTH + RBAC selftest` (now covering the Head privilege boundary,
+  the bootstrap gate and lead-issued recovery).
+- Service-worker cache bumped `painter-plus-v29` → `v32` (this pass changed
+  `js/*.js` and `css/style.css`, all precached).
+
+**Known, accepted limitation (unchanged).** The `local` provider keeps hashed
+accounts in the browser's `localStorage`; it is a demo / small-crew mode, not
+production security, and the client gate can be bypassed by anyone editing their
+own browser. Real, server-enforced authentication requires `provider: 'supabase'`
+(Supabase Auth + row-level security), which `js/auth.js` supports today.

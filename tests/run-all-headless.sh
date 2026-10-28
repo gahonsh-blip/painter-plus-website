@@ -47,6 +47,8 @@ build worklog.html        wl-erp-selftest.js    _wl-erp-selftest.html
 build team.html           team-selftest.js      _team-selftest.html
 build gallery.html        gallery-selftest.js   _gallery-selftest.html
 build painter-profile.html profile-selftest.js  _profile-selftest.html
+build login.html          auth-selftest.js      _auth-selftest.html
+build admin.html          admin-selftest.js     _admin-selftest.html
 build color-studio.html   pmp-selftest.js       _pmp-selftest.html
 build index.html          ui-selftest.js        _ui-selftest.html
 
@@ -188,6 +190,7 @@ PY
 cleanup() {
   rm -f "$ROOT"/_selftest.html "$ROOT"/_erp-selftest.html "$ROOT"/_wl-erp-selftest.html \
         "$ROOT"/_team-selftest.html "$ROOT"/_gallery-selftest.html "$ROOT"/_profile-selftest.html \
+        "$ROOT"/_auth-selftest.html "$ROOT"/_admin-selftest.html \
         "$ROOT"/_pmp-selftest.html "$ROOT"/_portfolio-selftest.html "$ROOT"/_cs-selftest.html \
         "$ROOT"/_ui-selftest.html "$ROOT"/_sweep.html "$ROOT"/_sweep-*.html \
         "$ROOT"/_corrupt.html "$ROOT"/_corrupt-*.html \
@@ -216,6 +219,8 @@ run_node "GALLERY engine" tests/gallery.test.js
 run_node "ERP engine" tests/erp.test.js
 run_node "PHOTO MEASURE geometry" tests/measure.test.js
 run_node "PAINT-MY-PHOTO engine" tests/photo-studio.test.js
+run_node "AUTH + RBAC engine" tests/auth.test.js
+run_node "AUTH via Supabase (server-enforced provider)" tests/supabase-auth.test.js
 
 run_pre() {  # run_pre <page> <pre-id> <label>
   local page="$1" pid="$2" label="$3"
@@ -243,6 +248,8 @@ run_pre _wl-erp-selftest.html  wl-selftest        "WORK LOG -> ERP selftest"
 run_pre _team-selftest.html    team-selftest      "TEAM selftest"
 run_pre _gallery-selftest.html gallery-selftest   "GALLERY selftest"
 run_pre _profile-selftest.html profile-selftest   "PAINTER PROFILE selftest"
+run_pre _auth-selftest.html    auth-selftest      "AUTH + RBAC selftest (login, roles, privacy, audit)"
+run_pre _admin-selftest.html   admin-selftest     "ADMIN accounts pane selftest (approve, role, edit rights, audit)"
 run_pre _pmp-selftest.html     pmpTestOut         "PAINT-MY-PHOTO selftest"
 run_pre _cs-selftest.html      cs-selftest        "COLOR STUDIO selftest"
 run_pre _ui-selftest.html      ui-selftest        "PAGE UI selftest (FAQ, mobile menu, active nav)"

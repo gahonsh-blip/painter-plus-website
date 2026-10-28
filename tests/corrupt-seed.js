@@ -71,8 +71,21 @@
 
   set('painterPlusProfile', JSON.stringify({ name: {}, title: [], bio: null }));
 
+  // Auth store: hostile shapes. A `null`/scalar where an account belongs, a
+  // non-string role/status/privacy, a plaintext pw record, a recovery record
+  // that is a string, and an audit log that is not JSON at all.
+  set('painterPlusAuth', JSON.stringify([
+    null, 5, 'x', [],
+    { id: 'ok', username: 'ok', email: 'ok@example.com', name: 'OK', role: 'painter', status: 'active', privacy: 'public' },
+    { id: {}, username: [], email: {}, name: null, role: 9, status: [], privacy: {}, editRights: 'no', pw: 'plaintext', recovery: 'nope' }
+  ]));
+  set('painterPlusAudit', 'not json at all');
+
   try {
     sessionStorage.setItem('ppAdminUnlocked', '1');
     sessionStorage.setItem('ppClaimedMember', JSON.stringify({}));
+    // A hostile auth session: valid-looking id that does not exist, plus a
+    // scalar that is not JSON.
+    sessionStorage.setItem('ppAuthSession', JSON.stringify({ id: {}, at: [], exp: 'soon', token: 7 }));
   } catch (e) { /* blocked */ }
 })();

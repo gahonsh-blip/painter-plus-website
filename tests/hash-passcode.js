@@ -26,9 +26,27 @@ function digest(passcode, salt) {
 }
 
 function main() {
-  const passcode = process.argv[2];
+  const args = process.argv.slice(2);
+
+  // --bootstrap: print the digest for js/auth-config.js `bootstrapPasscodeSha256`.
+  // The auth engine salts with a fixed domain-separation prefix, so the digest
+  // here must match SALT_BOOTSTRAP in js/auth.js.
+  if (args[0] === '--bootstrap') {
+    const passcode = args[1];
+    if (!passcode) {
+      console.error('Usage: node tests/hash-passcode.js --bootstrap "your-operator-passcode"');
+      process.exit(1);
+    }
+    const hex = digest(passcode, 'pp-auth-bootstrap-v1:');
+    console.log('Paste this into js/auth-config.js:');
+    console.log("  bootstrapPasscodeSha256: '" + hex + "',");
+    return;
+  }
+
+  const passcode = args[0];
   if (!passcode) {
     console.error('Usage: node tests/hash-passcode.js "your-new-passcode"');
+    console.error('       node tests/hash-passcode.js --bootstrap "your-operator-passcode"');
     process.exit(1);
   }
   // Read the salt straight out of js/team.js so this tool can never drift

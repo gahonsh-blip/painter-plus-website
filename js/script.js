@@ -195,6 +195,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const openPanel = () => {
             admGate.hidden = true; admPanel.hidden = false;
             renderTeamList(); initProfileEditor(); renderList();
+            // Let the accounts pane (js/accounts-page.js) render now that the
+            // panel is visible and the gate is open.
+            document.dispatchEvent(new CustomEvent('ppadmin:open'));
         };
 
         const tryUnlock = () => {
@@ -208,9 +211,29 @@ document.addEventListener('DOMContentLoaded', () => {
         unlockBtn.addEventListener('click', tryUnlock);
         passInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryUnlock(); } });
 
+        // A signed-in Admin/Head account also opens the panel — no need to
+        // re-enter the passcode. The *account* gate is what actually authorises
+        // the sensitive panes (see js/accounts-page.js); this only reveals the
+        // shell. We still call Team.unlockHead with the stored digest so the
+        // roster's own manager check agrees.
+        const Auth = window.PPAuth;
+        const authedManager = () => {
+            if (!Auth || !Auth.isLoggedIn) return null;
+            const u = Auth.currentUser();
+            return (u && u.status === 'active' && (u.role === 'admin' || u.role === 'head')) ? u : null;
+        };
+        if (authedManager() && admPanel.hidden) {
+            if (Team.PASSCODE_SHA256) Team.unlockHead(Team.PASSCODE_SHA256);
+            openPanel();
+        }
+        document.addEventListener('ppauth:change', () => {
+            if (authedManager()) { if (admPanel.hidden) openPanel(); }
+        });
+
         // ----- Admin tab switching (Team & Roles / Painter Profile / Projects) -----
         const TABS = [
             ['tabTeam', 'paneTeam'],
+            ['tabAccounts', 'paneAccounts'],
             ['tabProfile', 'paneProfile'],
             ['tabProjects', 'paneProjects']
         ].map(([tabId, paneId]) => ({ tab: document.getElementById(tabId), pane: document.getElementById(paneId) }))

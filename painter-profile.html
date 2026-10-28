@@ -41,7 +41,7 @@
 
     <main>
       <!-- Profile hero -->
-      <section class="section pp-hero">
+      <section class="section pp-hero" id="ppHero">
         <div class="container pp-hero-grid">
           <div class="pp-avatar reveal-left" id="ppAvatar" aria-hidden="true">
             <svg viewBox="0 0 220 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Line-drawn painter">
@@ -83,7 +83,7 @@
       </section>
 
       <!-- Work record — numbers derived from the work log, not typed in -->
-      <section class="section">
+      <section class="section" id="ppRecordSection">
         <div class="container">
           <h2 class="section-title">Work <span>record</span></h2>
           <p class="pp-record-sub">Counted automatically from the day book — every measured square foot and logged day, not a typed-in claim.</p>
@@ -96,12 +96,39 @@
       </section>
 
       <!-- Gallery of real work photos -->
-      <section class="section">
+      <section class="section" id="ppGallerySection">
         <div class="container">
           <h2 class="section-title">Work <span>gallery</span></h2>
           <p class="pp-record-sub">Photos this painter has added from the site — tap one to enlarge.</p>
           <div id="ppGallery">
             <p class="pp-gallery-empty">No work photos yet.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Privacy control — visible to the profile owner and to Admin/Head -->
+      <section class="section" id="ppPrivacySection" hidden>
+        <div class="container">
+          <div class="card pp-privacy-card">
+            <h2 class="pp-role-heading">🔒 Profile privacy</h2>
+            <p class="pp-role-note">Choose whether your profile is visible to the public. Company contact details and Admin/Head rules always stay in force.</p>
+            <div class="pp-privacy-row">
+              <span class="pp-privacy-state" id="ppPrivacyState">Public</span>
+              <button type="button" class="btn-ghost" id="ppPrivacyToggle">Make private</button>
+            </div>
+            <p class="pp-privacy-hint" id="ppPrivacyHint"></p>
+            <p class="pp-role-status" id="ppPrivacyStatus" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Private-profile notice for a visitor -->
+      <section class="section" id="ppPrivateNotice" hidden>
+        <div class="container">
+          <div class="card pp-privacy-card">
+            <h2 class="pp-role-heading">🔒 This profile is private</h2>
+            <p class="pp-role-note" id="ppPrivateNote">This painter has chosen to keep their profile private. Sign in to view it if you are crew.</p>
+            <a class="btn-primary" href="./login.html">Crew sign-in →</a>
           </div>
         </div>
       </section>
@@ -174,7 +201,7 @@
       </section>
 
       <!-- Specialisations / skills -->
-      <section class="section">
+      <section class="section" id="ppSpecSection">
         <div class="container">
           <h2 class="section-title">Specialisations</h2>
           <div class="grid-3">
@@ -213,7 +240,7 @@
       </section>
 
       <!-- Process / philosophy -->
-      <section class="section pp-philosophy">
+      <section class="section pp-philosophy" id="ppPhilosophySection">
         <div class="container">
           <h2 class="section-title">The <span>philosophy</span></h2>
           <div class="pp-quote reveal" id="ppQuote">
@@ -229,7 +256,7 @@
       </section>
 
       <!-- Contact strip -->
-      <section class="section">
+      <section class="section" id="ppContactSection">
         <div class="container pp-contact">
           <h2>Work with the painter directly</h2>
           <div class="pp-contact-grid" id="ppContact">
@@ -270,6 +297,7 @@
               <li><a href="./portfolio.html">Portfolio</a></li>
               <li><a href="./team.html">Our Team</a></li>
               <li><a href="./painter-profile.html">Painter Profile</a></li>
+              <li><a href="./login.html">Crew Login</a></li>
               <li><a href="./contact.html">Free Quote</a></li>
             </ul>
           </div>
@@ -290,6 +318,8 @@
     </footer>
 
     <a href="https://wa.me/918825183628" class="whatsapp-float" target="_blank" rel="noreferrer">💬 WhatsApp</a>
+    <script src="./js/auth-config.js"></script>
+    <script src="./js/auth.js"></script>
     <script src="./js/team.js"></script>
     <script src="./js/worklog.js"></script>
     <script src="./js/erp.js"></script>

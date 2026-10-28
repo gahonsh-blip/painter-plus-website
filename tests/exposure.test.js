@@ -26,7 +26,7 @@ const PUBLIC_PAGES = [
   'privacy.html', 'terms.html', 'painter-profile.html'
 ];
 // Staff-only pages — they may link to each other.
-const STAFF_PAGES = ['admin.html', 'worklog.html', 'erp.html'];
+const STAFF_PAGES = ['login.html', 'admin.html', 'worklog.html', 'erp.html'];
 
 const PASSCODE = 'painter123';
 
@@ -40,6 +40,29 @@ function test(name, fn) {
 test('the passcode appears in no page served to visitors', () => {
   const offenders = PUBLIC_PAGES.concat(STAFF_PAGES).filter((f) => read(f).indexOf(PASSCODE) !== -1);
   assert.deepStrictEqual(offenders, [], 'passcode printed in: ' + offenders.join(', '));
+});
+
+// ---------- auth: no plaintext password is ever shipped ----------
+test('no served file ships a plaintext password or a service key', () => {
+  const files = fs.readdirSync(path.join(ROOT, 'js')).map((f) => 'js/' + f)
+    .concat(fs.readdirSync(ROOT).filter((f) => /\.html$/.test(f)));
+  // Strip comments first: a warning that *says* "never put a service_role key
+  // here" is not a leak — an actual key assignment is.
+  const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const bad = [];
+  const patterns = [/service_role/i, /SUPABASE_SERVICE/i, /"password"\s*:\s*"[^"]+"/];
+  for (const f of files) {
+    const src = strip(read(f));
+    for (const re of patterns) if (re.test(src)) bad.push(f + ' matches ' + re);
+  }
+  assert.deepStrictEqual(bad, [], 'plaintext secret shipped in: ' + bad.join(', '));
+});
+
+test('the auth engine hashes with a salted PBKDF2 (never plaintext)', () => {
+  const src = read('js/auth.js');
+  assert.ok(/PBKDF2/.test(src), 'PBKDF2 is used');
+  assert.ok(/getRandomValues/.test(src), 'a random salt is generated');
+  assert.ok(/timingSafeEqual/.test(src), 'verification is constant-time');
 });
 
 test('the passcode appears in no served JavaScript', () => {
@@ -83,7 +106,9 @@ test('no public page nav lists Work Log / ERP / Admin', () => {
 test('public-page JavaScript hardcodes no staff link', () => {
   // team-page.js is allowed: it creates the admin link only for a signed-in
   // Owner/Head. erp-page.js is allowed: it is only loaded on the staff erp.html.
-  const allowed = new Set(['team-page.js', 'erp-page.js']);
+  // login-page.js is allowed: it creates the admin link only for a signed-in
+  // Admin/Head account, never for a cold visitor.
+  const allowed = new Set(['team-page.js', 'erp-page.js', 'login-page.js']);
   const jsDir = path.join(ROOT, 'js');
   const offenders = [];
   for (const f of fs.readdirSync(jsDir)) {

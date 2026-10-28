@@ -2121,3 +2121,111 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
   .pp-edit-card { padding: 20px; }
   .cg-toolbar { flex-direction: column; align-items: stretch; }
 }
+
+/* ============================================================
+   AUTH — crew login / register / recovery + account dashboard
+   and the Admin "Accounts & access" management pane.
+   ============================================================ */
+.auth-hero { padding-bottom: 0; text-align: center; }
+.auth-title { font-family: var(--font-display); font-size: clamp(2rem, 4vw, 2.9rem); font-weight: 800; letter-spacing: -0.02em; }
+.auth-title span { color: var(--primary); }
+.auth-sub { color: var(--text-light); max-width: 620px; margin: 14px auto 0; }
+.auth-wrap { max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.auth-card { padding: 30px; text-align: left; }
+.auth-card:hover { transform: none; }              /* the auth card is not a hover card */
+.auth-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; border-bottom: 2px solid var(--border); }
+.auth-tab {
+  background: transparent; border: none; border-bottom: 3px solid transparent; margin-bottom: -2px;
+  padding: 11px 18px; font-weight: 700; color: var(--text-light); cursor: pointer; font-size: .98rem;
+  transition: color .2s, border-color .2s;
+}
+.auth-tab:hover { color: var(--primary); }
+.auth-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.auth-form { display: flex; flex-direction: column; gap: 14px; animation: fade-in .3s ease; }
+.auth-form-title { font-family: var(--font-display); font-size: 1.25rem; }
+.auth-field { display: flex; flex-direction: column; gap: 6px; }
+.auth-field > span { font-size: .86rem; font-weight: 600; color: var(--text); }
+.auth-field .form-control { width: 100%; }
+.auth-field small, .auth-hint { color: var(--text-light); font-size: .78rem; }
+.auth-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.auth-form-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.auth-note { color: var(--text-light); font-size: .88rem; line-height: 1.6; }
+.auth-msg { min-height: 1.4em; font-size: .9rem; font-weight: 600; }
+.auth-msg.is-error { color: #dc2626; }
+.auth-msg.is-ok { color: #16a34a; }
+.auth-demo-note {
+  background: color-mix(in srgb, #f59e0b 14%, var(--surface)); border: 1px solid color-mix(in srgb, #f59e0b 40%, var(--border));
+  border-radius: 14px; padding: 14px 16px; font-size: .84rem; line-height: 1.6; color: var(--text);
+}
+/* Signed-in dashboard */
+.auth-dash-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.auth-avatar {
+  width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; background: var(--surface-hover); border: 1px solid var(--border); overflow: hidden;
+}
+.auth-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.auth-dash-name { font-family: var(--font-display); font-size: 1.35rem; }
+.auth-dash-meta { color: var(--text-light); font-size: .9rem; }
+.auth-status-line { font-weight: 600; color: var(--text-light); margin-bottom: 18px; }
+.auth-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.auth-actions .btn-ghost { border: 1.5px solid var(--border); }
+
+/* Admin — Accounts & access pane */
+.adm-acct-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.adm-acct-filter {
+  background: transparent; border: 1.5px solid var(--border); border-radius: 999px;
+  padding: 6px 14px; font-size: .84rem; font-weight: 600; color: var(--text-light); cursor: pointer;
+  transition: color .2s, border-color .2s, background .2s;
+}
+.adm-acct-filter:hover { color: var(--primary); border-color: var(--primary); }
+.adm-acct-filter.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.acct-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.acct-item {
+  border: 1px solid var(--border); border-radius: 16px; padding: 16px;
+  background: var(--surface-hover); display: flex; flex-direction: column; gap: 12px;
+}
+.acct-top { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+.acct-avatar {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; background: var(--surface); border: 1px solid var(--border); overflow: hidden;
+}
+.acct-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.acct-id { flex: 1; min-width: 160px; }
+.acct-name { font-weight: 700; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.acct-meta { font-size: .8rem; color: var(--text-light); }
+.acct-badge { font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; padding: 2px 9px; border-radius: 999px; }
+.acct-badge.ok { background: color-mix(in srgb, #16a34a 18%, var(--surface)); color: #15803d; }
+.acct-badge.warn { background: color-mix(in srgb, #f59e0b 20%, var(--surface)); color: #b45309; }
+.acct-badge.bad { background: color-mix(in srgb, #dc2626 16%, var(--surface)); color: #b91c1c; }
+.acct-badge.role { background: color-mix(in srgb, var(--primary) 14%, var(--surface)); color: var(--primary); }
+.acct-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: end; }
+.acct-controls .adm-field { margin: 0; }
+.acct-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.acct-actions button { border-radius: 10px; padding: 7px 12px; font-size: .82rem; cursor: pointer; background: transparent; border: 1.5px solid var(--border); color: var(--text); transition: border-color .2s, color .2s; }
+.acct-actions .approve:hover { border-color: #16a34a; color: #16a34a; }
+.acct-actions .reject:hover, .acct-actions .suspend:hover { border-color: #dc2626; color: #dc2626; }
+.acct-actions .promote:hover { border-color: var(--primary); color: var(--primary); }
+.acct-rights { display: flex; gap: 16px; flex-wrap: wrap; font-size: .82rem; color: var(--text-light); }
+.acct-rights label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.acct-empty { color: var(--text-light); font-style: italic; }
+.acct-readonly { color: var(--text-light); font-size: .85rem; margin: 4px 0 0; }
+/* Audit log */
+.audit-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; }
+.audit-item { display: flex; gap: 12px; align-items: baseline; font-size: .84rem; padding: 8px 12px; border-radius: 10px; background: var(--surface-hover); }
+.audit-when { color: var(--text-light); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.audit-act { font-weight: 700; flex-shrink: 0; }
+.audit-detail { color: var(--text-light); }
+
+/* Privacy toggle on the profile page */
+.pp-privacy-card { padding: 26px 30px; text-align: left; }
+.pp-privacy-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: space-between; }
+.pp-privacy-state { font-weight: 700; }
+.pp-privacy-state.is-private { color: #b45309; }
+.pp-privacy-state.is-public { color: #15803d; }
+.pp-privacy-hint { color: var(--text-light); font-size: .86rem; margin-top: 10px; }
+
+@media (max-width: 640px) {
+  .auth-card, .pp-privacy-card { padding: 20px; }
+  .acct-controls { grid-template-columns: 1fr; }
+}
+
