@@ -1599,7 +1599,7 @@ own browser. Real, server-enforced authentication requires `provider: 'supabase'
 ### Twelfth pass — the member profile page (2026-10-31)
 
 **Theme.** The request was narrow: *the painter profile page is not built
-properly — find and fix the bugs.* Two real defects were found by probing the
+properly — find and fix the bugs.* Three real defects were found by probing the
 **rendered** page, not by reading the source.
 
 ### 58. High — every painter inherited the founder's bio, tagline and quote
@@ -1666,3 +1666,100 @@ any photo.
   audit and the corrupt-store sweep).
 - Service-worker cache bumped `painter-plus-v32` → `v33` (`js/profile-page.js` is
   precached).
+
+### 60. High — a bad `?id=` kept the founder's profile on screen
+
+**Symptom.** Opening `painter-profile.html?id=<unknown>` (a removed member, or a
+mistyped link) left the page's **static markup** — the founder's name, tagline,
+bio and quote — on screen under the visitor's URL, and `renderAll()` returned
+early. A link to a deleted painter therefore showed Gahonsh's profile, silently.
+
+**Fix.** `renderAll()` now calls `renderNotFound()` when the URL names a member
+that does not exist, replacing `<main>` with an honest "Painter not found" card
+and setting the document title. No founder text is left on screen.
+
+## Thirteenth pass — 2026-10-31 (account-aware profile & admin boot)
+
+A follow-up sweep after the twelfth pass, driven by clicking every control on
+every staff page under a seeded session. Three real defects were found; two are
+crashes in the account-aware profile paths, one is a boot-time crash that left
+`admin.html`'s tabs dead for a signed-in Admin.
+
+### 61. High — the profile privacy toggle crashed on a member with no account
+
+**Symptom.** A signed-in Admin/Head opening a roster member that has **no linked
+account** (e.g. a worker who never registered) and pressing the privacy toggle
+threw and aborted the page:
+
+```
+Uncaught TypeError: Cannot read properties of null (reading 'id')
+```
+
+`canSetPrivacy(member)` returned `true` for an Admin even when
+`accountFor(member)` was `null` — `A.can(me, 'account.manage', null)` is true for
+an Admin. The section was therefore shown, and its toggle handler did
+`A.setPrivacy(me, acct.id, …)` on the `null` account.
+
+**Fix.** `canSetPrivacy()` now returns `false` when the member has no linked
+account: there is no privacy flag to change (a roster-only entry is company data
+and always public — see `isPrivateProfile`), so the control must not be offered.
+The toggle handler is also defensive (`if (!me || !acct) return;`), so it can
+never dereference a missing account again.
+
+### 62. High — an Admin could not save an account-less member's profile
+
+**Symptom.** The same Admin was offered the edit form (the page shows it for
+exactly this case), filled it in and pressed **Save profile**, but got:
+
+```
+You are not allowed to edit this profile.
+```
+
+and nothing was written. The submit handler branched on a linked account only:
+`if (acct && A.can(me, 'profile.edit', acct))` — with no account it fell straight
+through to the "not allowed" message, so the visible, editable form could never
+be submitted.
+
+**Fix.** When there is no linked account but the signed-in lead outranks the
+member (`A.can(me, 'profile.edit', { id: null, role: member.role })`), the handler
+now saves the **roster** entry (the site's display layer), mirroring the same
+fields the account path writes. The account path is unchanged when an account
+exists.
+
+### 63. High — admin.html boot crashed for a signed-in Admin (dead tabs)
+
+**Symptom.** A signed-in Admin/Head opening `admin.html` landed on a panel whose
+tabs did nothing. The console showed:
+
+```
+Uncaught ReferenceError: Cannot access 'pfGet' before initialization
+```
+
+The auto-open block ran near the top of the admin handler, calling
+`openPanel()` → `renderTeamList()`/`initProfileEditor()`/`renderList()`. Those
+close over `pfGet`/`form`/`fields`, which are `const`s declared **later** in the
+same block. Reaching them during the temporal dead zone threw, and the throw
+aborted the rest of the `DOMContentLoaded` handler — so the tab listeners (wired
+after that point) were never attached.
+
+**Fix.** The authed-manager auto-open is now deferred into `openForAuthedManager`
+and invoked from the **boot block at the end** of the admin handler (after every
+`const`/function is initialised), alongside the existing `isActingHead()` open.
+The `ppauth:change` listener calls the same function, so a sign-in while the page
+is open still opens the panel.
+
+**Verified.**
+- `tests/profile-selftest.js` gained an **account-aware block** (6 checks): a
+  signed-in Admin is offered the edit form for an account-less member, no privacy
+  switch is shown, the save writes the roster entry, and nothing throws.
+- `tests/admin-selftest.js` gained a **boot check** (4 checks): signing in as an
+  Admin opens the panel with no window error, and clicking the Projects tab shows
+  its pane (proving the tab wiring ran).
+- `tests/exposure.test.js` gained **3 static guards** (17 checks total): the
+  admin auto-open is deferred past the profile consts, the profile guards a
+  member with no linked account, and `renderNotFound()` is wired in.
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED** (all Node
+  suites, every page self-test, the visitor-exposure sweep, the hidden-attribute
+  audit and the corrupt-store sweep).
+- Service-worker cache bumped `painter-plus-v33` → `v34` (`js/script.js`,
+  `js/profile-page.js` are precached).

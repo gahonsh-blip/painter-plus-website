@@ -120,10 +120,15 @@
   }
 
   // True when the signed-in account may change THIS member's privacy.
+  // A member with no linked account has no privacy flag to change — the roster
+  // entry is company data and always public (see isPrivateProfile). Showing the
+  // control would offer a switch that can never take effect, and the toggle's
+  // handler dereferenced the missing account and crashed the page.
   function canSetPrivacy(member) {
     const me = meAccount();
     if (!me) return false;
     const acct = accountFor(member);
+    if (!acct) return false;
     return A.can(me, 'self.privacy', acct) || A.can(me, 'account.manage', acct);
   }
 
@@ -365,7 +370,7 @@
           btn.textContent = isPrivate ? 'Make public' : 'Make private';
           btn.onclick = () => {
             const me = meAccount();
-            if (!me) return;
+            if (!me || !acct) return;
             const status = $('ppPrivacyStatus');
             settle(A.setPrivacy(me, acct.id, isPrivate ? 'public' : 'private'), (res) => {
               if (!res.ok) { if (status) { status.textContent = res.error; status.classList.add('is-error'); } return; }
@@ -459,6 +464,30 @@
               if (rosterRes.ok) member = rosterRes.member;
               renderProfile(); renderRecord(); renderPrivacy(); flashEditor('✅ Profile saved.');
             });
+            return;
+          }
+          // A roster member with no linked account (e.g. a worker who never
+          // registered). The edit form is offered to a lead for exactly this
+          // case — see canEditThis — so save the roster entry instead of
+          // refusing, or the visible form could never be submitted.
+          if (!acct && A.can(me, 'profile.edit', { id: null, role: member.role })) {
+            const rosterRes = T.save(Object.assign({}, member, {
+              id: member.id,
+              name: val('ppfName'),
+              role: member.role,
+              title: val('ppfTitle'),
+              tagline: val('ppfTagline'),
+              bio: val('ppfBio'),
+              startYear: val('ppfStartYear'),
+              quote: val('ppfQuote'),
+              phone: val('ppfPhone'),
+              email: val('ppfEmail'),
+              address: val('ppfAddress'),
+              note: val('ppfNote')
+            }));
+            if (!rosterRes.ok) { flashEditor(rosterRes.error, true); return; }
+            member = rosterRes.member;
+            renderProfile(); renderRecord(); renderPrivacy(); flashEditor('✅ Profile saved.');
             return;
           }
           // Signed in but not allowed to edit this member.
@@ -634,9 +663,31 @@
     });
   }
 
+  // Shown when the URL names a member that does not exist (a stale or
+  // mistyped ?id=). Without this, the page silently kept the static markup —
+  // which is the founder's profile — under the visitor's URL, so a link to a
+  // removed member showed Gahonsh's name, bio and photo. Replace the whole
+  // profile with an honest "not found" card instead of leaving it on screen.
+  function renderNotFound() {
+    document.title = 'Painter not found | Painter Plus';
+    const main = document.querySelector('main');
+    if (!main) return;
+    main.innerHTML =
+      '<section class="section">' +
+        '<div class="container" style="text-align:center;max-width:640px;margin:0 auto">' +
+          '<p class="pp-eyebrow">Painter Plus</p>' +
+          '<h1 class="section-title">Painter <span>not found</span></h1>' +
+          '<p class="pp-record-sub">We could not find that crew member. The link may be ' +
+          'out of date, or the member was removed.</p>' +
+          '<p class="pp-cta"><a class="btn-primary" href="./team.html">👥 See the full crew</a> ' +
+          '<a class="btn-ghost" href="./contact.html">Get a free quote</a></p>' +
+        '</div>' +
+      '</section>';
+  }
+
   function renderAll() {
     if (!member) member = T.memberFromQuery();
-    if (!member) return;
+    if (!member) { renderNotFound(); return; }
     pendingRole = member.role;
     renderProfile();
     renderRecord();

@@ -187,5 +187,47 @@ test('the hidden-attribute audit harness exists', () => {
     'run-all-headless.sh does not check the hidden-audit index page');
 });
 
+// ---------- a signed-in Admin/Head must be able to use the admin panel ----------
+// A boot-time ReferenceError (opening the panel before the profile/project
+// consts were declared) aborted the whole admin handler, so the tabs were dead
+// for a signed-in Admin. These static checks pin the ordering fix: the
+// auto-open must not run in the early block, and must be invoked from the end.
+test('js/script.js does not auto-open the admin panel before its consts are declared', () => {
+  const js = read('js/script.js');
+  // The early block must only *register* the listener, never call openPanel.
+  assert.ok(js.indexOf("document.addEventListener('ppauth:change', openForAuthedManager);") !== -1,
+    'the ppauth:change listener no longer uses the deferred opener');
+  const early = js.indexOf('const openForAuthedManager');
+  const decl = js.indexOf("const pfGet =");
+  assert.ok(early !== -1 && decl !== -1 && early < decl,
+    'openForAuthedManager is no longer defined before the profile consts');
+  // The call site lives in the boot block at the end of the admin handler.
+  const boot = js.lastIndexOf('else openForAuthedManager();');
+  assert.ok(boot !== -1 && boot > js.indexOf('function renderList()'),
+    'openForAuthedManager is not invoked from the end-of-handler boot block');
+});
+
+test('the painter profile offers no edit form without an account or a claim', () => {
+  const js = read('js/profile-page.js');
+  // The privacy control must bail when there is no linked account — the old
+  // code dereferenced `acct.id` on a null account and crashed the page.
+  assert.ok(/if \(!acct\) return false;/.test(js),
+    'canSetPrivacy no longer guards against a member with no linked account');
+  assert.ok(/if \(!me \|\| !acct\) return;/.test(js),
+    'the privacy toggle no longer guards against a missing account');
+  // Saving an account-less roster member (a lead editing a worker who never
+  // registered) must write the roster, not refuse.
+  assert.ok(js.indexOf("!acct && A.can(me, 'profile.edit'") !== -1,
+    'the save path no longer handles an account-less roster member');
+});
+
+test('the painter profile shows an honest not-found state for a bad ?id=', () => {
+  const js = read('js/profile-page.js');
+  assert.ok(js.indexOf('function renderNotFound()') !== -1,
+    'renderNotFound() is missing, so a bad ?id= would keep the founder static markup');
+  assert.ok(/if \(!member\) \{ renderNotFound\(\); return; \}/.test(js),
+    'renderAll no longer replaces a missing member with the not-found state');
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

@@ -92,6 +92,34 @@
     check(!!A, 'PPAuth engine is loaded on admin.html');
     if (!A) { finish(); return; }
 
+    // ---- 0. Boot with a signed-in Admin must not crash ----
+    // A signed-in Admin/Head auto-opens the panel. That used to run *before*
+    // the profile/project consts (pfGet, form, fields) were declared, so the
+    // open threw `Cannot access 'pfGet' before initialization`, aborted the
+    // whole DOMContentLoaded handler and left the tabs unwired. Check the
+    // listener the harness installed on the panel's own script before the
+    // account was created, then sign in and see that the panel opened.
+    let bootErr = null;
+    const bootProbe = (e) => { bootErr = (e && (e.message || e.error)) || 'unknown error'; };
+    window.addEventListener('error', bootProbe);
+    const owner = await A.register({ name: 'Owner', username: 'owner', email: 'owner@example.com', password: 'secret123' });
+    await A.promoteBootstrapAdmin(null, owner.account.id, window.__ppBootstrapPasscode);
+    await A.login('owner', 'secret123');
+    document.dispatchEvent(new CustomEvent('ppauth:change'));
+    await sleep(120);
+    window.removeEventListener('error', bootProbe);
+    check(!bootErr, 'signing in as an Admin opens the panel without a boot error' + (bootErr ? ' (' + bootErr + ')' : ''));
+    check(!$('admPanel').hidden, 'the Admin panel is open after sign-in');
+    // The tabs must be wired — a boot crash used to abort the handler before
+    // the tab listeners were attached, so clicking a tab did nothing.
+    const projTab = $('tabProjects');
+    if (projTab) projTab.click();
+    await sleep(40);
+    check($('paneProjects') && !$('paneProjects').hidden, 'the tab wiring ran (clicking Projects shows its pane)');
+    const teamTab = $('tabTeam');
+    if (teamTab) teamTab.click();
+    await sleep(40);
+
     // ---- 1. No signed-in account → the pane refuses ----
     A.logout();
     document.dispatchEvent(new CustomEvent('ppadmin:open'));
@@ -102,8 +130,7 @@
     check(/Sign in as an Admin or Head/.test(list.textContent), 'the pane asks for an Admin/Head sign-in');
 
     // ---- 2. Seed an Admin + a pending painter ----
-    const owner = await A.register({ name: 'Owner', username: 'owner', email: 'owner@example.com', password: 'secret123' });
-    await A.promoteBootstrapAdmin(null, owner.account.id, window.__ppBootstrapPasscode);
+    // (The Admin was created in step 0; reuse it.)
     const admin = A.getAccount(owner.account.id);
     const pend = await A.register({ name: 'New Painter', username: 'newbie', email: 'newbie@example.com', password: 'secret123' });
     check(A.getAccount(pend.account.id).status === 'pending', 'a fresh account is pending');

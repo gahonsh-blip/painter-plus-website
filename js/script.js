@@ -216,19 +216,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // the sensitive panes (see js/accounts-page.js); this only reveals the
         // shell. We still call Team.unlockHead with the stored digest so the
         // roster's own manager check agrees.
+        //
+        // This MUST run after every const/function below is initialised:
+        // openPanel() calls renderTeamList/initProfileEditor/renderList, and
+        // the `pfGet`/`form`/`fields` consts they close over are declared
+        // later in this block. Opening the panel here (before those
+        // declarations) threw `Cannot access 'pfGet' before initialization`
+        // and aborted the whole handler, so a signed-in Admin landed on a
+        // panel whose tabs were never wired. See the boot block at the end.
         const Auth = window.PPAuth;
         const authedManager = () => {
             if (!Auth || !Auth.isLoggedIn) return null;
             const u = Auth.currentUser();
             return (u && u.status === 'active' && (u.role === 'admin' || u.role === 'head')) ? u : null;
         };
-        if (authedManager() && admPanel.hidden) {
-            if (Team.PASSCODE_SHA256) Team.unlockHead(Team.PASSCODE_SHA256);
-            openPanel();
-        }
-        document.addEventListener('ppauth:change', () => {
-            if (authedManager()) { if (admPanel.hidden) openPanel(); }
-        });
+        const openForAuthedManager = () => {
+            if (authedManager() && admPanel.hidden) {
+                if (Team.PASSCODE_SHA256) Team.unlockHead(Team.PASSCODE_SHA256);
+                openPanel();
+            }
+        };
+        document.addEventListener('ppauth:change', openForAuthedManager);
 
         // ----- Admin tab switching (Team & Roles / Painter Profile / Projects) -----
         const TABS = [
@@ -581,8 +589,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Auto-unlock if already unlocked in this session (placed last so all
-        // consts/functions above are initialized before openPanel runs).
-        if (Team.isActingHead()) { openPanel(); }
+        // consts/functions above are initialized before openPanel runs), or if
+        // a signed-in Admin/Head account should go straight into the panel.
+        if (Team.isActingHead()) openPanel();
+        else openForAuthedManager();
     }
 
     // Escapes text AND the quote characters so it is safe in quoted HTML

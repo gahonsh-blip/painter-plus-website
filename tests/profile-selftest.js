@@ -28,7 +28,42 @@
   const $ = (id) => document.getElementById(id);
   const txt = (id) => { const el = $(id); return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; };
 
-  window.addEventListener('error', (e) => log('!! window error: ' + (e.message || e.error)));
+  const pageErrors = [];
+  window.addEventListener('error', (e) => { pageErrors.push(e.message || String(e.error)); log('!! window error: ' + (e.message || e.error)); });
+
+  // The account-aware block at the end registers and signs in a real account,
+  // so the page needs the same deterministic KDF stand-in as tests/auth-selftest.js:
+  // Chromium's --virtual-time-budget never resolves real PBKDF2, so it would
+  // hang with no output. The real PBKDF2 round-trip is covered in Node.
+  (function shimKdf() {
+    try {
+      const subtle = window.crypto && window.crypto.subtle;
+      if (!subtle) return;
+      subtle.importKey = function (fmt, keyData) { return Promise.resolve({ keyData: keyData }); };
+      subtle.deriveBits = function (algo, key) {
+        const pw = new TextDecoder().decode(key.keyData || new Uint8Array());
+        const salt = Array.from((algo && algo.salt) || []).join(',');
+        const seed = new TextEncoder().encode(pw + '|' + salt + '|' + (algo && algo.iterations));
+        const o = new Uint8Array(32);
+        for (let i = 0; i < o.length; i++) o[i] = seed[i % seed.length] ^ (i * 31);
+        return Promise.resolve(o.buffer);
+      };
+      subtle.digest = function (algo, data) {
+        const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+        const o = new Uint8Array(32);
+        for (let i = 0; i < o.length; i++) o[i] = (bytes[i % bytes.length] ^ (i * 17) ^ 0x5a) & 0xff;
+        return Promise.resolve(o.buffer);
+      };
+    } catch (e) { /* leave crypto as-is */ }
+  })();
+  window.__ppBootstrapPasscode = 'selftest-operator-pass';
+  (function installBootstrapPasscode() {
+    const cfg = (window.PP_AUTH_CONFIG = window.PP_AUTH_CONFIG || {});
+    window.crypto.subtle.digest('SHA-256', new TextEncoder().encode('pp-auth-bootstrap-v1:' + window.__ppBootstrapPasscode))
+      .then((buf) => {
+        cfg.bootstrapPasscodeSha256 = Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+      });
+  })();
 
   if (navigator.serviceWorker) {
     navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
@@ -231,6 +266,47 @@
       del.click();
       await sleep(60);
       check(G.list(MEMBER).length === before, 'removing the photo clears it from the gallery store');
+    }
+
+    // ---- ACCOUNT-AWARE PATHS (a signed-in Admin editing a member) ----
+    // The roster member here has NO linked account. A signed-in Admin must be
+    // able to save that member's roster entry (the edit form is offered for
+    // exactly this case), and must NOT be shown a privacy switch that cannot
+    // take effect — the old code dereferenced the missing account and crashed.
+    const A = window.PPAuth;
+    if (A) {
+      try {
+        T.unclaim(); T.lockHead();
+        sessionStorage.removeItem('ppClaimedMember');
+        // Start from a clean account store so a re-run of this harness does not
+        // trip over the account it registered last time.
+        localStorage.removeItem('painterPlusAuth');
+        localStorage.removeItem('painterPlusAudit');
+      } catch (e) {}
+      const adminReg = await A.register({ name: 'Harness Admin', username: 'ppadmin', email: 'ppadmin@example.com', password: 'secret123' });
+      await A.promoteBootstrapAdmin(null, adminReg.account.id, window.__ppBootstrapPasscode);
+      const adminLogin = await A.login('ppadmin', 'secret123');
+      check(adminLogin && adminLogin.ok, 'the harness Admin can sign in');
+      document.dispatchEvent(new CustomEvent('ppauth:change'));
+      await sleep(80);
+
+      check(!$('ppEditBody').hidden, 'a signed-in Admin is offered the edit form for an account-less member');
+      check($('ppPrivacySection').hidden, 'no privacy switch is shown for a member with no linked account');
+
+      const errsBefore = pageErrors.length;
+      const nf = $('ppfName');
+      nf.value = 'Ramesh K. (admin edit)';
+      $('ppfTitle').value = 'Lead Painter';
+      $('ppEditForm').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      await sleep(80);
+      check(T.get(MEMBER).name === 'Ramesh K. (admin edit)', 'the Admin save writes the roster entry');
+      check(T.get(MEMBER).title === 'Lead Painter', 'the Admin save writes the roster title');
+      check((txt('ppEditStatus') || '').indexOf('saved') !== -1, 'the Admin save shows a confirmation');
+      check(pageErrors.length === errsBefore, 'saving an account-less member throws nothing');
+
+      A.logout();
+      document.dispatchEvent(new CustomEvent('ppauth:change'));
+      await sleep(60);
     }
 
     finish();
