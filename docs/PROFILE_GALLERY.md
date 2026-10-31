@@ -101,10 +101,12 @@ keyed by member id:
 
 ## Self-service: "this is me"
 
-The roster is shared in `localStorage`, so any painter can claim their own
-profile on their own device and edit it — no passcode.
+The roster is shared in `localStorage`, so a painter can claim their own profile
+on their own device and edit it — **behind the crew passcode** (there is no
+anonymous edit path).
 
-- **Claim** stores the member id in `sessionStorage` (`ppClaimedMember`).
+- **Claim** requires the crew passcode; on success it stores the member id in
+  `sessionStorage` (`ppClaimedMember`) and opens the Owner/Head session.
   `PPTeam.isMe(id)` is true for the claimed member.
 - An **Owner/Head** signed in (the passcode gate) is "me" for *everyone*, so
   they can edit any profile.
@@ -114,8 +116,8 @@ profile on their own device and edit it — no passcode.
   real protection is that the site is static and the roster is per-device.
 
 The profile page shows the edit form only once this is "me"; otherwise it shows
-a "This is me" prompt. The section heading changes accordingly
-("Is this your profile?" vs "Edit my profile & gallery").
+a crew passcode prompt. The section heading changes accordingly
+("🔒 Crew sign-in" vs "✏️ Edit this profile & gallery").
 
 ## The three surfaces
 
@@ -169,18 +171,20 @@ throwaway copy of the page with the harness appended, serves it, and prints a
 URL; open it and read the `ok …` / `FAIL …` lines at the bottom:
 
 ```bash
-bash tests/run-profile-selftest.sh 8132   # 25 checks — record + claim + edit + gallery + lightbox
+bash tests/run-profile-selftest.sh 8132   # 40 checks — record + empty-state + claim + edit + gallery + lightbox
 bash tests/run-gallery-selftest.sh 8133   # 21 checks — cards, attribution, filters, lightbox, empty state
 bash tests/run-team-selftest.sh    8134   #  9 checks — derived stats on roster cards
 ```
 
 All three suites report **RESULT: ALL OK**. The profile suite confirms the
-derived record (8+ yrs, 1 project, 120 sq ft, 1 co-worker), the claim flow, a
-profile save, a gallery add with its sq-ft caption, the lightbox open/close and
-the photo removal. The gallery suite confirms attribution to painter and
-project, both filters, newest-first ordering and the empty state. The team suite
-confirms the derived row matches `PPGallery.workRecord` and that a member with
-no data shows no invented figures.
+derived record (8+ yrs, 1 project, 120 sq ft, 1 co-worker), that a painter with
+empty tagline/bio/quote shows **none of the founder's text** and no zero-figure
+record cards when nothing is logged, the claim flow, a profile save, a gallery
+add with its sq-ft caption, the lightbox open/close and the photo removal. The
+gallery suite confirms attribution to painter and project, both filters,
+newest-first ordering and the empty state. The team suite confirms the derived
+row matches `PPGallery.workRecord` and that a member with no data shows no
+invented figures.
 
 ## Data model quick reference
 
