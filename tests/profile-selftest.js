@@ -7,8 +7,11 @@
      - seeds a work log and a roster so the derived record has data
      - opens a member profile and checks the WORK RECORD numbers
        (years, projects, sq ft, days, co-workers) are DERIVED, not typed
-     - claims "this is me", edits the profile, saves it, and checks the
-       header updates
+     - checks a painter with EMPTY tagline/bio/quote shows none of the
+       page's static founder defaults, and that a member with no logged
+       days shows no zero-figure cards (honest empty state)
+     - enters the crew passcode to claim "this is me", edits the profile,
+       saves it, and checks the header updates
      - adds a gallery photo, checks the gallery + lightbox, removes it
      - checks an Owner/Head sees the edit section for any member
 
@@ -127,6 +130,31 @@
     check(r.sqft === 120, 'workRecord.sqft === 120 (no double-count of the tagged entry)');
     check(r.projects === 1, 'workRecord.projects === 1');
     check(r.coworkers === 1, 'workRecord.coworkers === 1 (Suresh)');
+
+    // ---- EMPTY PERSONAL FIELDS MUST NOT LEAK THE FOUNDER'S TEXT ----
+    // The page ships Gahonsh's bio/tagline/quote as static HTML defaults. A
+    // painter with none of their own must show nothing, not the founder's words.
+    check(!txt('ppTagline'), 'a painter with no tagline shows no tagline (not the founder\'s)');
+    check(!txt('ppBio'), 'a painter with no bio shows no bio (not the founder\'s)');
+    check(!txt('ppQuoteText'), 'a painter with no quote shows no quote (not the founder\'s)');
+    check($('ppTagline') && $('ppTagline').hidden, 'the empty tagline element is hidden');
+    check($('ppBio') && $('ppBio').hidden, 'the empty bio element is hidden');
+    check($('ppQuote') && $('ppQuote').hidden, 'the empty quote block is hidden');
+
+    // ---- NO ZERO-FIGURE RECORD CARDS WITHOUT LOGGED WORK ----
+    let savedWL = null;
+    try { savedWL = localStorage.getItem('painterPlusWorkLog'); localStorage.removeItem('painterPlusWorkLog'); } catch (e) {}
+    document.dispatchEvent(new CustomEvent('ppteam:change'));
+    await sleep(60);
+    const emptyRec = ($('ppRecord') ? $('ppRecord').textContent.replace(/\s+/g, ' ') : '');
+    check(emptyRec.indexOf('0 sq ft') === -1, 'a member with no logged days shows no "0 sq ft" card');
+    check(emptyRec.indexOf('0 Days on site') === -1 && emptyRec.indexOf('0 projects') === -1,
+      'a member with no logged days shows no zero project/day cards');
+    check(emptyRec.indexOf('No work logged yet') !== -1, 'a member with no logged work sees the empty-state message');
+    try { if (savedWL !== null) localStorage.setItem('painterPlusWorkLog', savedWL); } catch (e) {}
+    document.dispatchEvent(new CustomEvent('ppteam:change'));
+    await sleep(60);
+    check(($('ppRecord').textContent.indexOf('120 sq ft') !== -1), 'the record returns once the day book is restored');
 
     // ---- SELF-EDIT: the profile is passcode-gated ----
     // A public visitor must NOT be able to edit: the edit form stays hidden

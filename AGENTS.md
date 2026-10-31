@@ -524,13 +524,25 @@ stats were removed (`stat1..stat4` cleared in `js/team.js`) and replaced by this
   escape quotes, and a photo URL is attacker-influenced data.
 - **Honest empty state.** No logged work ⇒ the record shows an empty-state
   message, never a zero-figure boast; a roster card with no data shows no row.
+  `recordCards()` emits the projects / area / days cards **only when
+  `r.daysOnSite > 0`**; the **Work photos** card uses `galleryCount` (the
+  curated gallery), so a member who has only added photos shows evidence, not a
+  row of zeroes. See `docs/BUG_AUDIT.md` §59.
+- **An empty profile field must be cleared, not skipped.** `painter-profile.html`
+  ships the founder's tagline/bio/quote as static HTML defaults. `js/profile-page.js`
+  `set()` therefore **overwrites with an empty string and hides** the element when
+  the value is empty — a truthiness guard (`if (el && text)`) would leave the
+  founder's text on every other painter's profile. The same applies to the
+  contact rows and the quote block. See `docs/BUG_AUDIT.md` §58.
 - Pages: `painter-profile.html` + `js/profile-page.js` (record, gallery, gated
   self-edit, role controls), `gallery.html` + `js/gallery-page.js` (whole crew,
   filter by painter/project), `team.html` + `js/team-page.js` (roster cards with
   the derived row). Member field added: `startYear`.
 - Tests: `node tests/gallery.test.js` (pure engine) plus three browser
   self-tests: `tests/run-profile-selftest.sh`, `tests/run-gallery-selftest.sh`,
-  `tests/run-team-selftest.sh`.
+  `tests/run-team-selftest.sh`. The profile suite also pins the two bugs above:
+  a painter with empty fields shows no founder text, and a member with no logged
+  days shows no zero-figure record cards.
 
 ## Working rules for agents
 

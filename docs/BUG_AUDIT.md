@@ -1595,3 +1595,74 @@ accounts in the browser's `localStorage`; it is a demo / small-crew mode, not
 production security, and the client gate can be bypassed by anyone editing their
 own browser. Real, server-enforced authentication requires `provider: 'supabase'`
 (Supabase Auth + row-level security), which `js/auth.js` supports today.
+
+### Twelfth pass — the member profile page (2026-10-31)
+
+**Theme.** The request was narrow: *the painter profile page is not built
+properly — find and fix the bugs.* Two real defects were found by probing the
+**rendered** page, not by reading the source.
+
+### 58. High — every painter inherited the founder's bio, tagline and quote
+
+**Symptom.** Opening any crew member's profile showed **Gahonsh's** personal
+copy under that member's name:
+
+```
+id=ramesh-kumar  #ppTagline = "Master painter crafting premium finishes…"
+                 #ppBio     = "A hands-on painting specialist with a decade…"
+                 #ppQuoteText = "“Paint is the first thing a room says about itself…”
+id=ajay-munda    (same founder text)
+```
+
+`painter-profile.html` ships Gahonsh's tagline, bio and quote as **static HTML
+defaults** (so the page is never blank before a script runs). The profile script
+then filled them in through a `set(id, text)` helper that was written as
+`if (el && text) el.textContent = text;` — it **skipped empty values**, so a
+member whose `tagline`/`bio`/`quote` was `''` (every default crew member except
+Gahonsh, and anyone added from the Admin page without those fields) kept the
+markup's founder text. The profile of a brand-new painter read as though they
+had a decade of experience and the founder's personal motto.
+
+**Root cause.** A truthiness guard meant to "avoid clobbering a good value with
+an empty one" — but here the empty value is the *correct* one, and the static
+default is the wrong one. The same shape also hid nothing: `renderPrivacy`
+toggled `tagline.hidden`/`bio.hidden` by the privacy flag alone, so a private
+profile's empty bio and a public profile's empty bio were both handled wrongly.
+
+**Fix.** `set()` now **clears and hides** the element when the value is empty
+(`el.textContent = ''; el.hidden = !val`), so a member with no tagline/bio/quote
+shows none. Empty contact rows (`ppPhone`/`ppEmail`/`ppAddressItem`/`ppWhatsapp`)
+and the quote block (`ppQuote`) are hidden when their value is missing, and
+`renderPrivacy` hides tagline/bio when they are empty *or* private.
+
+### 59. Medium — the work record advertised zeroes for a member with no logged days
+
+**Symptom.** A member with a gallery photo but no day-book entries saw a row of
+empty figures instead of the honest empty state:
+
+```
+RECORD TEXT: 🏗️ 0 Projects logged · 📐 0 sq ft Area painted · 📅 0 Days on site
+```
+
+`recordCards()` unconditionally pushed the projects / area / days cards. The
+documented design (`docs/PROFILE_GALLERY.md`: *"the site never states a number a
+member did not earn… a zero-figure boast"*) is that the record is **evidence**,
+so it must stay silent about work that has not happened.
+
+**Fix.** The project/area/day cards are emitted only when `r.daysOnSite > 0`.
+The **Work photos** card now uses the member's curated `galleryCount` (the
+documented meaning of that figure) rather than the per-entry photo count, so a
+painter who has only added gallery photos still shows real evidence instead of a
+zero row. The empty-state message returns when there is neither logged work nor
+any photo.
+
+**Verified.**
+- `tests/profile-selftest.js` gained **20 checks** (40 total, was 20): empty
+  tagline/bio/quote do not leak the founder's text and are hidden; no zero-figure
+  cards without logged work; the empty-state message appears; the record returns
+  once the day book is restored.
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED** (all Node
+  suites, every page self-test, the visitor-exposure sweep, the hidden-attribute
+  audit and the corrupt-store sweep).
+- Service-worker cache bumped `painter-plus-v32` → `v33` (`js/profile-page.js` is
+  precached).

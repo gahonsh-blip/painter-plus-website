@@ -31,9 +31,16 @@
   let member = T.memberFromQuery();
   let pendingRole = member ? member.role : 'painter';
 
+  // Set an element's text. An empty value CLEARS the element (and hides it),
+  // rather than leaving whatever is in the markup. The page ships with the
+  // founder's bio/tagline/quote as static defaults, so skipping empty values
+  // would show Gahonsh's personal text on every other painter's profile.
   const set = (id, text) => {
     const el = document.getElementById(id);
-    if (el && text) el.textContent = text;
+    if (!el) return;
+    const val = text == null ? '' : String(text);
+    el.textContent = val;
+    el.hidden = !val;
   };
   const $ = (id) => document.getElementById(id);
   const esc = (s) => T.esc(s);
@@ -59,8 +66,21 @@
     set('ppAddress', member.address);
     set('ppNote', member.note);
 
+    // An empty contact detail should drop its whole row, not render a bare
+    // icon. The anchor's `hidden` is cleared again only when a value returns.
+    const contactItem = (id, value) => { const el = $(id); if (el) el.hidden = !value; };
+    contactItem('ppPhone', member.phone);
+    contactItem('ppEmail', member.email);
+    contactItem('ppAddressItem', member.address);
+    contactItem('ppWhatsapp', member.phone);
+
     const badge = $('ppRoleBadge');
     if (badge) badge.innerHTML = T.roleBadge(member);
+
+    // A member with no favourite quote should not render an empty quote block
+    // (the CSS draws a decorative opening quote mark, which would float alone).
+    const quoteWrap = $('ppQuote');
+    if (quoteWrap) quoteWrap.hidden = !member.quote;
 
     document.title = member.name + ' | Painter Plus';
 
@@ -136,10 +156,18 @@
   function recordCards(r) {
     const cards = [];
     if (r.years) cards.push(['🗓️', r.years + '+', 'Years on the tools']);
-    cards.push(['🏗️', G.fmtCount(r.projects), r.projects === 1 ? 'Project logged' : 'Projects logged']);
-    cards.push(['📐', G.fmtSqft(r.sqft), 'Area painted']);
-    cards.push(['📅', G.fmtCount(r.daysOnSite), r.daysOnSite === 1 ? 'Day on site' : 'Days on site']);
-    if (r.photos) cards.push(['📸', G.fmtCount(r.photos), 'Work photos']);
+    // Project / area / day figures only exist once a day is logged. A member
+    // with a gallery but no day-book entries must not be shown a row of zeroes
+    // ("0 projects · 0 sq ft · 0 days") — the record is evidence, so it stays
+    // silent about what has not happened.
+    if (r.daysOnSite) {
+      cards.push(['🏗️', G.fmtCount(r.projects), r.projects === 1 ? 'Project logged' : 'Projects logged']);
+      cards.push(['📐', G.fmtSqft(r.sqft), 'Area painted']);
+      cards.push(['📅', G.fmtCount(r.daysOnSite), r.daysOnSite === 1 ? 'Day on site' : 'Days on site']);
+    }
+    // Work photos = the member's curated gallery (see docs/PROFILE_GALLERY.md),
+    // so a painter who has only added photos still shows real evidence.
+    if (r.galleryCount) cards.push(['📸', G.fmtCount(r.galleryCount), r.galleryCount === 1 ? 'Work photo' : 'Work photos']);
     if (r.coworkers) cards.push(['👥', G.fmtCount(r.coworkers), 'Co-workers']);
     return cards;
   }
@@ -149,6 +177,7 @@
     if (!wrap) return;
     const r = G.workRecord(member.id);
 
+    // Honest empty state: nothing logged and no gallery photos yet.
     if (!r.daysOnSite && !r.galleryCount) {
       wrap.innerHTML =
         '<p class="pp-record-empty">No work logged yet. Every day the crew records ' +
@@ -361,10 +390,10 @@
     const hero = $('ppHero');
     if (hero) {
       // Keep the name/role visible (it is the roster's public fact) but hide the
-      // personal bio/tagline when private.
+      // personal bio/tagline when private — or when the member simply has none.
       const tagline = $('ppTagline'), bio = $('ppBio');
-      if (tagline) tagline.hidden = hidePersonal;
-      if (bio) bio.hidden = hidePersonal;
+      if (tagline) tagline.hidden = hidePersonal || !tagline.textContent.trim();
+      if (bio) bio.hidden = hidePersonal || !bio.textContent.trim();
     }
     if (hidePersonal) {
       const note = $('ppPrivateNote');
