@@ -151,6 +151,27 @@
     }, contactDefaults());
   }
 
+  // A stored text field can hold a number, an object or an array in a
+  // hand-edited or half-written store. `String({})` is the literal string
+  // "[object Object]", which the profile then rendered in the tagline, bio,
+  // quote and note. Treat a non-primitive as empty instead. For every valid
+  // (string/number/boolean/null) input this is byte-identical to `String(v||'')`.
+  function text(v) { return (v && typeof v === 'object') ? '' : String(v || ''); }
+
+  const TEXT_KEYS = ['name', 'title', 'photo', 'tagline', 'bio', 'startYear',
+    'stat1', 'stat1label', 'stat2', 'stat2label', 'stat3', 'stat3label',
+    'stat4', 'stat4label', 'quote', 'phone', 'email', 'address', 'note'];
+
+  // The one place a raw stored member becomes a usable one. `id` and `role` are
+  // left alone: an id feeds profile links and lookups (coercing an object id to
+  // '' would make a corrupt member link to the founder's profile), and an
+  // unknown role already falls back to "painter" via roleOf().
+  function cleanMember(m) {
+    const out = Object.assign(blankMember(m.role), m);
+    TEXT_KEYS.forEach((k) => { out[k] = text(out[k]); });
+    return out;
+  }
+
   // The founding member gahonsh — starts as Head, and is the default
   // member shown on painter-profile.html when no member id is given.
   function ownerMember() {
@@ -195,9 +216,13 @@
   // Escapes text AND the quote characters, so it is safe in both text nodes
   // and quoted HTML attributes (names, ids and photo URLs are interpolated
   // into attributes on the team, profile and admin pages).
+  // A stored object/array where text belongs must never render as the literal
+  // "[object Object]" — drop it to an empty string instead.
+  function textOf(s) { return (s == null || typeof s === 'object') ? '' : String(s); }
+
   function esc(s) {
     const d = document.createElement('div');
-    d.textContent = s == null ? '' : String(s);
+    d.textContent = textOf(s);
     return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
@@ -217,10 +242,12 @@
     }
     // A hand-edited roster can hold a null, a scalar or a bare array. Every
     // reader (list/get/head) does `m.role`, `m.name`, so drop anything that is
-    // not a plain object before it can throw.
+    // not a plain object before it can throw — and normalise the survivors so a
+    // hostile object/array field is dropped rather than rendered as
+    // "[object Object]".
     return stored
       .filter(m => m && typeof m === 'object' && !Array.isArray(m))
-      .map(m => Object.assign(blankMember(m.role), m));
+      .map(cleanMember);
   }
 
   function write(members) {
@@ -277,7 +304,7 @@
 
   function save(member) {
     const members = read();
-    const clean = Object.assign(blankMember(member.role), member);
+    const clean = cleanMember(member);
     if (!ROLE_IDS.includes(clean.role)) clean.role = 'painter';
 
     let idx = members.findIndex(m => m.id === clean.id);
@@ -426,7 +453,7 @@
     countLeads, countHeads, wouldStrandLeads,
     isActingHead, isManager, unlockHead, lockHead,
     claim, unclaim, claimedId, isMe,
-    memberFromQuery, roleBadge, roleOptions, initials, blankMember,
+    memberFromQuery, roleBadge, roleOptions, initials, blankMember, cleanMember, text,
     ownerDefaults: ownerMember, esc
   };
 

@@ -263,6 +263,25 @@ test('sortItems drops malformed items', () => {
   assert.doesNotThrow(() => G.sortItems([null, 'x', { id: 'a' }, 7, []]));
   assert.strictEqual(G.sortItems([null, { id: 'a' }]).length, 1);
 });
+
+test('normaliseItem drops object/array text fields (no "[object Object]")', () => {
+  const it = G.normaliseItem({ title: {}, photo: [], label: { a: 1 }, note: [], location: {}, year: [] });
+  assert.strictEqual(it.title, '');
+  assert.strictEqual(it.photo, '');
+  assert.strictEqual(it.label, '');
+  assert.strictEqual(it.note, '');
+  assert.strictEqual(it.location, '');
+  assert.strictEqual(it.year, '');
+  // A real value still survives.
+  assert.strictEqual(G.normaliseItem({ title: 'Wall', sqft: '12.5' }).title, 'Wall');
+});
+
+test('a project key / crew from an object does not become "[object Object]"', () => {
+  const day = { date: '2026-01-01', crew: {}, project: {}, entries: [{ id: 'e', sqft: 10, crew: {} }] };
+  assert.strictEqual(G.projectKey(day), '');
+  assert.deepStrictEqual(G.dayMembers(day), []);
+});
+
 test('a work record over corrupt days/entries does not throw', () => {
   G._setStore(memStore({
     painterPlusWorkLog: JSON.stringify({

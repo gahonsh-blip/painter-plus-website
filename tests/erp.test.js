@@ -908,6 +908,32 @@ test('REG: a daySignature over a corrupt day does not throw', () => {
   assert.doesNotThrow(() => E.daySignature(null, null));
 });
 
+// Bug: a stored object/array where a project/crew text field belongs was
+// stringified to the literal "[object Object]" — a bogus project name that
+// reached the reports, the picker and the invoice, and a sort that could throw.
+test('REG: object project/crew fields are dropped, not stringified', () => {
+  const store = memStore({
+    painterPlusERP: JSON.stringify({
+      projects: [{ id: 'p1', name: {}, rate: 10 }, { id: 'p2', name: 'Real', rate: 5 }],
+      approvals: {}, bills: {}
+    }),
+    painterPlusWorkLog: JSON.stringify({
+      '2026-10-10': { date: '2026-10-10', status: 'submitted', crew: {}, project: {}, entries: [{ id: 'e1', sqft: 30 }] }
+    })
+  });
+  E._setStore(store);
+  assert.doesNotThrow(() => E.listProjects(), 'sorting an object name must not throw');
+  assert.strictEqual(E.listProjects().length, 2);
+  assert.strictEqual(E.normaliseProject({ name: {} }).name, '');
+  const rows = E.reportDaily();
+  assert.strictEqual(rows[0].crew, 'Unassigned', 'an object crew is Unassigned, not "[object Object]"');
+  assert.strictEqual(rows[0].project, '—', 'an object project name falls back, not "[object Object]"');
+  assert.strictEqual(E.crewIdentity({}).name, 'Unassigned');
+  // dayMatchesProject must not match a project on an object name.
+  assert.strictEqual(E.dayMatchesProject({ project: {} }, { id: 'x', name: 'x' }), false);
+});
+
+
 // Bug: a save whose localStorage write failed (quota/blocked) still reported
 // ok:true, so the UI said "saved" while nothing was stored.
 test('REG: a failed write is reported, not silently swallowed', () => {

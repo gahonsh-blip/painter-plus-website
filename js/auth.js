@@ -107,7 +107,11 @@
   // small helpers
   // ------------------------------------------------------------
   const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-  const str = (v) => (v == null ? '' : String(v));
+  // Coerce a stored value to text. A non-primitive (object/array) becomes ''
+  // rather than the literal "[object Object]" — accounts are read from
+  // localStorage, which is untrusted, and a hostile object name/email would
+  // otherwise be rendered verbatim in the accounts pane and the login header.
+  const str = (v) => ((v && typeof v === 'object') ? '' : (v == null ? '' : String(v)));
   const trim = (v) => str(v).trim();
   const normEmail = (v) => trim(v).toLowerCase();
   const normUser = (v) => trim(v).toLowerCase();

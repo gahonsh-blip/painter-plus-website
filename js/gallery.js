@@ -109,19 +109,23 @@
   }
   function normaliseItem(item) {
     const out = Object.assign(blankItem(), item || {});
-    out.id = String(out.id || '');
-    out.title = String(out.title || '');
-    out.photo = String(out.photo || '');
-    out.area = String(out.area || '');
-    out.label = String(out.label || '');
-    out.location = String(out.location || '');
-    out.year = String(out.year || '');
-    out.finish = String(out.finish || '');
-    out.project = String(out.project || '');
-    out.projectId = String(out.projectId || '');
+    // A stored text field can be an object/array in a hand-edited store;
+    // `String({})` is "[object Object]", which then rendered as a caption. Treat
+    // a non-primitive as empty. Identical to String(x||'') for valid values.
+    const text = (v) => ((v && typeof v === 'object') ? '' : String(v || ''));
+    out.id = text(out.id);
+    out.title = text(out.title);
+    out.photo = text(out.photo);
+    out.area = text(out.area);
+    out.label = text(out.label);
+    out.location = text(out.location);
+    out.year = text(out.year);
+    out.finish = text(out.finish);
+    out.project = text(out.project);
+    out.projectId = text(out.projectId);
     out.sqft = num(out.sqft);
-    out.note = String(out.note || '');
-    out.at = String(out.at || '');
+    out.note = text(out.note);
+    out.at = text(out.at);
     return out;
   }
   function makeId() {
@@ -143,7 +147,10 @@
   // ============================================================
   function list(memberId, data) {
     const d = data || readRaw();
-    return sortItems(d[memberId] || []);
+    // Normalise here, not only in `add()`: items read straight from the store
+    // (a hand-edited or older build) must also have their object/array text
+    // fields dropped, or they render as "[object Object]" in the gallery.
+    return sortItems(d[memberId] || []).map(normaliseItem);
   }
   function get(memberId, id, data) {
     return list(memberId, data).find((x) => x.id === id) || null;
@@ -252,7 +259,13 @@
   // per-entry crew, de-duplicated.
   function dayMembers(day) {
     const set = [];
-    const push = (id) => { const v = String(id || ''); if (v && set.indexOf(v) === -1) set.push(v); };
+    const push = (id) => {
+      // An object/array crew value would stringify to "[object Object]" and be
+      // counted as a member; treat it as no crew.
+      if (id && typeof id === 'object') return;
+      const v = String(id || '');
+      if (v && set.indexOf(v) === -1) set.push(v);
+    };
     push(day && day.crew);
     entryList(day).forEach((e) => push(e.crew));
     return set;
@@ -286,7 +299,10 @@
   }
 
   function projectKey(day) {
-    return String((day && (day.projectId || day.project)) || '').trim();
+    const v = (day && (day.projectId || day.project));
+    // An object/array stored here would stringify to "[object Object]" and
+    // become a bogus project key; treat it as "no project".
+    return (v && typeof v === 'object') ? '' : String(v || '').trim();
   }
 
   // The full derived record for one member. Numbers are evidence, not claims.
@@ -340,7 +356,10 @@
     // Project labels for display, resolved through the ERP where possible.
     const projectLabels = projectSet.map((key) => {
       const p = projects.find((x) => x.id === key) || projects.find((x) => x.name === key);
-      return { key: key, name: (p && p.name) || key };
+      const name = (p && p.name);
+      // A project name read from the raw store can be an object/array; show the
+      // key instead of "[object Object]".
+      return { key: key, name: (name && typeof name !== 'object') ? String(name) : key };
     });
 
     return {
@@ -435,13 +454,13 @@
   }
 
   function escHtml(s) {
+    const v = (s == null || typeof s === 'object') ? '' : String(s);
     if (root && root.document) {
       const d = root.document.createElement('div');
-      d.textContent = s == null ? '' : String(s);
+      d.textContent = v;
       return d.innerHTML;
     }
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
   return {

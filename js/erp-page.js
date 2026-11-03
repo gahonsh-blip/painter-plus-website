@@ -15,8 +15,10 @@
   const Team = window.PPTeam;
   const $ = (id) => document.getElementById(id);
 
+  // A stored object/array where text belongs must never render as the literal
+  // "[object Object]"; drop it to an empty string.
   function esc(s) {
-    return String(s == null ? '' : s)
+    return (s == null || typeof s === 'object') ? '' : String(s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
   function escAttr(s) {

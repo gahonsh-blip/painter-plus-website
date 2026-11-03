@@ -1851,3 +1851,74 @@ contact row) instead of throwing.
   audit and the corrupt-store sweep).
 - Service-worker cache bumped `painter-plus-v34` → `v35` (`js/profile-page.js` is
   precached).
+
+## Fifteenth pass — 2026-11-03 (`[object Object]` leaked from hostile stores)
+
+The earlier corrupt-store sweep only failed a page when it **threw**. It did not
+notice when a page *rendered* a hostile value: a stored object or array where
+text belongs stringifies to the literal **`"[object Object]"`**, which is not an
+error but is plainly wrong on screen — a bogus project name, a bogus crew, a
+blank-looking field that actually reads `[object Object]`.
+
+The seed (`tests/corrupt-seed.js`) now gives the **founder** (`gahonsh`, the
+default member `painter-profile.html` renders) object/array values in
+`tagline`, `bio`, `quote`, `note`, `title` and `startYear`, and the sweeps
+(`tests/run-all-headless.sh`, `tests/run-corrupt-sweep.sh`) now **also fail on
+`"[object Object]"` appearing in a page's visible text**, not only on a thrown
+error. That turned a latent, silent class of bug into a failing test.
+
+### 66. High — object/array stored where text belongs rendered as `[object Object]`
+
+**Symptom.** With the stricter check, four pages failed on a hostile store:
+
+- `erp.html` — a project whose `name` was an object showed `[object Object]` in
+  the project picker, the reports and the invoice.
+- `worklog.html` — an object project name appeared in the day bar's project
+  picker as `[object Object]`.
+- `painter-profile.html` — the work-record "Projects on record" list and the
+  gallery meta line showed `[object Object]`.
+- `portfolio.html` — an admin-added project's `challenge`/`solution`/`result`
+  showed `[object Object]`.
+
+The root cause was the shared escapers: `esc()` did
+`String(s == null ? '' : s)`, so a stored object became the literal string
+`[object Object]` and was then trusted as display text. The same shape reached
+non-escaped interpolations (`p.name` in a `<select>`, `it.label` in a joined
+meta line).
+
+**Fix — normalise at the boundary *and* make the escapers refuse objects.**
+
+- **Boundary normalisation** (the pattern from §45, extended to text fields):
+  - `js/erp.js` — `read()` now maps every project through a new
+    `cleanProjectText()` (drops object/array `id`, `name`, `client`, `phone`,
+    `address`, `startDate`, `status`, `note`); `crewIdentity()` and
+    `dayMatchesProject()` treat a non-primitive crew/project as "none" instead of
+    stringifying it; `listProjects()` sorts through an object-safe `nameOf()`.
+  - `js/gallery.js` — `list()` normalises every item through `normaliseItem()`
+    (not only `add()`); `projectLabels` falls back to the project key, never an
+    object.
+  - `js/worklog.js` — `getDay()` filters `entries` to plain objects and runs a
+    new `cleanEntry()` over each; `areaLabel()` ignores an object id;
+    `escAttr()` refuses objects.
+  - `js/script.js` — the admin-added portfolio reader (`ppRead()`) coerces every
+    text field before the cards are built.
+- **Object-safe escapers** — every `esc`/`escAttr`/`escHtml`/`capital` helper
+  now returns `''` for a non-primitive instead of `String(s)`:
+  `js/team.js` (`textOf` + `esc`), `js/script.js`, `js/erp-page.js`,
+  `js/accounts-page.js`, `js/login-page.js`, `js/gallery.js` (`escHtml`),
+  `js/worklog.js` (`escAttr`). A hostile value now degrades to an empty string,
+  so nothing that is not real text can ever reach the DOM as `[object Object]`.
+
+**Verified.**
+- The corrupt-store sweep now fails on a leaked `[object Object]` as well as on
+  a thrown error: **all 16 pages clean**.
+- `tests/gallery.test.js` gained 2 checks (29 total): `normaliseItem` drops
+  object/array text fields; `projectKey`/`dayMembers` ignore an object.
+- `tests/erp.test.js` gained 1 check (79 total): object project/crew fields are
+  dropped, not stringified — and `listProjects()` does not throw on an object
+  name.
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED** (Node suites,
+  every page self-test, the visitor-exposure sweep, the hidden-attribute audit
+  and the corrupt-store sweep, now including the `[object Object]` check).
+- Service-worker cache bumped `painter-plus-v35` → `v36` (`js/*.js` are
+  precached).

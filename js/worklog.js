@@ -54,8 +54,9 @@
   ];
 
   function areaLabel(id) {
-    const a = AREAS.find(x => x.id === id);
-    return a ? a.label : (id || 'Area');
+    const key = (id && typeof id === 'object') ? '' : id;
+    const a = AREAS.find(x => x.id === key);
+    return a ? a.label : (key || 'Area');
   }
 
   function num(n) { const v = parseFloat(n); return isFinite(v) && v > 0 ? v : 0; }
@@ -69,7 +70,7 @@
   // quoted attribute. Photo URLs, labels and ids are interpolated into
   // attributes below, so escape the quote characters too.
   function escAttr(s) {
-    return String(s == null ? '' : s)
+    return ((s == null || typeof s === 'object') ? '' : String(s))
       .replace(/&/g, '&amp;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;')
@@ -111,9 +112,21 @@
     // A hand-edited store can hold nulls or scalars inside `entries`; every
     // reader below does `e.sqft`, `e.w`, so keep only real entry objects.
     const entries = Array.isArray(d.entries)
-      ? d.entries.filter(e => e && typeof e === 'object' && !Array.isArray(e))
+      ? d.entries.filter(e => e && typeof e === 'object' && !Array.isArray(e)).map(cleanEntry)
       : [];
-    return Object.assign(blankDay(date), d, { entries: entries });
+    const day = Object.assign(blankDay(date), d, { entries: entries });
+    // A stored text field can be an object/array; `String({})` is
+    // "[object Object]", which then reached the summary and the day bar.
+    ['date', 'project', 'projectId', 'crew', 'status', 'submittedAt', 'submittedBy']
+      .forEach(k => { if (day[k] && typeof day[k] === 'object') day[k] = ''; });
+    return day;
+  }
+  // An entry's text fields come from the store too; a hostile object `label`
+  // or `note` would otherwise render as "[object Object]" in the day list.
+  function cleanEntry(e) {
+    ['id', 'area', 'label', 'method', 'photo', 'note', 'at']
+      .forEach(k => { if (e[k] && typeof e[k] === 'object') e[k] = ''; });
+    return e;
   }
   function listDays() {
     const days = readAll();

@@ -38,7 +38,8 @@
   const set = (id, text) => {
     const el = document.getElementById(id);
     if (!el) return;
-    const val = text == null ? '' : String(text);
+    // A stored object/array must not become the literal "[object Object]".
+    const val = (text && typeof text === 'object') ? '' : (text == null ? '' : String(text));
     el.textContent = val;
     el.hidden = !val;
   };
@@ -46,10 +47,12 @@
   const esc = (s) => T.esc(s);
 
   // Member fields come from localStorage, which is untrusted: a hand-edited or
-  // half-written store can hold a number or an object where a string belongs.
-  // Coerce before any string method, or `.replace` throws and aborts the whole
-  // render — leaving the page's static markup (the founder's profile) on screen.
-  const str = (v) => (v == null ? '' : String(v));
+  // half-written store can hold a number, an object or an array where a string
+  // belongs. Coerce before any string method, or `.replace` throws and aborts
+  // the whole render — leaving the page's static markup (the founder's profile)
+  // on screen. A non-primitive becomes '' (not the literal "[object Object]",
+  // which `String({})` would produce and which used to reach the page).
+  const str = (v) => ((v && typeof v === 'object') ? '' : (v == null ? '' : String(v)));
 
   // The avatar's static fallback (the line-art painter). Captured before the
   // first render overwrites it, so a member with no photo can be given it back
@@ -74,23 +77,29 @@
     const phone = str(member.phone);
     const email = str(member.email);
     const photo = str(member.photo);
+    const title = str(member.title);
+    const tagline = str(member.tagline);
+    const bio = str(member.bio);
+    const quote = str(member.quote);
+    const address = str(member.address);
+    const note = str(member.note);
 
     set('ppName', name);
-    set('ppRole', member.title || T.roleOf(member.role).label);
-    set('ppTagline', member.tagline);
-    set('ppBio', member.bio);
-    set('ppQuoteText', member.quote);
+    set('ppRole', title || T.roleOf(member.role).label);
+    set('ppTagline', tagline);
+    set('ppBio', bio);
+    set('ppQuoteText', quote);
     set('ppPhoneText', phone);
     set('ppEmailText', email);
-    set('ppAddress', str(member.address));
-    set('ppNote', str(member.note));
+    set('ppAddress', address);
+    set('ppNote', note);
 
     // An empty contact detail should drop its whole row, not render a bare
     // icon. The anchor's `hidden` is cleared again only when a value returns.
     const contactItem = (id, value) => { const el = $(id); if (el) el.hidden = !value; };
     contactItem('ppPhone', phone);
     contactItem('ppEmail', email);
-    contactItem('ppAddressItem', member.address);
+    contactItem('ppAddressItem', address);
     contactItem('ppWhatsapp', phone);
 
     const badge = $('ppRoleBadge');
@@ -99,7 +108,7 @@
     // A member with no favourite quote should not render an empty quote block
     // (the CSS draws a decorative opening quote mark, which would float alone).
     const quoteWrap = $('ppQuote');
-    if (quoteWrap) quoteWrap.hidden = !member.quote;
+    if (quoteWrap) quoteWrap.hidden = !quote;
 
     document.title = name + ' | Painter Plus';
 
@@ -283,7 +292,8 @@
   // SELF-EDIT (profile + gallery) — only for "me"
   // ------------------------------------------------------------
   function fillEditor() {
-    const v = (id, val) => { const el = $(id); if (el) el.value = val == null ? '' : val; };
+    // A stored object/array must not become "[object Object]" in an input.
+    const v = (id, val) => { const el = $(id); if (el) el.value = (val && typeof val === 'object') ? '' : (val == null ? '' : val); };
     v('ppfName', member.name);
     v('ppfTitle', member.title);
     v('ppfTagline', member.tagline);

@@ -17,7 +17,7 @@
   if (!A || !listEl) return;
 
   const $ = (id) => document.getElementById(id);
-  const esc = (s) => String(s == null ? '' : s)
+  const esc = (s) => ((s == null || typeof s === 'object') ? '' : String(s))
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 

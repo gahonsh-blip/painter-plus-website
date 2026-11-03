@@ -118,6 +118,17 @@
   // instead of pretending the change was saved.
   const STORAGE_ERROR = 'Could not save — this browser\'s storage is full or blocked. Your change was not stored.';
 
+  // Coerce a stored project's text fields to real strings. A hand-edited store
+  // can hold an object/array where a name, client or note belongs; `String({})`
+  // is the literal "[object Object]", which then reached the project picker, the
+  // reports and the invoice. Numeric and status fields are handled by
+  // normaliseProject when a project is written.
+  const PROJECT_TEXT = ['id', 'name', 'client', 'phone', 'address', 'startDate', 'status', 'note'];
+  function cleanProjectText(p) {
+    PROJECT_TEXT.forEach((k) => { if (p[k] && typeof p[k] === 'object') p[k] = ''; });
+    return p;
+  }
+
   function read() {
     let data = null;
     try { data = JSON.parse(rawGet(STORE_KEY)); } catch (e) { data = null; }
@@ -125,8 +136,12 @@
     if (!Array.isArray(data.projects)) data.projects = [];
     // Drop malformed project entries. A `null`/scalar in the array made every
     // consumer (`listProjects` sorting by name, the page's project options)
-    // throw on `null.name` and abort the whole page script.
-    data.projects = data.projects.filter((p) => p && typeof p === 'object' && !Array.isArray(p));
+    // throw on `null.name` and abort the whole page script. Then coerce each
+    // project's text fields: a stored object/array would stringify to
+    // "[object Object]" and reach the picker, the reports and the invoice.
+    data.projects = data.projects
+      .filter((p) => p && typeof p === 'object' && !Array.isArray(p))
+      .map(cleanProjectText);
     if (!data.approvals || typeof data.approvals !== 'object' || Array.isArray(data.approvals)) data.approvals = {};
     if (!data.bills || typeof data.bills !== 'object' || Array.isArray(data.bills)) data.bills = {};
     // Bills live per project id as an array; a corrupt store can hold anything.
@@ -153,7 +168,13 @@
     const out = {};
     Object.keys(data).forEach((k) => {
       const day = data[k];
-      if (day && typeof day === 'object' && !Array.isArray(day)) out[k] = day;
+      if (!day || typeof day !== 'object' || Array.isArray(day)) return;
+      // A stored text field can be an object/array; `String({})` is
+      // "[object Object]", which would become a bogus project name, crew id or
+      // report label. Treat a non-primitive as empty.
+      ['date', 'project', 'projectId', 'crew', 'status', 'submittedAt', 'submittedBy']
+        .forEach((f) => { if (day[f] && typeof day[f] === 'object') day[f] = ''; });
+      out[k] = day;
     });
     return out;
   }
@@ -239,13 +260,16 @@
   function normaliseProject(p) {
     const b = blankProject();
     const out = Object.assign(b, p || {});
-    out.id = String(out.id || '').trim();
-    out.name = String(out.name || '').trim();
-    out.client = String(out.client || '').trim();
-    out.phone = String(out.phone || '').trim();
-    out.address = String(out.address || '').trim();
-    out.note = String(out.note || '').trim();
-    out.startDate = String(out.startDate || '').trim();
+    // A stored text field can be an object/array in a hand-edited store;
+    // `String({})` is "[object Object]". Treat a non-primitive as empty.
+    const text = (v) => ((v && typeof v === 'object') ? '' : String(v || ''));
+    out.id = text(out.id).trim();
+    out.name = text(out.name).trim();
+    out.client = text(out.client).trim();
+    out.phone = text(out.phone).trim();
+    out.address = text(out.address).trim();
+    out.note = text(out.note).trim();
+    out.startDate = text(out.startDate).trim();
     out.rate = num(out.rate);
     out.coverage = num(out.coverage) || DEFAULTS.coverage;
     out.coats = num(out.coats) || DEFAULTS.coats;
@@ -273,7 +297,12 @@
 
   function listProjects(data) {
     const d = data || read();
-    return d.projects.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    // A project name read from the raw store can be an object/array; `.name`
+    // would then have no `.localeCompare` and the sort would throw, aborting the
+    // whole page. Coerce to text for the comparison (the object itself is left
+    // alone so display code can still fall back to the id).
+    const nameOf = (p) => ((p.name && typeof p.name !== 'object') ? String(p.name) : '');
+    return d.projects.slice().sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
   }
 
   function getProject(id, data) {
@@ -327,8 +356,12 @@
     // TWO projects at once if its free-text name happened to equal the other
     // project's name, so the same measured area was billed under both.
     if (day.projectId) return day.projectId === project.id;
-    const a = String(day.project || '').trim().toLowerCase();
-    const b = String(project.name || '').trim().toLowerCase();
+    // A stored name can be an object/array; String() would make it
+    // "[object Object]" and match a project literally named that. Treat a
+    // non-primitive as "no name".
+    const aRaw = day.project, bRaw = project.name;
+    const a = (aRaw && typeof aRaw === 'object') ? '' : String(aRaw || '').trim().toLowerCase();
+    const b = (bRaw && typeof bRaw === 'object') ? '' : String(bRaw || '').trim().toLowerCase();
     return !!a && a === b;
   }
 
@@ -349,7 +382,10 @@
   // split into two rows. Prefers the roster (PPTeam) when it is loaded; falls
   // back to the raw value so nothing disappears if the roster is unavailable.
   function crewIdentity(value) {
-    const raw = String(value || '').trim();
+    // A stored crew value can be an object/array in a hand-edited store; it
+    // would stringify to "[object Object]" and become a bogus identity. Treat a
+    // non-primitive as no crew.
+    const raw = (value && typeof value === 'object') ? '' : String(value || '').trim();
     if (!raw) return { key: 'Unassigned', name: 'Unassigned' };
     const T = root && root.PPTeam;
     if (T && typeof T.get === 'function') {

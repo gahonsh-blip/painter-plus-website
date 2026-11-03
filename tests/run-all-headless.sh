@@ -155,6 +155,7 @@ idx = ['<!DOCTYPE html><html><head><meta charset="utf-8"><title>corrupt</title><
        'var PAGES='+repr(pages)+';var out=document.getElementById("corruptOut");var fails=0;var i=0;var fr=document.getElementById("corruptFrame");',
        'function next(){if(i>=PAGES.length){fr.remove();out.textContent=out.textContent.replace("running...","")+(fails?("DONE: "+fails+" page(s) with errors"):"DONE: all pages clean");return;}',
        'var name=PAGES[i++];fr.onload=function(){setTimeout(function(){var errs=[];try{errs=(fr.contentWindow.__pageErrors||[]).slice();}catch(e){errs=["<cross-origin>"];}',
+       'try{var body=fr.contentWindow.document.body;var txt=body.innerText||"";var i2=txt.indexOf("[object Object]");if(i2!==-1){errs.push("leaked [object Object]: ..."+txt.slice(Math.max(0,i2-40),i2+20).replace(/\\s+/g," ")+"...");}}catch(e){}',
        'out.textContent+=(errs.length?("FAIL "+name+"\\n"+errs.map(function(x){return "   - "+x;}).join("\\n")+"\\n"):("ok   "+name+"\\n"));if(errs.length)fails++;next();},500);};fr.src="./_corrupt-"+name;}next();',
        '</script></body></html>']
 open(os.path.join(root, '_corrupt.html'), 'w', encoding='utf-8').write('\n'.join(idx))

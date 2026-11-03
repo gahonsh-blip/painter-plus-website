@@ -139,7 +139,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function ppRead() {
         let raw;
         try { raw = JSON.parse(store.get(PP_KEY)); } catch { return []; }
-        return Array.isArray(raw) ? raw.filter(p => p && typeof p === 'object' && !Array.isArray(p)) : [];
+        if (!Array.isArray(raw)) return [];
+        // Admin-added projects are free text in an untrusted store: drop
+        // non-objects, then coerce every text field so a stored object/array
+        // cannot reach the card as "[object Object]".
+        const TEXT = ['category', 'image', 'location', 'year', 'finish', 'challenge', 'solution', 'result', 'tag', 'title'];
+        return raw
+          .filter(p => p && typeof p === 'object' && !Array.isArray(p))
+          .map(p => { TEXT.forEach(k => { if (p[k] && typeof p[k] === 'object') p[k] = ''; }); return p; });
     }
     const pfGridMerge = document.getElementById('pfGrid');
     if (pfGridMerge) {
@@ -598,8 +605,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Escapes text AND the quote characters so it is safe in quoted HTML
     // attributes too (member/project ids, names and photo URLs are
     // interpolated into attributes in the admin lists below).
-    function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-    function capital(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
+    // A stored object/array where text belongs must never render as the literal
+    // "[object Object]"; drop it to an empty string.
+    function esc(s) { const d = document.createElement('div'); d.textContent = (s == null || typeof s === 'object') ? '' : String(s); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+    function capital(s) { s = (s == null || typeof s === 'object') ? '' : String(s); return s.charAt(0).toUpperCase() + s.slice(1); }
 
     // ----- LINE-ART PAINTER MASCOT (on every page) -----
     // Injects a small Google-doodle style line-drawn painter in the corner

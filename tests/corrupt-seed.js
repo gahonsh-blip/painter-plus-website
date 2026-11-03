@@ -18,7 +18,10 @@
   function set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* blocked */ } }
 
   set('painterPlusTeam', JSON.stringify([
-    { id: 'gahonsh', name: 'Gahonsh', role: 'head' },
+    // The founder is the default member painter-profile.html renders, so give
+    // its text fields hostile non-string values: `String({})` is the literal
+    // "[object Object]", which used to reach the tagline/bio/quote/note.
+    { id: 'gahonsh', name: 'Gahonsh', role: 'head', tagline: {}, bio: [], quote: {}, note: {}, title: {}, startYear: {} },
     { id: null, name: null, role: 'painter' },
     { id: {}, name: [], role: 123 },
     { id: 'x', name: 'X', role: 'painter', startYear: {}, photo: 5, title: null, tagline: [], order: 'a' }

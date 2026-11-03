@@ -55,6 +55,8 @@ idx = ['<!DOCTYPE html><html><head><meta charset="utf-8"><title>Corrupt-store sw
        '  var name=PAGES[i++];',
        '  fr.onload=function(){ setTimeout(function(){',
        '    var errs=[]; try{ errs=(fr.contentWindow.__pageErrors||[]).slice(); }catch(e){ errs=["<cross-origin>"]; }',
+       '    try{ var txt=(fr.contentWindow.document.body.innerText||""); var j=txt.indexOf("[object Object]");',
+       '      if(j!==-1) errs.push("leaked [object Object]: ..."+txt.slice(Math.max(0,j-40),j+20).replace(/\\s+/g," ")+"..."); }catch(e){}',
        '    if(errs.length){ fails++; out.textContent += "FAIL "+name+"\\n" + errs.map(function(x){return "   - "+x;}).join("\\n") + "\\n"; }',
        '    else { out.textContent += "ok   "+name+"\\n"; }',
        '    next();',
