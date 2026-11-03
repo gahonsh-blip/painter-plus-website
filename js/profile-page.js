@@ -45,6 +45,18 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => T.esc(s);
 
+  // Member fields come from localStorage, which is untrusted: a hand-edited or
+  // half-written store can hold a number or an object where a string belongs.
+  // Coerce before any string method, or `.replace` throws and aborts the whole
+  // render — leaving the page's static markup (the founder's profile) on screen.
+  const str = (v) => (v == null ? '' : String(v));
+
+  // The avatar's static fallback (the line-art painter). Captured before the
+  // first render overwrites it, so a member with no photo can be given it back
+  // instead of keeping whatever image was rendered last.
+  const avatarEl = $('ppAvatar');
+  const avatarPlaceholder = avatarEl ? avatarEl.innerHTML : '';
+
   // A write may be synchronous (local provider) or a promise (Supabase). Run
   // `done(res)` when the result is known, whichever it is.
   function settle(res, done) {
@@ -56,23 +68,30 @@
   // PROFILE HEADER
   // ------------------------------------------------------------
   function renderProfile() {
-    set('ppName', member.name);
+    // Coerce every member field up front: the roster lives in localStorage and
+    // may hold a number or an object where a string belongs.
+    const name = str(member.name);
+    const phone = str(member.phone);
+    const email = str(member.email);
+    const photo = str(member.photo);
+
+    set('ppName', name);
     set('ppRole', member.title || T.roleOf(member.role).label);
     set('ppTagline', member.tagline);
     set('ppBio', member.bio);
     set('ppQuoteText', member.quote);
-    set('ppPhoneText', member.phone);
-    set('ppEmailText', member.email);
-    set('ppAddress', member.address);
-    set('ppNote', member.note);
+    set('ppPhoneText', phone);
+    set('ppEmailText', email);
+    set('ppAddress', str(member.address));
+    set('ppNote', str(member.note));
 
     // An empty contact detail should drop its whole row, not render a bare
     // icon. The anchor's `hidden` is cleared again only when a value returns.
     const contactItem = (id, value) => { const el = $(id); if (el) el.hidden = !value; };
-    contactItem('ppPhone', member.phone);
-    contactItem('ppEmail', member.email);
+    contactItem('ppPhone', phone);
+    contactItem('ppEmail', email);
     contactItem('ppAddressItem', member.address);
-    contactItem('ppWhatsapp', member.phone);
+    contactItem('ppWhatsapp', phone);
 
     const badge = $('ppRoleBadge');
     if (badge) badge.innerHTML = T.roleBadge(member);
@@ -82,19 +101,24 @@
     const quoteWrap = $('ppQuote');
     if (quoteWrap) quoteWrap.hidden = !member.quote;
 
-    document.title = member.name + ' | Painter Plus';
+    document.title = name + ' | Painter Plus';
 
     const phoneLink = $('ppPhone');
-    if (phoneLink && member.phone) phoneLink.href = 'tel:' + member.phone.replace(/[^+\d]/g, '');
+    if (phoneLink && phone) phoneLink.href = 'tel:' + phone.replace(/[^+\d]/g, '');
     const emailLink = $('ppEmail');
-    if (emailLink && member.email) emailLink.href = 'mailto:' + member.email;
+    if (emailLink && email) emailLink.href = 'mailto:' + email;
     const waLink = $('ppWhatsapp');
-    if (waLink && member.phone) waLink.href = 'https://wa.me/' + member.phone.replace(/[^\d]/g, '');
+    if (waLink && phone) waLink.href = 'https://wa.me/' + phone.replace(/[^\d]/g, '');
 
-    const avatar = $('ppAvatar');
-    if (avatar && member.photo) {
-      avatar.innerHTML = '<img class="pp-photo" src="' + esc(member.photo) +
-        '" alt="' + esc(member.name) + '" onerror="this.remove()" />';
+    // Always re-render the avatar, never only when a photo is present. Setting
+    // it only for a truthy photo left the previous member's <img> in place when
+    // the photo was cleared or the member never had one — a stale photo of
+    // someone else under this member's name.
+    if (avatarEl) {
+      avatarEl.innerHTML = photo
+        ? '<img class="pp-photo" src="' + esc(photo) +
+          '" alt="' + esc(name) + '" onerror="this.remove()" />'
+        : avatarPlaceholder;
     }
   }
 
@@ -686,7 +710,12 @@
   }
 
   function renderAll() {
-    if (!member) member = T.memberFromQuery();
+    // Re-read the member from the store on every render. The page used to keep
+    // the object it first loaded, so a change made elsewhere — the admin page,
+    // another tab, or a cleared photo — never appeared here (a removed photo
+    // kept rendering the old image). Re-reading keeps the page in step.
+    if (member) member = T.get(member.id) || member;
+    else member = T.memberFromQuery();
     if (!member) { renderNotFound(); return; }
     pendingRole = member.role;
     renderProfile();

@@ -73,6 +73,12 @@ and a colour swatch that never highlighted.
 | 51 | Low | An empty bill claimed a "(day rate)" label | Fixed |
 | 52 | **High** | The staff login gate stayed on screen after unlocking (`[hidden]` lost to `.adm-gate{display:flex}`) | Fixed |
 | 53 | Medium | Hidden work-log controls (`#wlMeasurePanel`, `#wlCancelEdit`, `#wlReopen`) rendered anyway | Fixed |
+| 60 | **High** | A bad `?id=` kept the founder's profile on screen | Fixed |
+| 61 | **High** | The profile privacy toggle crashed on a member with no account | Fixed |
+| 62 | **High** | An Admin could not save an account-less member's profile | Fixed |
+| 63 | **High** | `admin.html` boot TDZ left the tabs dead for a signed-in Admin | Fixed |
+| 64 | Medium | A cleared/absent photo kept a stale avatar image | Fixed |
+| 65 | **High** | A non-string member field (`phone`/`email`) crashed the profile render | Fixed |
 
 ---
 
@@ -1763,3 +1769,85 @@ is open still opens the panel.
   audit and the corrupt-store sweep).
 - Service-worker cache bumped `painter-plus-v33` → `v34` (`js/script.js`,
   `js/profile-page.js` are precached).
+
+## Fourteenth pass — 2026-11-03 (profile render: stale avatar & untrusted field shapes)
+
+Two more defects on the painter profile page, both in the header render path
+(`js/profile-page.js`). They were found by loading the real page in headless
+Chromium against a seeded roster and asserting on the rendered DOM, rather than
+by reading the code.
+
+### 64. Medium — a cleared or absent photo kept a stale avatar image
+
+**Symptom.** `painter-profile.html` renders the member's photo into `#ppAvatar`,
+whose static markup is the line-art painter SVG. The avatar was only rewritten
+when a photo was present:
+
+```js
+const avatar = $('ppAvatar');
+if (avatar && member.photo) {
+  avatar.innerHTML = '<img class="pp-photo" src="' + esc(member.photo) + '" … />';
+}
+```
+
+So when a member's photo was **cleared** — or a member who never had one was
+shown after one who did — the previous `<img>` stayed on screen. A removed photo
+kept displaying the old picture under the member's name.
+
+A second cause sat in `renderAll()`: it cached the member object it first read
+(`let member = T.memberFromQuery()`) and never re-read it, so a change made
+elsewhere — the admin page, another tab, a cleared photo — never reached the
+page at all.
+
+**Fix.**
+- `renderProfile()` now always re-renders `#ppAvatar`, falling back to the
+  captured placeholder (`avatarPlaceholder`) when there is no photo. The
+  placeholder is captured once at module load, before the first render, so the
+  static SVG is preserved.
+- `renderAll()` re-reads the member from the store on every render
+  (`member = T.get(member.id) || member`), so the page stays in step with the
+  roster instead of holding a stale copy.
+
+### 65. High — a non-string member field crashed the whole profile render
+
+**Symptom.** `renderProfile()` called string methods directly on member fields:
+
+```js
+phoneLink.href = 'tel:' + member.phone.replace(/[^+\d]/g, '');
+waLink.href = 'https://wa.me/' + member.phone.replace(/[^\d]/g, '');
+```
+
+The roster lives in `localStorage`, which is untrusted input — a hand-edited or
+half-written store can hold a **number** or an **object** where a phone string
+belongs. `.replace` then throws:
+
+```
+Uncaught TypeError: member.phone.replace is not a function
+```
+
+The throw aborts `renderProfile()` part-way, so the phone/email links keep the
+static founder defaults in the markup, and every later section that `renderAll()`
+would have refreshed is left stale. It is the same failure shape recorded in
+§45 — an unguarded access on untrusted stored data aborting the page script.
+
+**Fix.** `renderProfile()` coerces every member field through a local
+`str(v)` helper (`v == null ? '' : String(v)`) before any string method, and
+uses the coerced values for the text nodes and the `tel:`/`mailto:`/`wa.me`
+hrefs. A hostile-shaped field now degrades to an empty value (which hides its
+contact row) instead of throwing.
+
+**Verified.**
+- `tests/profile-selftest.js` gained **5 checks** (53 total, was 48): a member
+  with a photo shows the avatar image; clearing the photo removes it and
+  restores the placeholder SVG; a non-string phone/email renders without a
+  window error; the profile still renders after the hostile-shaped field.
+- Loaded the real page in headless Chromium against a roster holding
+  `phone: 9999, email: {}, photo: 555` — before the fix it recorded
+  `Uncaught TypeError: member.phone.replace is not a function` and left the
+  founder's contact defaults on screen; after the fix there are no window errors
+  and the profile renders from the member's own data.
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED** (all Node
+  suites, every page self-test, the visitor-exposure sweep, the hidden-attribute
+  audit and the corrupt-store sweep).
+- Service-worker cache bumped `painter-plus-v34` → `v35` (`js/profile-page.js` is
+  precached).

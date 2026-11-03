@@ -268,6 +268,39 @@
       check(G.list(MEMBER).length === before, 'removing the photo clears it from the gallery store');
     }
 
+    // ---- AVATAR: a cleared photo must not leave a stale image ----
+    // The header avatar was only re-rendered when a photo was present, so
+    // clearing a member's photo kept the previous <img> on screen — and a
+    // member who never had one inherited whatever image was rendered last.
+    const avatar = $('ppAvatar');
+    const PHOTO = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    T.save(Object.assign({}, T.get(MEMBER), { photo: PHOTO }));
+    document.dispatchEvent(new CustomEvent('ppteam:change'));
+    await sleep(80);
+    check(!!(avatar && avatar.querySelector('img')), 'a member with a photo shows it in the avatar');
+    T.save(Object.assign({}, T.get(MEMBER), { photo: '' }));
+    document.dispatchEvent(new CustomEvent('ppteam:change'));
+    await sleep(80);
+    check(!!avatar && !avatar.querySelector('img'), 'clearing the photo removes the avatar image');
+    check(!!avatar && !!avatar.querySelector('svg'), 'clearing the photo restores the painter placeholder');
+
+    // ---- A HOSTILE-SHAPED MEMBER MUST NOT CRASH THE RENDER ----
+    // localStorage is untrusted: a hand-edited roster can hold a number or an
+    // object where a phone/email string belongs. renderProfile() used to call
+    // `.replace` on it, throw, and abort the whole file — leaving the page's
+    // static founder markup on screen.
+    const errsBeforeHostile = pageErrors.length;
+    T.save(Object.assign({}, T.get(MEMBER), { phone: 9999, email: {} }));
+    document.dispatchEvent(new CustomEvent('ppteam:change'));
+    await sleep(80);
+    check(pageErrors.length === errsBeforeHostile, 'a non-string phone/email renders without a window error');
+    check(!!$('ppName') && $('ppName').textContent.indexOf('Ramesh') !== -1,
+      'the profile still renders after a hostile-shaped field');
+    // Restore a sane member for the checks that follow.
+    T.save(Object.assign({}, T.get(MEMBER), { phone: '+91 8825183628', email: 'ramesh@example.com' }));
+    document.dispatchEvent(new CustomEvent('ppteam:change'));
+    await sleep(60);
+
     // ---- ACCOUNT-AWARE PATHS (a signed-in Admin editing a member) ----
     // The roster member here has NO linked account. A signed-in Admin must be
     // able to save that member's roster entry (the edit form is offered for

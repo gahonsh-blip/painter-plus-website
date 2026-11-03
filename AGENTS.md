@@ -101,7 +101,7 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 
 
-**Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`). And a stored value that is an **id** must be resolved to a display name through `PPTeam` before it is shown to a person — never print the raw id. And a UMD wrapper must actually pass its global into the factory: `factory()` with a body that uses `root` passes in Node (where the in-memory store hides it) and fails silently in the browser. And a value read from `localStorage` is untrusted input — a colour must be coerced to a real hex (`safeHex`) before it reaches the DOM, or a hand-edited store crashes the render.
+**Pattern to watch for:** this codebase loads page-specific scripts site-wide (`color-studio.js` on `index.html`). Any unguarded top-level access — a missing DOM id, a throwing `localStorage` call — aborts the *entire file* and silently kills unrelated features. Always guard, and prefer feature-detection over assuming the DOM or storage is present. Also: `esc()` is for text nodes — inside a quoted attribute you must escape quotes too (`escAttr`). And a stored value that is an **id** must be resolved to a display name through `PPTeam` before it is shown to a person — never print the raw id. And a UMD wrapper must actually pass its global into the factory: `factory()` with a body that uses `root` passes in Node (where the in-memory store hides it) and fails silently in the browser. And a value read from `localStorage` is untrusted input — a colour must be coerced to a real hex (`safeHex`) before it reaches the DOM, or a hand-edited store crashes the render. **And a stored *string field* is untrusted too**: `member.phone.replace(...)` on a number/object throws and aborts the whole profile render, so coerce every member field with a local `str(v)` (`v == null ? '' : String(v)`) before any string method — see §65. And a render that only updates an element *when a value is truthy* leaves the previous value on screen when the value is cleared — always render both branches (the profile avatar kept a stale photo; §64), and re-read the record from the store on every render instead of caching it.
 
 **CSS gotcha:** the `hidden` attribute is only a *default*. The UA rule `[hidden]{display:none}` is beaten by any author rule that sets `display` on the element, at any specificity — so `<div hidden class="adm-gate">` renders, because `.adm-gate{display:flex}` wins. Never assume `el.hidden = true` hides an element that also has a class with a `display` value; the global `[hidden]{display:none !important}` in `css/style.css` is what makes the attribute reliable, and the **HIDDEN-ATTRIBUTE audit** (`tests/hidden-audit.js`) fails if any `[hidden]` element still renders.
 
@@ -534,6 +534,18 @@ stats were removed (`stat1..stat4` cleared in `js/team.js`) and replaced by this
   `r.daysOnSite > 0`**; the **Work photos** card uses `galleryCount` (the
   curated gallery), so a member who has only added photos shows evidence, not a
   row of zeroes. See `docs/BUG_AUDIT.md` §59.
+- **A cleared photo must clear the avatar.** `renderProfile()` always rewrites
+  `#ppAvatar` — the member's `<img>` when a photo is set, else the captured
+  line-art placeholder — because only rendering when a photo was present left
+  the previous member's photo on screen after a clear. `renderAll()` also
+  re-reads the member from the store on every render (`member = T.get(member.id)
+  || member`) so an admin/tab edit is reflected instead of a stale cached copy.
+  See `docs/BUG_AUDIT.md` §64.
+- **Member fields are untrusted strings.** The roster lives in `localStorage`,
+  so a hand-edited store can hold a number/object where a string belongs.
+  `renderProfile()` coerces every field through a local `str(v)` before any
+  string method — `member.phone.replace(...)` on a number threw and aborted the
+  whole render, leaving the founder's static contact defaults on screen. See §65.
 - **An empty profile field must be cleared, not skipped.** `painter-profile.html`
   ships the founder's tagline/bio/quote as static HTML defaults. `js/profile-page.js`
   `set()` therefore **overwrites with an empty string and hides** the element when
