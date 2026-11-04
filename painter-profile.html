@@ -71,6 +71,7 @@
               <span id="ppRoleBadge"></span>
             </div>
             <h1 class="pp-name" id="ppName">Gahonsh</h1>
+            <div class="pp-rating" id="ppRating" data-reviews="painter" data-review-key="profile" data-reviews-compact></div>
             <p class="pp-tagline" id="ppTagline">Master painter crafting premium finishes across Jharkhand since 2015.</p>
             <p class="pp-bio" id="ppBio">A hands-on painting specialist with a decade of on-site experience. From precise surface preparation to the final flawless coat, every project is treated as a signature piece. The belief is simple: great paint is 70% preparation and 100% care.</p>
             <div class="pp-cta">
@@ -92,6 +93,15 @@
               <div class="pp-record-card reveal"><span class="pp-record-ic">🏗️</span><span class="pp-record-num">0</span><span class="pp-record-label">Projects logged</span></div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- Ratings & reviews for this painter -->
+      <section class="section" id="ppReviewsSection">
+        <div class="container">
+          <h2 class="section-title">Ratings &amp; <span>reviews</span></h2>
+          <p class="pp-record-sub">Written by signed-in crew accounts. A painter cannot rate their own profile.</p>
+          <div id="ppReviews" data-reviews="painter" data-review-key="profile"></div>
         </div>
       </section>
 
@@ -324,6 +334,8 @@
     <script src="./js/worklog.js"></script>
     <script src="./js/erp.js"></script>
     <script src="./js/gallery.js"></script>
+    <script src="./js/reviews.js"></script>
+    <script src="./js/reviews-page.js" defer></script>
     <script src="./js/profile-page.js" defer></script>
     <script src="./js/script.js"></script>
   </body>

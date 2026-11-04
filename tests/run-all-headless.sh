@@ -51,6 +51,7 @@ build login.html          auth-selftest.js      _auth-selftest.html
 build admin.html          admin-selftest.js     _admin-selftest.html
 build color-studio.html   pmp-selftest.js       _pmp-selftest.html
 build index.html          ui-selftest.js        _ui-selftest.html
+build painter-profile.html reviews-selftest.js _reviews-selftest.html
 
 # The color-studio test seeds a corrupt store from <head> (no defer) so an
 # init-time throw is captured; it needs its own builder, like portfolio.
@@ -193,7 +194,7 @@ cleanup() {
         "$ROOT"/_team-selftest.html "$ROOT"/_gallery-selftest.html "$ROOT"/_profile-selftest.html \
         "$ROOT"/_auth-selftest.html "$ROOT"/_admin-selftest.html \
         "$ROOT"/_pmp-selftest.html "$ROOT"/_portfolio-selftest.html "$ROOT"/_cs-selftest.html \
-        "$ROOT"/_ui-selftest.html "$ROOT"/_sweep.html "$ROOT"/_sweep-*.html \
+        "$ROOT"/_ui-selftest.html "$ROOT"/_reviews-selftest.html "$ROOT"/_sweep.html "$ROOT"/_sweep-*.html \
         "$ROOT"/_corrupt.html "$ROOT"/_corrupt-*.html \
         "$ROOT"/_hidden.html "$ROOT"/_hidden-*.html \
         "$ROOT"/_vex.html "$ROOT"/_vex-*.html
@@ -222,6 +223,7 @@ run_node "PHOTO MEASURE geometry" tests/measure.test.js
 run_node "PAINT-MY-PHOTO engine" tests/photo-studio.test.js
 run_node "AUTH + RBAC engine" tests/auth.test.js
 run_node "AUTH via Supabase (server-enforced provider)" tests/supabase-auth.test.js
+run_node "RATINGS & REVIEWS engine" tests/reviews.test.js
 
 run_pre() {  # run_pre <page> <pre-id> <label>
   local page="$1" pid="$2" label="$3"
@@ -255,6 +257,7 @@ run_pre _pmp-selftest.html     pmpTestOut         "PAINT-MY-PHOTO selftest"
 run_pre _cs-selftest.html      cs-selftest        "COLOR STUDIO selftest"
 run_pre _ui-selftest.html      ui-selftest        "PAGE UI selftest (FAQ, mobile menu, active nav)"
 run_pre _portfolio-selftest.html portfolio-selftest "PORTFOLIO injection selftest"
+run_pre "_reviews-selftest.html?id=ramesh-kumar" reviews-selftest "RATINGS & REVIEWS selftest (stars, one-per-account, self-review, moderation)"
 run_pre _corrupt.html          corruptOut         "CORRUPT STORE sweep (every page, hostile localStorage)"
 run_pre _hidden.html           hiddenOut          "HIDDEN-ATTRIBUTE audit (no [hidden] element still renders)"
 run_pre _vex.html              vexOut             "VISITOR EXPOSURE sweep (anonymous visitor sees no staff control)"

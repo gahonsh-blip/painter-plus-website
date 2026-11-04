@@ -2229,3 +2229,76 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
   .acct-controls { grid-template-columns: 1fr; }
 }
 
+
+/* ============================================================
+   RATINGS & REVIEWS (js/reviews.js + js/reviews-page.js)
+   ============================================================ */
+.rv-intro { color: var(--text-light); max-width: 640px; margin: 0 auto 26px; text-align: center; }
+.rv-heading { font-family: var(--font-display); font-size: 1.15rem; margin: 0 0 14px; }
+
+/* Summary: big average + star histogram */
+.rv-summary { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 28px; align-items: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px 30px; box-shadow: var(--shadow-sm); }
+.rv-score { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.rv-avg { font-family: var(--font-display); font-size: 3.2rem; font-weight: 800; line-height: 1; color: var(--text); }
+.rv-stars, .rv-item-stars, .rv-badge-stars { color: #f59e0b; letter-spacing: 2px; }
+.rv-stars { font-size: 1.3rem; }
+.rv-count { color: var(--text-light); font-size: .9rem; }
+.rv-dist { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rv-bar { display: grid; grid-template-columns: 42px minmax(0, 1fr) 34px; gap: 10px; align-items: center; font-size: .82rem; color: var(--text-light); }
+.rv-bar-label { text-align: right; font-variant-numeric: tabular-nums; }
+.rv-bar-track { height: 8px; border-radius: 6px; background: var(--surface-hover); overflow: hidden; }
+.rv-bar-fill { display: block; height: 100%; background: #f59e0b; border-radius: 6px; transition: width var(--transition); }
+.rv-bar-num { font-variant-numeric: tabular-nums; }
+
+/* Form */
+.rv-form { margin: 22px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 26px; box-shadow: var(--shadow-sm); }
+.rv-form-guest { background: var(--surface-hover); box-shadow: none; }
+.rv-form-note { color: var(--text-light); margin: 0; }
+.rv-form-title { font-family: var(--font-display); font-weight: 700; margin: 0 0 12px; }
+.rv-star-picker { display: inline-flex; flex-direction: row-reverse; gap: 2px; margin-bottom: 14px; }
+.rv-star-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.rv-star-label { font-size: 2rem; line-height: 1; color: var(--border); cursor: pointer; transition: color .15s, transform .15s; }
+.rv-star-label:hover, .rv-star-label:hover ~ .rv-star-label { color: #fbbf24; transform: scale(1.08); }
+.rv-star-input:checked ~ .rv-star-label { color: #f59e0b; }
+.rv-star-input:focus-visible + .rv-star-label { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+.rv-form-text-label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: 6px; }
+.rv-text { width: 100%; resize: vertical; }
+.rv-form-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.rv-form-status { font-size: .85rem; color: #15803d; }
+.rv-form-status.is-error { color: #dc2626; }
+
+/* Review list */
+.rv-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 14px; }
+.rv-item { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 18px 22px; box-shadow: var(--shadow-sm); }
+.rv-item.is-hidden { opacity: .55; border-style: dashed; }
+.rv-item-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.rv-item-avatar { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center;
+  background: var(--primary); color: #fff; font-weight: 700; font-size: .9rem; }
+.rv-item-who { display: flex; flex-direction: column; min-width: 0; }
+.rv-item-who strong { font-size: .95rem; }
+.rv-item-meta { color: var(--text-light); font-size: .78rem; }
+.rv-item-stars { margin-left: auto; font-size: 1.05rem; white-space: nowrap; }
+.rv-item-text { margin: 12px 0 0; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.rv-item-admin { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.rv-hidden-badge { margin-left: 8px; font-size: .7rem; text-transform: uppercase; letter-spacing: .5px;
+  background: #b45309; color: #fff; border-radius: 6px; padding: 1px 7px; }
+.rv-empty { color: var(--text-light); font-style: italic; margin: 14px 0 0; }
+
+/* Compact badge (team cards, portfolio cards, profile hero) */
+.rv-badge { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: .85rem;
+  color: var(--text-light); border: 1px solid var(--border); border-radius: 999px; padding: 3px 12px; margin: 6px 0;
+  transition: border-color .2s, color .2s; }
+.rv-badge:hover { border-color: var(--primary); color: var(--primary); }
+.rv-badge-stars { letter-spacing: 1px; }
+.rv-badge-text strong { color: var(--text); }
+.rv-badge-empty { font-style: italic; }
+.tm-rating { display: inline-block; color: #f59e0b; font-size: .85rem; font-weight: 600; letter-spacing: .5px; }
+.pf-rv { margin: 6px 0 2px; }
+.pp-rating { margin: 6px 0 2px; }
+
+@media (max-width: 640px) {
+  .rv-summary { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 20px; }
+  .rv-avg { font-size: 2.6rem; }
+  .rv-form { padding: 18px; }
+}

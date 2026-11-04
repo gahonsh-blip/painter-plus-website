@@ -144,6 +144,7 @@ Use these exact values when fixing contact info across all pages:
 | Color Studio | `color-studio.html` + `js/color-studio.js` — live room/exterior paint preview, finishes, lighting, and the **area & square-feet estimator** |
 | Paint my photo | `js/photo-studio.js` (`window.PPPhoto`) — recolour an uploaded wall photo (tap 4 corners, pick colour/finish/texture) + paint/putty/primer estimate; the section lives in `color-studio.html` |
 | Team roster | `team.html` (roster page, cards show a derived evidence row), `painter-profile.html` (per-member profile + gallery + self-edit), `js/team.js` (shared data + roles + self-claim) |
+| Ratings & reviews | `js/reviews.js` (`window.PPReviews`, engine), `js/reviews-page.js` (`window.PPReviewsUI`, widgets). Star ratings for painters, projects and the company. Full write-up: `docs/REVIEWS.md` |
 | Crew work gallery | `gallery.html` + `js/gallery-page.js` — every member's work photos in one place, attributed to painter and project, filterable |
 | Gallery + work-record engine | `js/gallery.js` (`window.PPGallery`) — photo CRUD, crew `feed`, and the **derived work record** (years, projects, sq ft, days, co-workers) |
 | Admin | `admin.html` (Owner/Head login: Team & Roles, **Accounts & Access**, profile, Portfolio projects) |
@@ -566,6 +567,49 @@ stats were removed (`stat1..stat4` cleared in `js/team.js`) and replaced by this
   a painter with empty fields shows no founder text, and a member with no logged
   days shows no zero-figure record cards.
 
+## Ratings & reviews — `js/reviews.js` (`window.PPReviews`) + `js/reviews-page.js` (`window.PPReviewsUI`)
+
+A Google-reviews-style rating layer on top of the account system. A signed-in
+crew member or client can rate three subject types — `painter`, `project`,
+`company` — each addressed by a `subjectKey` (`painter:<memberId>`,
+`project:<projectId>`, `company:painter-plus`). Full write-up: `docs/REVIEWS.md`.
+
+**Why a rating is worth something — the rules, do not break them:**
+- **Signed-in and `active` only.** An anonymous visitor reads every rating but
+  can never write one; a `pending`/`suspended`/`rejected` account cannot rate.
+- **One review per account per subject.** A second `submit()` **edits** the
+  first, so a member can change their mind but cannot stuff the ballot.
+- **No self-review.** A painter cannot rate their own member id.
+- **An Admin/Head moderates.** Hide / unhide / delete any review. A **hidden**
+  review stays in the store but leaves the public average; editing re-shows it.
+- **Every write re-checks the account** in `submit()`/`setHidden()`/`remove()`.
+  The renderer hiding a button is never the security.
+
+**Where the widgets appear (and when).** Any element with `data-reviews="<type>"`
+becomes a widget; `data-review-key` sets the subject (`profile` = the member in
+the profile URL); `data-reviews-compact` renders the small avg+count chip;
+`data-reviews-follow-hash` takes its subject from `#rv-<type>-<key>` so one
+panel can serve many compact badges.
+
+- `index.html` — a **company** panel in the public "Ratings & reviews" section.
+- `portfolio.html` — a compact **project** badge on each static card, plus one
+  hash-driven panel at the bottom.
+- `painter-profile.html` — a **painter** badge in the hero and a detailed panel;
+  both hidden when the profile is private.
+- `team.html` — a **painter** rating chip per card, shown only when ≥ 1 rating
+  (a card never advertises an empty `0.0`).
+
+**Untrusted storage.** `painterPlusReviews` is `localStorage`. The engine
+normalises the whole map at the boundary and drops anything that is not a review
+object; an object/array where a string belongs becomes `''` (never the literal
+`"[object Object]"`), and the renderer's escapers are object-safe. The
+corrupt-store sweep seeds a hostile reviews store.
+
+**Tests.** `node tests/reviews.test.js` (17 checks — subject keys, score
+clamping, signed-in-only, one-per-account, no-self-review, average/distribution,
+moderation, hostile store) and the browser self-test
+`bash tests/run-reviews-selftest.sh` (also part of `tests/run-all-headless.sh`).
+
 ## Working rules for agents
 
 - Read `docs/NEXT_STEPS.md` and resolve merge conflicts BEFORE any new work.
@@ -642,7 +686,7 @@ grep -rn "^<<<<<<<\|^=======\|^>>>>>>>" .
 node --check js/script.js
 
 # Pure unit tests (no dependencies)
-node tests/gallery.test.js && node tests/erp.test.js && node tests/measure.test.js && node tests/photo-studio.test.js && node tests/exposure.test.js && node tests/auth.test.js && node tests/supabase-auth.test.js
+node tests/gallery.test.js && node tests/erp.test.js && node tests/measure.test.js && node tests/photo-studio.test.js && node tests/exposure.test.js && node tests/auth.test.js && node tests/supabase-auth.test.js && node tests/reviews.test.js
 
 # Browser self-tests, headless — builds every page, runs chromium, exits non-zero on any FAIL
 # (includes the VISITOR EXPOSURE sweep and the HIDDEN-ATTRIBUTE audit)
@@ -657,6 +701,7 @@ bash tests/run-team-selftest.sh 8134
 bash tests/run-erp-selftest.sh 8135
 bash tests/run-wl-selftest.sh 8136
 bash tests/run-cs-selftest.sh 8139     # Color Studio vs a corrupt pp_studio store
+bash tests/run-reviews-selftest.sh 8142 # ratings & reviews (stars, one-per-account, moderation)
 bash tests/run-portfolio-selftest.sh 8138
 bash tests/run-page-sweep.sh 8137   # every page, uncaught-JS-error sweep
 bash tests/run-corrupt-sweep.sh 8172  # every page vs a hostile localStorage/sessionStorage seed

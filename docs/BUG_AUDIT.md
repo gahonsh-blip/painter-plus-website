@@ -1922,3 +1922,40 @@ meta line).
   and the corrupt-store sweep, now including the `[object Object]` check).
 - Service-worker cache bumped `painter-plus-v35` → `v36` (`js/*.js` are
   precached).
+
+## Sixteenth pass — 2026-11-03 (ratings & reviews: new layer, and two bugs it exposed)
+
+The rating system (`js/reviews.js` + `js/reviews-page.js`) is new work, but it
+went through the same audit and two real defects surfaced before it shipped.
+
+**§64 — a hidden review was invisible to the moderator.** `listHtml()` rendered
+only `visibleFor()` (hidden reviews removed), so when a lead hid a review it
+vanished from the page — including from the lead's own view — and there was no
+way to unhide it. The renderer now shows the full list (`listFor()`) to an
+Admin/Head, with hidden rows badged, and the visible set to everyone else. The
+browser self-test asserts a hidden review leaves the *average* but stays on the
+lead's screen.
+
+**§65 — `stars(0)` drew one filled star.** `stars()` ran its input through
+`clampScore()`, which floors at 1, so "no rating" (`average = 0`) rendered
+`★☆☆☆☆` — a rating that does not exist. `stars()` now treats 0 / non-numeric as
+all-hollow (`☆☆☆☆☆`); only a real 1–5 fills. Pinned by `tests/reviews.test.js`.
+
+**New engine.** `painterPlusReviews`, keyed `<type>:<key>` for `painter`,
+`project` and `company`. Rules: signed-in + active only, one review per account
+per subject (a second submit edits), no self-review, score clamped to a whole
+1–5, Admin/Head moderation (hide / unhide / delete), a hidden review excluded
+from the average. Widgets: a company panel on `index.html`, a compact project
+badge + hash-driven panel on `portfolio.html`, a painter badge + panel on
+`painter-profile.html`, and a rating chip per card on `team.html`.
+
+**Untrusted storage.** `painterPlusReviews` is normalised at the boundary and
+anything that is not a review object is dropped; object/array text becomes `''`.
+`tests/corrupt-seed.js` now seeds a hostile reviews store, and the corrupt-store
+sweep still reports **all pages clean**.
+
+**Verified.** `tests/reviews.test.js` (17 checks) and
+`bash tests/run-reviews-selftest.sh` (23 browser checks) pass, and
+`bash tests/run-all-headless.sh` reports **ALL BROWSER CHECKS PASSED**.
+Service-worker cache bumped `painter-plus-v36` → `v37` (two new `js` files
+precached).

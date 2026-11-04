@@ -422,7 +422,7 @@
     // owner / an authorised Admin or Head.
     const hidePersonal = privateNow && !viewerCanSee;
     if (notice) notice.hidden = !hidePersonal;
-    ['ppRecordSection', 'ppGallerySection', 'ppSpecSection', 'ppPhilosophySection', 'ppContactSection', 'ppEditSection'].forEach((id) => {
+    ['ppRecordSection', 'ppGallerySection', 'ppReviewsSection', 'ppSpecSection', 'ppPhilosophySection', 'ppContactSection', 'ppEditSection'].forEach((id) => {
       const el = $(id);
       if (el) el.hidden = hidePersonal;
     });
@@ -430,9 +430,10 @@
     if (hero) {
       // Keep the name/role visible (it is the roster's public fact) but hide the
       // personal bio/tagline when private — or when the member simply has none.
-      const tagline = $('ppTagline'), bio = $('ppBio');
+      const tagline = $('ppTagline'), bio = $('ppBio'), rating = $('ppRating');
       if (tagline) tagline.hidden = hidePersonal || !tagline.textContent.trim();
       if (bio) bio.hidden = hidePersonal || !bio.textContent.trim();
+      if (rating) rating.hidden = hidePersonal;
     }
     if (hidePersonal) {
       const note = $('ppPrivateNote');

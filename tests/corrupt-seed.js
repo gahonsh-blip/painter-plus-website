@@ -74,6 +74,20 @@
 
   set('painterPlusProfile', JSON.stringify({ name: {}, title: [], bio: null }));
 
+  // Reviews store: hostile shapes. A review that is a scalar, an object where
+  // the author/text belongs, a non-array subject, and a score that is not a
+  // number. The rating layer must drop/normalise these, never print
+  // "[object Object]" and never throw.
+  set('painterPlusReviews', JSON.stringify({
+    'painter:gahonsh': [
+      { id: {}, type: 'painter', key: 'gahonsh', author: {}, authorId: [], score: {}, text: {}, at: [] },
+      { id: 'r1', type: 'painter', key: 'gahonsh', author: 'X', authorId: 'acc', score: 9, text: 'clamped', at: 5 },
+      null, 7, 'x'
+    ],
+    'company:painter-plus': 'not-an-array',
+    'painter:ramesh-kumar': { nope: true }
+  }));
+
   // Auth store: hostile shapes. A `null`/scalar where an account belongs, a
   // non-string role/status/privacy, a plaintext pw record, a recovery record
   // that is a string, and an audit log that is not JSON at all.

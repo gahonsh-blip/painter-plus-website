@@ -80,9 +80,24 @@
       if (bits.length) stats = '<span class="tm-stats">' + bits.map(b => T.esc(b)).join(' · ') + '</span>';
     }
 
+    // Community rating chip: the average of the reviews signed-in accounts left
+    // for this painter (js/reviews.js). Shown only when there is at least one
+    // rating, so a card never advertises an empty "0.0".
+    let rating = '';
+    if (window.PPReviews) {
+      const s = window.PPReviews.summary('painter', m.id);
+      if (s.count) {
+        rating = '<span class="tm-rating" aria-label="' +
+          T.esc(window.PPReviews.fmtAverage(s.average) + ' out of 5 from ' + s.count + (s.count === 1 ? ' rating' : ' ratings')) +
+          '">' + window.PPReviews.stars(s.average) + ' ' +
+          T.esc(window.PPReviews.fmtAverage(s.average)) + ' (' + T.esc(window.PPReviews.fmtCount(s.count)) + ')</span>';
+      }
+    }
+
     return '<a class="card tm-card reveal role-' + T.esc(role.id) + '" href="./painter-profile.html?id=' + encodeURIComponent(m.id) + '">' +
       '<div class="tm-media">' + media + T.roleBadge(m) + '</div>' +
       '<h3>' + T.esc(m.name) + '</h3>' +
+      rating +
       (m.title ? '<p class="tm-title-line">' + T.esc(m.title) + '</p>' : '') +
       (m.tagline ? '<p class="tm-tagline">' + T.esc(m.tagline) + '</p>' : '') +
       stats +
@@ -110,4 +125,6 @@
   // so freshly built cards get observed and animate in.
   document.addEventListener('DOMContentLoaded', renderAll);
   document.addEventListener('ppteam:change', renderAll);
+  document.addEventListener('ppreviews:change', renderAll);
+  document.addEventListener('ppauth:change', renderAll);
 })();
