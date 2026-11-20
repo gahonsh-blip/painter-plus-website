@@ -214,7 +214,30 @@
    * 2. TEXT HELPERS
    * ------------------------------------------------------------- */
 
-  function isHindi(s) { return /[\u0900-\u097F]/.test(String(s || '')); }
+  // Roman-Hindi (Hinglish) markers. Unambiguous only: no "do", "me", "to",
+  // "par" — those are ordinary English words and would flip English questions.
+  var HI_WORDS = ['kya', 'kyu', 'kyun', 'hai', 'hain', 'kaise', 'kaisa', 'kaisi',
+    'kahan', 'kaha', 'kitna', 'kitne', 'kitni', 'kaun', 'kaunsi', 'kaunsa', 'kaunse',
+    'karna', 'karo', 'karein', 'kijiye', 'dijiye', 'chahiye', 'batao', 'bataiye',
+    'bataye', 'batayen', 'mujhe', 'mera', 'meri', 'hamara', 'hamari', 'aap', 'aapka',
+    'aapki', 'nahi', 'nahin', 'paisa', 'paise', 'kaam', 'din', 'saal', 'wala', 'wali',
+    'theek', 'thik', 'sab', 'kuch', 'raha', 'rahi', 'rahe', 'hoga', 'hota', 'hote',
+    'karte', 'karta', 'karti', 'milega', 'milegi', 'bolo', 'abhi', 'phir', 'bhi',
+    'chalta', 'chalti', 'banwana', 'banwane', 'lagwana', 'lagwane', 'jaldi',
+    'zarurat', 'jarurat', 'hona', 'hogi', 'lagta', 'lagti', 'dijiye', 'kijiyega',
+    'kitne din', 'kitna time', 'kaun sa', 'konsa'];
+
+  // Devanagari, or any Roman-Hindi marker → Hindi. Otherwise English.
+  function detectLang(s) {
+    var str = String(s || '');
+    if (/[\u0900-\u097F]/.test(str)) return 'hi';
+    var low = ' ' + str.toLowerCase().replace(/[^a-z0-9\s]/g, ' ') + ' ';
+    for (var i = 0; i < HI_WORDS.length; i++) {
+      if (low.indexOf(' ' + HI_WORDS[i] + ' ') >= 0) return 'hi';
+    }
+    return 'en';
+  }
+  function isHindi(s) { return detectLang(s) === 'hi'; }
 
   var STOP = { ka: 1, ki: 1, ke: 1, hai: 1, hain: 1, ho: 1, me: 1, the: 1, is: 1, a: 1, of: 1, for: 1, to: 1, and: 1, my: 1, i: 1, do: 1, you: 1, kya: 1, kaise: 1 };
 
@@ -242,6 +265,10 @@
     { id: 'colors', kw: ['color', 'colour', 'colors', 'shade', 'paint color', 'रंग', 'कलर', 'studio'] },
     { id: 'booking', kw: ['book', 'booking', 'appointment', 'visit', 'site visit', 'free quote', 'quote', 'बुक', 'मिलना', 'आना'] },
     { id: 'painter_mode', kw: ['painter code', 'painter login', 'crew login', 'main painter', 'i am painter', 'पेंटर हूं', 'पेंटर हूँ', 'staff login', 'mera kaam', 'mera data'] },
+    { id: 'timeline', kw: ['kitne din', 'how long', 'time lagega', 'kab tak', 'duration', 'days', 'कितने दिन', 'समय', 'kitna time'] },
+    { id: 'protection', kw: ['furniture', 'dust', 'saman', 'samaan', 'safai', 'cleaning', 'cover', 'फर्नीचर', 'धूल', 'सफाई', 'bacha'] },
+    { id: 'brands', kw: ['brand', 'brands', 'asian', 'berger', 'nerolac', 'dulux', 'company ka paint', 'ब्रांड', 'पेंट कंपनी'] },
+    { id: 'payment', kw: ['payment', 'advance', 'bill', 'invoice', 'gst', 'cash', 'upi', 'पेमेंट', 'एडवांस', 'बिल'] },
     { id: 'thanks', kw: ['thanks', 'thank', 'dhanyavad', 'shukriya', 'धन्यवाद', 'शुक्रिया'] }
   ];
 
@@ -280,8 +307,8 @@
    * 4. ANSWER BUILDERS
    * ------------------------------------------------------------- */
 
-  function clientAnswer(q, hi) {
-    var intent = matchIntent(q, CLIENT_INTENTS);
+  function clientAnswer(q, hi, forceIntent) {
+    var intent = forceIntent || matchIntent(q, CLIENT_INTENTS);
     var c = contact();
     var list = members();
 
@@ -408,6 +435,36 @@
 
       case 'painter_mode':
         return { action: 'ask_code' };
+
+      case 'timeline':
+        return {
+          text: hi
+            ? 'छोटा काम (1-2 कमरा) 2-4 दिन, पूरा घर 7-15 दिन. साइट इंस्पेक्शन के बाद तारीख और दिन लिखित में दे देते हैं, और उसी हिसाब से टीम लगती है.'
+            : 'A small job (1-2 rooms) takes 2-4 days, a full house 7-15 days. After the site inspection we give you the dates and duration in writing, and plan the crew around it.',
+          chips: hi ? ['फ्री इंस्पेक्शन', 'संपर्क नंबर'] : ['Free inspection', 'Contact number']
+        };
+
+      case 'protection':
+        return {
+          text: hi
+            ? 'काम से पहले फर्नीचर, फर्श और फिटिंग ढक दी जाती है, धूल रोकने के लिए प्लास्टिक शीट लगती है, और काम खत्म होने पर सफाई करके ही टीम जाती है.'
+            : 'Before work starts we cover the furniture, floors and fittings, use plastic sheeting to control dust, and clean up before the crew leaves.',
+        };
+
+      case 'brands':
+        return {
+          text: hi
+            ? 'पेंट और पुट्टी अच्छे ब्रांड की लगती है — एशियन, बर्जर, नेरोलैक जैसे. आप चाहें तो अपनी पसंद का ब्रांड भी बता सकते हैं, वही इस्तेमाल होगा.'
+            : 'We use well-known paints and putty — Asian, Berger, Nerolac and similar. If you prefer a specific brand, tell us and we will use that.',
+        };
+
+      case 'payment':
+        return {
+          text: hi
+            ? 'काम शुरू होने पर एडवांस, और बाकी काम के अलग-अलग चरण पूरे होने पर. पूरा हिसाब लिखित में मिलता है — कोई छुपा चार्ज नहीं. बिल/इनवॉइस भी मिलता है.'
+            : 'A booking advance to start, then payments as each stage is completed. You get the full breakdown in writing, with no hidden charges, and a proper invoice.',
+          links: [{ label: hi ? 'बात करें' : 'Talk to us', href: 'contact.html' }]
+        };
 
       case 'thanks':
         return { text: hi ? 'खुशी हुई! 😊 कुछ और पूछना हो तो बताइए.' : 'Glad to help! 😊 Ask me anything else.' };
@@ -719,6 +776,32 @@
     setChips(defaultChips());
   }
 
+  // "aur batao", "more details" — answer the previous topic again instead of
+  // treating it as a new, unknown question.
+  var FOLLOW_UP = ['aur', 'aur batao', 'aur bataye', 'detail', 'details', 'more',
+    'more info', 'explain', 'uske baad', 'और', 'और बताओ', 'और बताइए', 'ज्यादा', 'विस्तार'];
+  function isFollowUp(q) {
+    var n = String(q || '').toLowerCase().replace(/[^\u0900-\u097fa-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    return FOLLOW_UP.indexOf(n) >= 0 || n === '';
+  }
+
+  var SUGGEST = {
+    services: [['Warranty?', 'वारंटी?'], ['Portfolio', 'पोर्टफोलियो'], ['Pricing?', 'रेट?']],
+    warranty: [['Services', 'सर्विस'], ['Contact number', 'संपर्क नंबर'], ['Free inspection', 'फ्री इंस्पेक्शन']],
+    pricing: [['Free inspection', 'फ्री इंस्पेक्शन'], ['How long?', 'कितने दिन?'], ['Contact number', 'संपर्क नंबर']],
+    contact: [['Free inspection', 'फ्री इंस्पेक्शन'], ['Services', 'सर्विस'], ['Portfolio', 'पोर्टफोलियो']],
+    portfolio: [['Reviews', 'रिव्यू'], ['Services', 'सर्विस'], ['Contact number', 'संपर्क नंबर']],
+    team: [['Portfolio', 'पोर्टफोलियो'], ['Reviews', 'रिव्यू'], ['Services', 'सर्विस']],
+    reviews: [['Portfolio', 'पोर्टफोलियो'], ['Contact number', 'संपर्क नंबर'], ['Services', 'सर्विस']],
+    timeline: [['Pricing?', 'रेट?'], ['Contact number', 'संपर्क नंबर'], ['Services', 'सर्विस']],
+    process: [['Free inspection', 'फ्री इंस्पेक्शन'], ['Pricing?', 'रेट?'], ['Contact number', 'संपर्क नंबर']],
+    booking: [['Contact number', 'संपर्क नंबर'], ['Pricing?', 'रेट?'], ['Portfolio', 'पोर्टफोलियो']]
+  };
+  function suggestFor(intent, hi) {
+    var row = SUGGEST[intent] || [['Services', 'सर्विस'], ['Pricing?', 'रेट?'], ['Contact number', 'संपर्क नंबर']];
+    return row.map(function (pair) { return hi ? pair[1] : pair[0]; });
+  }
+
   function handle(q) {
     addMsg('user', q);
     var hi = isHindi(q);
@@ -727,13 +810,15 @@
     setTimeout(function () {
       try {
         if (session.mode === 'painter') { handlePainter(q, hi); return; }
-        var res = clientAnswer(q, hi);
+        var forced = (isFollowUp(q) && session.lastIntent) ? session.lastIntent : null;
+        var res = clientAnswer(q, hi, forced);
+        if (!forced) session.lastIntent = matchIntent(q, CLIENT_INTENTS);
         if (res && res.action === 'ask_code') {
           setMode('painter');
           return;
         }
         addMsg('bot', res.text, res.links);
-        if (res.chips) setChips(res.chips);
+        setChips(res.chips || suggestFor(session.lastIntent, hi));
       } catch (e) {
         addMsg('bot', hi ? 'एक तकनीकी दिक्कत आ गई. टीम से बात कर लीजिए.' : 'Something went wrong. Please contact the team.', [{ label: 'Contact', href: 'contact.html' }]);
       }
@@ -811,7 +896,13 @@
   window.PPBot = {
     __loaded: true,
     version: VERSION,
-    ask: function (q) { return clientAnswer(q, isHindi(q)); },
+    ask: function (q) {
+      var hi = isHindi(q);
+      var forced = (isFollowUp(q) && session.lastIntent) ? session.lastIntent : null;
+      var res = clientAnswer(q, hi, forced);
+      if (!forced) session.lastIntent = matchIntent(q, CLIENT_INTENTS);
+      return res;
+    },
     members: members,
     painter: function (code) {
       var m = findMember(code);

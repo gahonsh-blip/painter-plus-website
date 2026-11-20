@@ -54,8 +54,20 @@ storage model limitation, not a bot bug. Real cross-device data needs a backend.
 
 ## Language
 
-Replies follow the question's script: Devanagari → Hindi, otherwise English.
-Hinglish keywords work in both modes ("kitna kaam", "mera paisa").
+The reply language follows the question, message by message:
+
+- **Devanagari** → Hindi reply.
+- **Roman Hindi / Hinglish** (`kya`, `hai`, `kitna`, `kahan`, `paisa`, `kaam`,
+  `din`, `chahiye` …) → Hindi reply.
+- **Everything else** → English reply.
+
+Only unambiguous Hindi markers are used, so an English question containing
+"do", "me", "to" or "par" still gets an English answer. `detectLang()` is the
+single decision point, and `tests/smart-bot.test.mjs` covers Devanagari,
+Hinglish, English and mixed input.
+
+Follow-ups such as "aur batao" / "more details" reuse the previous topic
+instead of being treated as an unknown question.
 
 ## Unknown questions
 

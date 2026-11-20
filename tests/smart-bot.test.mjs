@@ -87,4 +87,45 @@ B._internals.handlePainter('my earnings', false);
 const leak = B._internals.lastBotMessage();
 check('no earnings before passcode', !/21,500/.test(leak), leak.slice(0,80));
 
+
+// ============================================================
+// LANGUAGE MATCHING — the bot must answer in the language asked
+// ============================================================
+const DEV = /[\u0900-\u097F]/;
+function langOf(text) { return DEV.test(text) ? 'hi' : 'en'; }
+
+const hindiDev = B.ask('वारंटी कितनी है?');
+check('devanagari question -> hindi answer', langOf(hindiDev.text) === 'hi', hindiDev.text.slice(0,60));
+
+const hinglish = B.ask('warranty kitni hai');
+check('hinglish question -> hindi answer', langOf(hinglish.text) === 'hi', hinglish.text.slice(0,60));
+
+const eng = B.ask('what is the warranty');
+check('english question -> english answer', langOf(eng.text) === 'en', eng.text.slice(0,60));
+
+const eng2 = B.ask('contact number please');
+check('english contact -> english answer', langOf(eng2.text) === 'en', eng2.text.slice(0,60));
+
+const hin2 = B.ask('contact number kya hai');
+check('mixed hinglish contact -> hindi answer', langOf(hin2.text) === 'hi', hin2.text.slice(0,60));
+
+// English words that merely look Indian must not flip the language
+const eng3 = B.ask('do you do exterior work');
+check('english "do" not read as hindi', langOf(eng3.text) === 'en', eng3.text.slice(0,60));
+
+// new intents
+const tl = B.ask('kitne din lagega');
+check('timeline answers in hindi', langOf(tl.text) === 'hi' && /दिन|din/.test(tl.text), tl.text.slice(0,60));
+const brand = B.ask('which paint brand do you use');
+check('brands answers in english', langOf(brand.text) === 'en' && /Asian|Berger/i.test(brand.text), brand.text.slice(0,60));
+const pay = B.ask('payment kaise hota hai');
+check('payment answers in hindi', langOf(pay.text) === 'hi', pay.text.slice(0,60));
+const prot = B.ask('furniture cover karte ho?');
+check('protection answers in hindi', langOf(prot.text) === 'hi', prot.text.slice(0,60));
+
+// follow-up keeps the topic
+B.ask('services');
+const fu = B.ask('aur batao');
+check('follow-up repeats last topic', /Interior|इंटीरियर|service|सर्विस/i.test(fu.text), fu.text.slice(0,60));
+
 console.log('\nfails:', fail);
