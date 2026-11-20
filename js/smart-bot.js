@@ -758,6 +758,14 @@
     }
 
     if (session.step === 'await_pass') {
+      // A question typed here is not a passcode attempt. Say so instead of
+      // answering "wrong passcode", which reads like a failed login.
+      if (String(q).trim().split(/\s+/).length > 2 || /[?]/.test(q)) {
+        addMsg('bot', hi
+          ? 'यह पासकोड जैसा नहीं लग रहा. पहले स्टाफ पासकोड डालिए, उसके बाद अपने सवाल पूछिए.'
+          : 'That does not look like a passcode. Please enter the staff passcode first, then ask your questions.');
+        return;
+      }
       var T = teamApi();
       var ok = false;
       try {

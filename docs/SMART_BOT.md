@@ -82,6 +82,8 @@ PPBot._internals.session()    // current mode/step
   answered the experience question. Keywords now match on word boundaries.
 - **Dead link** — the reviews answer pointed at `reviews.html`, which does not
   exist; it now points at the home page's reviews section.
+- **Confusing passcode prompt** — a full question typed at the passcode step
+  was answered with "wrong passcode"; it now asks for the passcode first.
 - **Empty-state answers** — a missing roster/work log/ERP now degrades to an
   honest "not recorded yet" instead of a blank bubble.
 
