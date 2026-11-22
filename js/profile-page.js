@@ -885,6 +885,7 @@
         : T.isManager();
       if (!allowed) { flash('You can only move painters to a role below your own.', true); return; }
 
+      const previousRole = member.role;
       const res = T.setRole(member.id, pendingRole);
       if (!res.ok) { flash(res.error, true); return; }
       member = res.member;
@@ -893,7 +894,16 @@
       if (me && A && acct && A.can(me, 'account.manage', acct)) {
         const acctRole = mapped;
         settle(A.setRole(me, acct.id, acctRole), (r) => {
-          if (!r.ok) { flash(r.error, true); renderRoleControls(); return; }
+          if (!r.ok) {
+            // The roster write already landed. Put it back, or the public team
+            // page advertises a role the account layer refused to grant.
+            const back = T.setRole(member.id, previousRole);
+            if (back.ok) member = back.member;
+            flash(r.error + (back.ok ? ' The roster role was restored.' : ' The roster role could not be restored.'), true);
+            renderProfile();
+            renderRoleControls();
+            return;
+          }
           renderProfile();
           renderRoleControls();
           flash('✅ ' + member.name + ' is now ' + T.roleOf(member.role).label + '.');
@@ -916,9 +926,33 @@
         : T.isManager();
       if (!allowed) { flash('You can only remove painters you manage.', true); return; }
       if (!confirm('Remove ' + member.name + ' from the team?')) return;
-      const res = T.remove(member.id);
-      if (!res.ok) { flash(res.error, true); return; }
-      window.location.href = './team.html';
+      const finish = () => {
+        const res = T.remove(member.id);
+        if (!res.ok) { flash(res.error, true); return; }
+        window.location.href = './team.html';
+      };
+      // Removing the roster entry must not leave its login active. Suspend the
+      // linked account first; if that fails, keep the member rather than orphan
+      // an account that can still sign in. If the roster write then fails, put
+      // the account back to the status it had.
+      if (me && A && acct && A.can(me, 'account.manage', acct)) {
+        const previousStatus = acct.status;
+        settle(A.setStatus(me, acct.id, 'suspended'), (r) => {
+          if (!r.ok) {
+            flash('Could not suspend the linked account, so the member was not removed. ' + r.error, true);
+            return;
+          }
+          const res = T.remove(member.id);
+          if (!res.ok) {
+            settle(A.setStatus(me, acct.id, previousStatus), () => {});
+            flash(res.error, true);
+            return;
+          }
+          window.location.href = './team.html';
+        });
+        return;
+      }
+      finish();
     });
   }
 

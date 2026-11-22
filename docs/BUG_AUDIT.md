@@ -2391,3 +2391,180 @@ experience and project history themselves; phone/email/note still require the
 - `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED** (all Node
   suites, every page self-test, the visitor-exposure sweep, the
   hidden-attribute audit and the corrupt-store sweep).
+
+### §104 — `currentUser()` handed the password hash to every page script
+
+`localCurrentUser()` returned the raw stored account object, including the
+PBKDF2 `pw` record and any live `recovery` record. Every caller of
+`PPAuth.currentUser()` — the profile page, the admin pane, the assistant — could
+read credential material it never needs. It now returns `publicView(acc)`, the
+same redacted shape the account list uses. The session checks still run against
+the raw record first.
+
+### §105 — Reactivating an account, or resetting its password, left it locked out
+
+The login throttle stores `fails` and `lockedUntil` on the account. Approving a
+suspended account (`setStatus(..., 'active')`), a lead's `resetPassword()` and a
+recovery-code reset all changed the password but left the old lock in place, so
+the *new* password was refused with “too many attempts” until the cool-off
+expired. All three paths now clear `fails` and `lockedUntil` when they make the
+account usable again.
+
+### §106 — Stored edit rights could pollute `Object.prototype`
+
+`editRights` was copied from the store with `Object.assign`, so a hand-edited
+account carrying `{"__proto__": {"contact": true}}` could mutate the prototype
+chain, and arbitrary keys were preserved forever. `cleanRights()` now rebuilds
+the object from a fixed allow-list (`contact`, `phone`, `email`, `note`) at
+normalise time and on every local/Supabase write. A `__proto__` key is just
+dropped.
+
+### §107 — Supabase saved “working since” into a column that does not exist
+
+`updateProfile()` wrote the camel-case field `startYear`, but the table column
+is `start_year`. PostgREST rejected the row, so in Supabase mode a painter's
+working-since year silently never saved. The update now maps `startYear →
+start_year`, and `sbRow()` carries the profile's `address` and `note` columns as
+well (they were in the local account but missing from the row).
+
+### §108 — The invoice understated work awaiting approval
+
+`invoiceText()` printed the “NOT INCLUDED (awaiting approval)” line from
+`b.pending.labour`, while the approved total and the dashboard include paint.
+On a paint-rated project the excluded figure was lower than the money the
+client still owed. The line now prints `b.pending.total`.
+
+### §109 — A day's crew could not be cleared
+
+The work-log crew picker fell back to the stored crew whenever its current
+value was blank: `const current = crewEl.value || stored`. Choosing the blank
+“— select crew —” option therefore re-selected the old painter on the next
+render, so a day could never be unassigned. Once the picker has options, its
+value is now authoritative even when it is empty.
+
+### §110 — A stored object in a day's measurements rendered `NaN sq ft`
+
+`cleanEntry()` only coerced text fields. A hand-edited `w`, `h` or `sqft` that
+was an object/array reached `num()` and then the day total as `NaN` (or
+`[object Object] × … ft`). The three numeric fields are now parsed and clamped
+to a finite non-negative number at the boundary, and `saveDay()`/`addEntry()`
+refuse a missing date or a non-object entry instead of writing it.
+
+### §111 — A malformed measurement point produced `NaN sq ft`
+
+`polygonArea()` multiplied whatever the stored/drawn point array contained, so
+a `null`, `"oops"` or object coordinate turned the shoelace sum into `NaN`,
+which the work log then displayed. A `validPoint()` guard now rejects anything
+that is not two finite numbers (numeric strings accepted), the area returns `0`
+instead of `NaN`, and `homographyFromQuad()`/`applyH()` refuse malformed
+corners rather than building a singular transform. Two new checks in
+`tests/measure.test.js` pin this.
+
+### §112 — A gallery upload could hang forever when the canvas had no 2D context
+
+`gallery.js` `downscaleFile()` called `c.getContext('2d').drawImage(...)` inside
+the image's async `onload`. The surrounding `try/catch` could not catch that
+callback, so if the browser refused a 2D context the callback was never invoked
+and the upload spinner never finished. It now checks the context and calls back
+with `''` so the UI shows its normal “could not read that image” message.
+
+### §113 — A missing 2D context crashed the measurement/photo editors
+
+`PPMeasure.createEditor()` and `PPPhoto.createEditor()` assumed
+`canvas.getContext('2d')` returned an object. A tainted or unsupported canvas
+returned `null`, and the first draw threw, aborting the page script. Both now
+return `null` from `createEditor()`, which their callers already treat as
+“fall back to manual entry” / “hide the studio”.
+
+### §114 — Removing a member left their gallery photos orphaned
+
+`Team.remove()` deletes the member's gallery photos through
+`window.PPGallery.removeAll()`, but `admin.html` never loaded `js/gallery.js`.
+The guard silently skipped the cleanup, leaving photos keyed to an id that no
+longer exists — invisible and undeletable. The admin page now loads the gallery
+module before the admin script.
+
+### §115 — Removing a member left their login active
+
+The profile page removed the roster entry but did not touch the linked account.
+The person disappeared from the public team page yet could still sign in, and
+their account remained `active`. Removal now suspends the linked account first
+when the signed-in lead may manage it; if that fails the member is kept rather
+than orphaned, and if the roster write then fails the account is restored to its
+previous status.
+
+### §116 — A refused account role change left the roster advertising it
+
+The profile role control wrote the roster role first, then asked the account
+engine to match it. When the account engine refused (for example, the last
+active Admin cannot be demoted), the page showed an error but the public roster
+kept the new role — the display layer and the authorisation layer disagreed.
+The roster write is now rolled back to the previous role when the account write
+fails.
+
+### §117 — Admin portfolio saves reported success when storage was blocked
+
+`js/script.js` `store.set()`/`store.del()` swallowed every exception and the
+portfolio handlers re-rendered regardless, so a full or blocked `localStorage`
+looked like a successful save until reload. The helpers now return whether the
+write landed, and add/edit/delete/clear-all show a storage error instead of
+resetting the form and redrawing a list that was never persisted.
+
+### §118 — Team/profile reset buttons ignored a failed write
+
+“Restore the default roster” deleted the roster key and “Reset the Head
+profile” saved the defaults without checking the result. On a blocked store the
+page showed the old data as if the reset had happened. Both now check the
+storage result and alert instead of redrawing.
+
+### §119 — A roster member with no usable id linked to the founder's profile
+
+`Team.read()` kept a member whose `id` was an object or an empty string.
+Profile links built from that id resolved to `painter-profile.html?id=` (or
+`?id=[object Object]`), which the profile page treats as “no id” and renders
+the founder's static profile. Such members are now dropped at the store
+boundary; numeric ids are normalised to strings, and `Team.save()` refuses a
+non-object member or a non-string id instead of writing one.
+
+### §120 — The assistant crashed on a stored object role
+
+`roleOf()` called `.charAt()` on `m.role`. A hand-edited roster with
+`role: {}` threw inside the bot's answer builder and killed the reply. It now
+coerces the role through `txt()` and falls back to “Painter”.
+
+### §121 — The assistant printed `[object Object]` for a stored contact field
+
+The fallback contact block used `head.phone || …`; an object phone/email/address
+is truthy, so the bot printed `[object Object]` in a reply. Those four fields
+now go through `txt()` before the default is chosen, and the bot's member,
+portfolio, project and day lists drop non-object rows rather than reading
+properties off a scalar.
+
+### §122 — Clearing the Color Studio coverage input produced `rgb(NaN, …)`
+
+An empty `<input type="number">` gives `NaN`; `setCoverage()` assigned it
+directly, so the blend maths painted invalid CSS colours and the label read
+`NaN%`. The value is now parsed, clamped to 0–100, written back to the input and
+the label. A corrupt persisted `areas` entry is also coerced (finite sizes,
+real boolean include flag), so a hand-edited `pp_studio` cannot render
+`[object Object] × … ft`.
+
+### §123 — A gallery/review write with no storage backend claimed success
+
+`gallery.js` and `reviews.js` `writeRaw()` started with `let ok = true` and
+only set it false if `setItem` threw. When no storage backend was available at
+all (`backing()` returned `null`) nothing was written yet the caller saw
+success. Both now start from `!!s`, so the existing “could not save” paths
+surface the failure.
+
+**Verified.**
+- `node tests/measure.test.js` — **18 checks** (2 new: malformed point is 0,
+  malformed calibration corner is refused).
+- `node tests/auth.test.js` — 47 checks; `node tests/gallery.test.js` — 33;
+  `node tests/erp.test.js` — 84; `node tests/reviews.test.js` — 17;
+  `node tests/passcode.test.js` — 14; `node tests/smart-bot.test.mjs` — all
+  pass.
+- `bash tests/run-all-headless.sh 8170` — **ALL BROWSER CHECKS PASSED**
+  (profile, admin, auth, ERP, work log, gallery, Color Studio, portfolio,
+  reviews, contact, page sweep, visitor exposure, hidden-attribute audit and
+  corrupt-store sweep).

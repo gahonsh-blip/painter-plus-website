@@ -42,17 +42,26 @@
   function teamApi() { return window.PPTeam || null; }
   function erpApi() { return window.PPERP || null; }
 
+  // Stored lists are untrusted: a null/scalar in the array used to reach
+  // `.title` / `.name` and throw inside the bot's answer builder.
+  function objects(v) {
+    return Array.isArray(v) ? v.filter(function (x) { return x && typeof x === 'object' && !Array.isArray(x); }) : [];
+  }
+  function txt(v) {
+    return (v == null || typeof v === 'object') ? '' : String(v);
+  }
+
   function members() {
     try {
       var T = teamApi();
       if (T && typeof T.list === 'function') {
         var l = T.list();
-        if (Array.isArray(l)) return l;
+        if (Array.isArray(l)) return objects(l);
       }
     } catch (e) { /* fall through */ }
     var raw = ls('painterPlusTeam');
-    if (Array.isArray(raw)) return raw;
-    if (raw && Array.isArray(raw.members)) return raw.members;
+    if (Array.isArray(raw)) return objects(raw);
+    if (raw && Array.isArray(raw.members)) return objects(raw.members);
     return [];
   }
 
@@ -80,7 +89,7 @@
         if (r && r.label) return r.label;
       }
     } catch (e) { /* ignore */ }
-    var r0 = (m && m.role) || 'painter';
+    var r0 = txt(m && m.role) || 'painter';
     return r0.charAt(0).toUpperCase() + r0.slice(1);
   }
 
@@ -93,10 +102,10 @@
     if (!d) {
       var head = members()[0] || {};
       d = {
-        phone: head.phone || '+91 8825183628',
-        email: head.email || 'gahonsh@gmail.com',
-        address: head.address || 'Upar Balalong, Arki, Khunti, Jharkhand – 835225',
-        note: head.note || 'Active since 2015 · 5-year warranty on every project · Free site inspection'
+        phone: txt(head.phone) || '+91 8825183628',
+        email: txt(head.email) || 'gahonsh@gmail.com',
+        address: txt(head.address) || 'Upar Balalong, Arki, Khunti, Jharkhand – 835225',
+        note: txt(head.note) || 'Active since 2015 · 5-year warranty on every project · Free site inspection'
       };
     }
     return d;
@@ -107,15 +116,16 @@
       var W = window.PPWorkLog;
       if (W && typeof W.listDays === 'function') {
         var l = W.listDays();
-        if (Array.isArray(l)) return l;
+        if (Array.isArray(l)) return objects(l);
       }
     } catch (e) { /* fall through */ }
     var days = ls('painterPlusWorkLog') || {};
+    if (!days || typeof days !== 'object' || Array.isArray(days)) return [];
     return Object.keys(days).sort().reverse().map(function (k) {
       var d = days[k];
-      if (!d || typeof d !== 'object') return null;
-      d.date = d.date || k;
-      if (!Array.isArray(d.entries)) d.entries = [];
+      if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+      d.date = txt(d.date) || k;
+      d.entries = objects(d.entries);
       return d;
     }).filter(Boolean);
   }
@@ -151,12 +161,14 @@
   }
 
   function projectNameFor(d) {
-    if (d.project) return String(d.project);
+    if (!d || typeof d !== 'object') return '';
+    var name = txt(d.project).trim();
+    if (name) return name;
     var erp = erpApi();
     if (erp && typeof erp.getProject === 'function' && d.projectId) {
       try {
         var p = erp.getProject(d.projectId);
-        if (p && p.name) return String(p.name);
+        if (p && txt(p.name).trim()) return txt(p.name).trim();
       } catch (e) { /* ignore */ }
     }
     return '';
@@ -193,8 +205,8 @@
 
   function portfolio() {
     var raw = ls('painterPlusProjects');
-    if (Array.isArray(raw)) return raw;
-    if (raw && Array.isArray(raw.projects)) return raw.projects;
+    if (Array.isArray(raw)) return objects(raw);
+    if (raw && Array.isArray(raw.projects)) return objects(raw.projects);
     return [];
   }
 
@@ -203,11 +215,11 @@
     try {
       if (erp && typeof erp.listProjects === 'function') {
         var l = erp.listProjects();
-        if (Array.isArray(l)) return l;
+        if (Array.isArray(l)) return objects(l);
       }
     } catch (e) { /* ignore */ }
     var d = ls('painterPlusERP');
-    return (d && Array.isArray(d.projects)) ? d.projects : [];
+    return (d && Array.isArray(d.projects)) ? objects(d.projects) : [];
   }
 
   function painterReport(memberId) {
@@ -439,16 +451,16 @@
         var erp = erpProjects();
         var count = proj.length || erp.length;
         var titles = (proj.length ? proj : erp).slice(0, 5).map(function (p) {
-          return '• ' + (p.title || p.name || 'Project');
+          return '• ' + (txt(p.title) || txt(p.name) || 'Project');
         }).filter(Boolean);
-        var txt = count
+        var answer = count
           ? (hi ? 'अब तक ' + count + ' प्रोजेक्ट वेबसाइट पर लाइव हैं:\n' : count + ' projects are live on the site:\n') + titles.join('\n')
           : (hi ? 'पोर्टफोलियो पेज पर ताज़ा काम देख सकते हैं.' : 'You can see recent work on the portfolio page.');
-        return { text: txt, links: [{ label: hi ? 'पोर्टफोलियो' : 'Portfolio', href: 'portfolio.html' }, { label: hi ? 'गैलरी' : 'Gallery', href: 'gallery.html' }] };
+        return { text: answer, links: [{ label: hi ? 'पोर्टफोलियो' : 'Portfolio', href: 'portfolio.html' }, { label: hi ? 'गैलरी' : 'Gallery', href: 'gallery.html' }] };
       }
 
       case 'team': {
-        var byRole = {};
+        var byRole = Object.create(null);
         list.forEach(function (m) {
           var r = (m && m.role) || 'painter';
           byRole[r] = (byRole[r] || 0) + 1;
@@ -534,7 +546,7 @@
     var rep = painterReport(m.id) || {};
 
     var lines = [];
-    lines.push(hi ? 'नमस्ते ' + (m.name || m.id) + '! 🙏' : 'Welcome ' + (m.name || m.id) + '! 🙏');
+    lines.push(hi ? 'नमस्ते ' + (txt(m.name) || txt(m.id)) + '! 🙏' : 'Welcome ' + (txt(m.name) || txt(m.id)) + '! 🙏');
     lines.push((hi ? 'रोल: ' : 'Role: ') + roleOf(m));
     lines.push((hi ? 'कुल काम के दिन: ' : 'Work days: ') + days.length +
       (hi ? ' · सबमिट: ' : ' · submitted: ') + submitted +
@@ -562,12 +574,12 @@
       case 'p_profile':
         return {
           text: (hi ? 'आपकी प्रोफाइल:\n' : 'Your profile:\n') +
-            '• ' + (hi ? 'नाम: ' : 'Name: ') + (m.name || m.id) + '\n' +
+            '• ' + (hi ? 'नाम: ' : 'Name: ') + (txt(m.name) || txt(m.id)) + '\n' +
             '• ' + (hi ? 'रोल: ' : 'Role: ') + roleOf(m) + '\n' +
-            (m.title ? '• ' + m.title + '\n' : '') +
-            (m.phone ? '• 📞 ' + m.phone + '\n' : '') +
-            (m.startYear ? '• ' + (hi ? 'शुरुआत: ' : 'Since: ') + m.startYear + '\n' : '') +
-            (m.tagline ? '• ' + m.tagline : ''),
+            (txt(m.title) ? '• ' + txt(m.title) + '\n' : '') +
+            (txt(m.phone) ? '• 📞 ' + txt(m.phone) + '\n' : '') +
+            (txt(m.startYear) ? '• ' + (hi ? 'शुरुआत: ' : 'Since: ') + txt(m.startYear) + '\n' : '') +
+            (txt(m.tagline) ? '• ' + txt(m.tagline) : ''),
           links: [{ label: hi ? 'मेरी प्रोफाइल खोलें' : 'Open my profile', href: 'painter-profile.html?id=' + encodeURIComponent(m.id) }]
         };
 
@@ -610,7 +622,7 @@
           return crew && crew.toLowerCase() === String(m.id).toLowerCase();
         });
         var names = (mine.length ? mine : erp).slice(0, 8).map(function (p) {
-          return '• ' + (p.name || p.id) + (p.status ? ' · ' + p.status : '');
+          return '• ' + (txt(p.name) || txt(p.id)) + (txt(p.status) ? ' · ' + txt(p.status) : '');
         });
         return {
           text: (mine.length
@@ -889,7 +901,7 @@
       }
       session.member = m;
       session.step = 'await_pass';
-      addMsg('bot', (hi ? 'कोड मिल गया: ' : 'Code found: ') + (m.name || m.id) +
+      addMsg('bot', (hi ? 'कोड मिल गया: ' : 'Code found: ') + (txt(m.name) || txt(m.id)) +
         (hi ? '\nअब स्टाफ पासकोड डालिए. इसके बिना आपका पैसा और हाज़िरी नहीं दिखेगी.'
           : '\nNow enter the staff passcode. Without it your earnings and attendance stay hidden.'));
       return;

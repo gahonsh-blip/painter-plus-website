@@ -126,9 +126,15 @@
   }
   // An entry's text fields come from the store too; a hostile object `label`
   // or `note` would otherwise render as "[object Object]" in the day list.
+  // The numeric fields are just as untrusted: an object in `w`/`h`/`sqft`
+  // rendered as "[object Object] × … ft" or "NaN sq ft".
   function cleanEntry(e) {
     ['id', 'area', 'label', 'method', 'photo', 'note', 'at']
       .forEach(k => { if (e[k] && typeof e[k] === 'object') e[k] = ''; });
+    ['w', 'h', 'sqft'].forEach(k => {
+      const v = parseFloat(e[k]);
+      e[k] = isFinite(v) && v >= 0 ? v : 0;
+    });
     return e;
   }
   function listDays() {
@@ -136,6 +142,9 @@
     return Object.keys(days).sort().reverse().map(k => getDay(k));
   }
   function saveDay(day) {
+    if (!day || typeof day !== 'object' || Array.isArray(day) || !day.date) {
+      return { ok: false, error: 'A day needs a date before it can be saved.' };
+    }
     const days = readAll();
     days[day.date] = day;
     if (!writeAll(days)) return { ok: false, error: STORAGE_ERROR, day: day };
@@ -148,7 +157,7 @@
   }
   function removeDay(date) {
     const days = readAll();
-    if (!Object.prototype.hasOwnProperty.call(days, date)) return { ok: false };
+    if (!Object.prototype.hasOwnProperty.call(days, date)) return { ok: false, error: 'That day is not stored.' };
     delete days[date];
     if (!writeAll(days)) return { ok: false, error: STORAGE_ERROR };
     emit();
@@ -197,6 +206,9 @@
   function makeId() { return 'wl' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
   function addEntry(date, entry) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return { ok: false, error: 'No entry was provided.' };
+    }
     const day = getDay(date);
     if (day.status === 'submitted') return { ok: false, error: 'This day is already submitted. Reopen it to make changes.' };
 
@@ -388,7 +400,10 @@
       // A stored crew id that is no longer in the roster still needs an option,
       // or selecting a rate would silently clear the attribution.
       const stored = PPWorkLog.getDay(currentDate()).crew || '';
-      const current = crewEl.value || stored;
+      // Once the picker has options, its value is authoritative even when it is
+      // the blank "— select crew —" option. Falling back to `stored` on a blank
+      // value made it impossible to unassign a day's crew.
+      const current = (crewEl.options && crewEl.options.length) ? crewEl.value : stored;
       const opts = ['<option value="">— select crew —</option>'];
       if (T) T.list().forEach(m => opts.push('<option value="' + escAttr(m.id) + '">' + esc(m.name) + ' · ' + esc(T.roleOf(m.role).label) + '</option>'));
       const extra = [current, stored].filter((v, i, a) => v && a.indexOf(v) === i && !(T && T.get(v)));

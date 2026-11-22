@@ -780,7 +780,7 @@
       lines.push('');
       lines.push('NOT INCLUDED (awaiting approval): ' +
         b.pending.count + ' day(s), ' + fmtSqft(b.pending.sqft) +
-        ', ' + money(b.pending.labour));
+        ', ' + money(b.pending.total));
     }
     if (b.open && b.open.count) {
       lines.push('');
@@ -861,7 +861,9 @@
         (b && Array.isArray(b.dates) ? b.dates : []).forEach((x) => billedAll.add(String(x)));
       });
     });
-    const map = {};
+    // Null prototype: a stored crew value of "__proto__" must become a normal
+    // report row, not mutate Object.prototype.
+    const map = Object.create(null);
     Object.keys(wl).forEach((date) => {
       const day = wl[date];
       // Group by the person's identity, not the raw stored value, so an id and

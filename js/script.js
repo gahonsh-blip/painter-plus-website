@@ -9,9 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // abort the whole DOMContentLoaded handler.
     const store = {
         get(k) { try { return localStorage.getItem(k); } catch { return null; } },
-        set(k, v) { try { localStorage.setItem(k, v); } catch { /* blocked */ } },
-        del(k) { try { localStorage.removeItem(k); } catch { /* blocked */ } }
+        set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } },
+        del(k) { try { localStorage.removeItem(k); return true; } catch { return false; } }
     };
+    const STORAGE_ERROR = 'Could not save — this browser\'s storage is full or blocked. Your change was not stored.';
 
     // ----- THEME TOGGLE (Dark/Light) -----
     const toggle = document.getElementById('theme-toggle');
@@ -421,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tmResetAll = document.getElementById('tmResetAll');
         if (tmResetAll) tmResetAll.addEventListener('click', () => {
             if (!confirm('Restore the default roster? All team changes in this browser will be cleared.')) return;
-            store.del(Team.STORE_KEY);
+            if (!store.del(Team.STORE_KEY)) { alert(STORAGE_ERROR); return; }
             Team.list(); // re-seeds the defaults and notifies listeners
             resetMemberForm(); renderTeamList(); initProfileEditor();
         });
@@ -485,7 +486,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('pfReset').addEventListener('click', () => {
             if (!confirm('Reset the Head profile to the default values? Your saved changes will be cleared.')) return;
             const head = Team.get(Team.OWNER_ID) || Team.head();
-            Team.save(Object.assign(Team.ownerDefaults(), { id: head.id, role: head.role }));
+            const res = Team.save(Object.assign(Team.ownerDefaults(), { id: head.id, role: head.role }));
+            if (!res.ok) { alert(res.error); return; }
             initProfileEditor(); renderTeamList();
         });
         document.getElementById('pfClearPhoto').addEventListener('click', () => {
@@ -517,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const list = ppRead();
             const idx = list.findIndex(x => x.id === project.id);
             if (idx >= 0) { list[idx] = project; } else { list.push(project); }
-            store.set(PP_KEY, JSON.stringify(list));
+            if (!store.set(PP_KEY, JSON.stringify(list))) { alert(STORAGE_ERROR); return; }
             resetForm();
             renderList();
         });
@@ -537,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('admClearAll').addEventListener('click', () => {
             if (ppRead().length === 0) return;
             if (confirm('Delete ALL saved projects? This cannot be undone.')) {
-                store.del(PP_KEY);
+                if (!store.del(PP_KEY)) { alert(STORAGE_ERROR); return; }
                 renderList(); resetForm();
             }
         });
@@ -591,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
         function delProject(id) {
             if (!confirm('Delete this project?')) return;
             const list = ppRead().filter(x => x.id !== id);
-            store.set(PP_KEY, JSON.stringify(list));
+            if (!store.set(PP_KEY, JSON.stringify(list))) { alert(STORAGE_ERROR); return; }
             if (get('admId').value === id) resetForm();
             renderList();
         }

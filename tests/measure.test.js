@@ -18,6 +18,14 @@ test('rectangle 3x4 area is 12', () => close(M.polygonArea([[0, 0], [3, 0], [3, 
 test('winding order does not matter', () => close(M.polygonArea([[0, 1], [1, 1], [1, 0], [0, 0]]), 1));
 test('triangle area is half base x height', () => close(M.polygonArea([[0, 0], [4, 0], [0, 3]]), 6));
 test('fewer than 3 points is zero', () => close(M.polygonArea([[0, 0], [1, 1]]), 0));
+test('a malformed point yields 0, never NaN', () => {
+  const area = M.polygonArea([[0, 0], [10, 0], [10, 'oops'], [0, 8]]);
+  assert.strictEqual(area, 0);
+  assert.ok(!Number.isNaN(area), 'area must not be NaN');
+});
+test('a malformed calibration corner is refused', () => {
+  assert.strictEqual(M.homographyFromCalibration([[0, 0], [10, 0], [10, null], [0, 8]], 10, 8), null);
+});
 
 // ---------- axis-aligned calibration ----------
 test('flat rectangle calibration recovers w x h', () => {

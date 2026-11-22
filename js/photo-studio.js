@@ -395,8 +395,9 @@
   function createEditor(opts) {
     const o = opts || {};
     const canvas = o.canvas;
-    if (!canvas) return null;
+    if (!canvas || typeof canvas.getContext !== 'function') return null;
     const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
     const hintEl = o.hintEl || null;
     const buttons = o.buttons || {};
     const onChange = typeof o.onChange === 'function' ? o.onChange : function () {};

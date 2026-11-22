@@ -462,8 +462,12 @@
 
   // --- Coverage slider ---
   function setCoverage(v) {
-    coverage = v;
-    coverageVal.textContent = v + "%";
+    // Clearing the number input yields NaN; that propagated into the blend
+    // maths and painted invalid `rgb(NaN, …)` colours. Clamp to 0–100.
+    const n = parseInt(v, 10);
+    coverage = isFinite(n) ? Math.max(0, Math.min(100, n)) : 100;
+    if (coverageInput && coverageInput.value !== String(coverage)) coverageInput.value = String(coverage);
+    coverageVal.textContent = coverage + "%";
     paintStage();
   }
 
@@ -685,15 +689,29 @@
           });
         });
       }
-      if (d.areas) {
+      if (d.areas && typeof d.areas === "object") {
         Object.keys(d.areas).forEach((s) => {
-          if (!areas[s]) return;
+          if (!areas[s] || !d.areas[s] || typeof d.areas[s] !== "object") return;
           Object.keys(d.areas[s]).forEach((k) => {
-            if (areas[s][k] && d.areas[s][k]) Object.assign(areas[s][k], d.areas[s][k]);
+            const src = d.areas[s][k];
+            if (!areas[s][k] || !src || typeof src !== "object") return;
+            // A hand-edited area can hold an object/string where a size or a
+            // checkbox belongs. Coerce it, or the row rendered
+            // "[object Object] × … ft" and the checkbox became truthy.
+            const w = parseFloat(src.w);
+            const h = parseFloat(src.h);
+            areas[s][k].w = isFinite(w) && w > 0 ? w : 0;
+            areas[s][k].h = isFinite(h) && h > 0 ? h : 0;
+            if (Object.prototype.hasOwnProperty.call(src, "inc")) {
+              areas[s][k].inc = src.inc === true || src.inc === 1 || src.inc === "true";
+            }
           });
         });
       }
-      if (d.coats && areaCoatsEl) areaCoatsEl.value = String(d.coats);
+      if (d.coats && areaCoatsEl) {
+        const coats = parseInt(d.coats, 10);
+        if (isFinite(coats) && coats > 0 && coats <= 10) areaCoatsEl.value = String(coats);
+      }
       // Restore the view the client left: scene, surface, finish, lighting and
       // the coverage preview. These were saved but never read back, so every
       // returning visit snapped to living/flatmatte/day.

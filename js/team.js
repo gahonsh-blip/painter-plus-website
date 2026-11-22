@@ -201,6 +201,7 @@
   function cleanMember(m) {
     const out = Object.assign(blankMember(m.role), m);
     TEXT_KEYS.forEach((k) => { out[k] = text(out[k]); });
+    if (typeof out.id === 'number') out.id = String(out.id);
     out.projects = cleanProjects(out.projects);
     return out;
   }
@@ -307,6 +308,10 @@
     // "[object Object]".
     return stored
       .filter(m => m && typeof m === 'object' && !Array.isArray(m))
+      // An id is what profile links and lookups key on. A non-string/empty id
+      // cannot address a profile (and `?id=` would fall back to the founder),
+      // so drop that member rather than expose a misleading link.
+      .filter(m => (typeof m.id === 'string' && m.id.trim()) || typeof m.id === 'number')
       .map(cleanMember);
   }
 
@@ -363,8 +368,12 @@
   }
 
   function save(member) {
+    if (!member || typeof member !== 'object' || Array.isArray(member)) {
+      return { ok: false, error: 'No member details were provided.' };
+    }
     const members = read();
     const clean = cleanMember(member);
+    if (clean.id && typeof clean.id !== 'string') return { ok: false, error: 'Invalid member id.' };
     if (!ROLE_IDS.includes(clean.role)) clean.role = 'painter';
 
     let idx = members.findIndex(m => m.id === clean.id);

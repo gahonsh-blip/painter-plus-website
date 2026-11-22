@@ -117,6 +117,20 @@
   const normEmail = (v) => trim(v).toLowerCase();
   const normUser = (v) => trim(v).toLowerCase();
 
+  // Edit rights are a small, fixed allow-list. A stored object can otherwise
+  // carry arbitrary keys (including `__proto__`) and merge them into the
+  // rights object, so normalise it once here and at every write.
+  const RIGHT_KEYS = ['contact'].concat(COMPANY_FIELDS);
+  function cleanRights(raw) {
+    const out = {};
+    if (!isPlainObject(raw)) return out;
+    RIGHT_KEYS.forEach((k) => {
+      const v = raw[k];
+      if (v === true || v === 1 || v === 'true') out[k] = true;
+    });
+    return out;
+  }
+
   function toHex(bytes) {
     let out = '';
     for (let i = 0; i < bytes.length; i++) out += ('0' + bytes[i].toString(16)).slice(-2);
@@ -303,9 +317,9 @@
 
   function blankAccount() {
     return {
-      id: '', username: '', email: '', name: '', phone: '', role: 'painter',
+      id: '', username: '', email: '', name: '', phone: '', address: '', role: 'painter',
       status: 'pending', memberId: '', photo: '', title: '', tagline: '', bio: '',
-      startYear: '', quote: '', privacy: 'public', editRights: {}, createdAt: 0,
+      startYear: '', quote: '', note: '', privacy: 'public', editRights: {}, createdAt: 0,
       approvedAt: 0, approvedBy: '', updatedAt: 0, pw: null, recovery: null,
       pwAt: 0, fails: 0, lockedUntil: 0
     };
@@ -321,13 +335,13 @@
     a.role = ROLE_IDS.indexOf(a.role) === -1 ? 'painter' : a.role;
     a.status = STATUSES.indexOf(a.status) === -1 ? 'pending' : a.status;
     a.privacy = a.privacy === 'private' ? 'private' : 'public';
-    a.editRights = isPlainObject(a.editRights) ? a.editRights : {};
+    a.editRights = cleanRights(a.editRights);
     a.pw = isPlainObject(a.pw) ? a.pw : null;
     a.recovery = isPlainObject(a.recovery) ? a.recovery : null;
     a.pwAt = parseInt(a.pwAt, 10) || 0;
     a.fails = parseInt(a.fails, 10) || 0;
     a.lockedUntil = parseInt(a.lockedUntil, 10) || 0;
-    ['name', 'phone', 'memberId', 'photo', 'title', 'tagline', 'bio', 'startYear', 'quote', 'approvedBy']
+    ['name', 'phone', 'address', 'memberId', 'photo', 'title', 'tagline', 'bio', 'startYear', 'quote', 'note', 'approvedBy']
       .forEach((k) => { a[k] = str(a[k]); });
     return a;
   }
@@ -417,7 +431,10 @@
     const acc = findById(read(), s.id);
     if (!acc || acc.status !== 'active') { ssDel(SESSION_KEY); return null; }
     if ((parseInt(acc.pwAt, 10) || 0) !== (parseInt(s.pwAt, 10) || 0)) { ssDel(SESSION_KEY); return null; }
-    return acc;
+    // Reads never expose the password/recovery record. `currentUser()` is a
+    // public read used by page scripts; returning the raw account leaked the
+    // PBKDF2 hash into every caller.
+    return publicView(acc);
   }
 
   function localIsLoggedIn() { return !!localCurrentUser(); }
@@ -654,10 +671,16 @@
         return { ok: false, error: ERR.LAST_ADMIN };
       }
       target.status = p.status; changed.push('status');
-      if (p.status === 'active') { target.approvedAt = now(); target.approvedBy = me.id; }
+      if (p.status === 'active') {
+        target.approvedAt = now(); target.approvedBy = me.id;
+        // Reactivating an account must also release any login throttle left
+        // over from before it was suspended/rejected.
+        target.fails = 0; target.lockedUntil = 0;
+      }
     }
     if (isPlainObject(p.editRights)) {
-      target.editRights = Object.assign({}, target.editRights, p.editRights); changed.push('editRights');
+      target.editRights = cleanRights(Object.assign({}, target.editRights, p.editRights));
+      changed.push('editRights');
     }
     if (Object.prototype.hasOwnProperty.call(p, 'memberId')) {
       target.memberId = trim(p.memberId); changed.push('memberId');
@@ -740,6 +763,10 @@
     catch (e) { return { ok: false, error: ERR.NO_CRYPTO }; }
     target.recovery = null;
     target.pwAt = now();                         // the member's old sessions die
+    // A lead resetting a locked-out member's password must also release the
+    // throttle; otherwise the new password is refused until the lock expires.
+    target.fails = 0;
+    target.lockedUntil = 0;
     target.updatedAt = now();
     if (!write(accounts)) return { ok: false, error: ERR.STORAGE };
     audit('password.reset', me.id, target.id, '');
@@ -813,6 +840,8 @@
     catch (e) { return { ok: false, error: ERR.NO_CRYPTO }; }
     account.recovery = null;
     account.pwAt = now();                        // invalidate existing sessions
+    account.fails = 0;
+    account.lockedUntil = 0;
     account.updatedAt = now();
     if (!write(accounts)) return { ok: false, error: ERR.STORAGE };
     audit('recovery.reset', account.id, account.id, '');
@@ -980,11 +1009,12 @@
   function sbRow(account) {
     return {
       id: account.id, username: account.username, email: account.email,
-      name: account.name, phone: account.phone, role: account.role,
-      status: account.status, member_id: account.memberId || null,
+      name: account.name, phone: account.phone, address: account.address || '',
+      role: account.role, status: account.status, member_id: account.memberId || null,
       photo: account.photo, title: account.title, tagline: account.tagline,
       bio: account.bio, start_year: account.startYear, quote: account.quote,
-      privacy: account.privacy, edit_rights: account.editRights || {}
+      note: account.note || '', privacy: account.privacy,
+      edit_rights: account.editRights || {}
     };
   }
   function sbAccount(row) {
@@ -1094,11 +1124,15 @@
     if (!can(me, 'profile.edit', target) && !can(me, 'profile.editContact', target)) return { ok: false, error: ERR.NOT_AUTHORIZED };
     const allowed = editableFields(me, target);
     const p = isPlainObject(patch) ? patch : {};
+    // Camel-case profile fields map to snake-case table columns. Writing
+    // `row.startYear` created a column PostgREST does not have, so a painter's
+    // "working since" year silently failed in Supabase mode.
+    const DB_COLUMN = { startYear: 'start_year' };
     const row = {}, changed = [];
     allowed.forEach((f) => {
       if (Object.prototype.hasOwnProperty.call(p, f)) {
         const next = trim(p[f]);
-        if (target[f] !== next) { row[f] = next; changed.push(f); }
+        if (target[f] !== next) { row[DB_COLUMN[f] || f] = next; changed.push(f); }
       }
     });
     if (!changed.length) return { ok: true, account: target, changed: [] };
@@ -1123,7 +1157,10 @@
       if (target.role === 'admin' && p.status !== 'active' && countActiveAdmins() <= 1) return { ok: false, error: ERR.LAST_ADMIN };
       row.status = p.status; changed.push('status');
     }
-    if (isPlainObject(p.editRights)) { row.edit_rights = Object.assign({}, target.editRights, p.editRights); changed.push('editRights'); }
+    if (isPlainObject(p.editRights)) {
+      row.edit_rights = cleanRights(Object.assign({}, target.editRights, p.editRights));
+      changed.push('editRights');
+    }
     if (Object.prototype.hasOwnProperty.call(p, 'memberId')) { row.member_id = trim(p.memberId) || null; changed.push('memberId'); }
     if (!changed.length) return { ok: true, account: target, changed: [] };
     try { await sbPatch(targetId, row); } catch (e) { return { ok: false, error: e.message || ERR.STORAGE }; }

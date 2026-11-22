@@ -164,6 +164,8 @@ test('login rejects a wrong password and accepts the right one once active', asy
   assert.strictEqual(good.ok, true);
   assert.strictEqual(A.isLoggedIn(), true);
   assert.strictEqual(A.currentUser().id, acc.id);
+  assert.strictEqual(A.currentUser().pw, undefined, 'currentUser must not expose the password record');
+  assert.strictEqual(A.currentUser().recovery, undefined, 'currentUser must not expose the recovery record');
 
   A.logout();
   assert.strictEqual(A.isLoggedIn(), false);

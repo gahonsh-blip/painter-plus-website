@@ -128,7 +128,9 @@
   // that is not a review object. A scalar where an array belongs is dropped.
   function normaliseAll(raw) {
     if (!isPlainObject(raw)) return {};
-    const out = {};
+    // Null prototype: a subject key of "__proto__" is just a key, not a
+    // prototype mutation.
+    const out = Object.create(null);
     Object.keys(raw).forEach(function (k) {
       const arr = raw[k];
       if (!Array.isArray(arr)) return;
@@ -158,7 +160,9 @@
   }
   function writeRaw(data) {
     const s = backing();
-    let ok = true;
+    // No store means nothing was persisted. A missing storage backend used to
+    // return `true`, so a review looked saved while it vanished on reload.
+    let ok = !!s;
     if (s) { try { s.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) { ok = false; } }
     if (root && root.document) {
       try { root.document.dispatchEvent(new CustomEvent('ppreviews:change')); } catch (e) { /* no CustomEvent */ }

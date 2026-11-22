@@ -36,19 +36,33 @@
   // PURE GEOMETRY
   // ============================================================
 
+  // A usable point is a two-number pair. A malformed point used to turn the
+  // shoelace sum into NaN, which then rendered as "NaN sq ft".
+  function validPoint(p) {
+    if (!Array.isArray(p) || p.length < 2) return false;
+    return [0, 1].every((i) => {
+      const v = p[i];
+      if (typeof v === 'number') return isFinite(v);
+      if (typeof v === 'string') return v.trim() !== '' && isFinite(Number(v));
+      return false;
+    });
+  }
+
   // Shoelace formula. Accepts [[x,y], …] and returns the unsigned area.
   function polygonArea(pts) {
     if (!Array.isArray(pts) || pts.length < 3) return 0;
     let sum = 0;
     for (let i = 0; i < pts.length; i++) {
       const a = pts[i], b = pts[(i + 1) % pts.length];
-      if (!a || !b) return 0;
+      if (!validPoint(a) || !validPoint(b)) return 0;
       sum += a[0] * b[1] - b[0] * a[1];
     }
-    return Math.abs(sum) / 2;
+    const area = Math.abs(sum) / 2;
+    return isFinite(area) ? area : 0;
   }
 
   function distance(a, b) {
+    if (!validPoint(a) || !validPoint(b)) return 0;
     const dx = b[0] - a[0], dy = b[1] - a[1];
     return Math.sqrt(dx * dx + dy * dy);
   }
@@ -81,7 +95,8 @@
   // four destination points, both in order. Returns a 3×3 matrix, or
   // null when the source quad is degenerate (collinear corners).
   function homographyFromQuad(src, dst) {
-    if (!src || !dst || src.length !== 4 || dst.length !== 4) return null;
+    if (!Array.isArray(src) || !Array.isArray(dst) || src.length !== 4 || dst.length !== 4) return null;
+    if (!src.every(validPoint) || !dst.every(validPoint)) return null;
     const A = [], b = [];
     for (let i = 0; i < 4; i++) {
       const x = src[i][0], y = src[i][1];
@@ -95,16 +110,17 @@
   }
 
   function applyH(H, p) {
+    if (!Array.isArray(H) || H.length !== 3 || !validPoint(p)) return null;
     const d = H[2][0] * p[0] + H[2][1] * p[1] + H[2][2];
-    if (Math.abs(d) < 1e-12) return [0, 0];
-    return [
-      (H[0][0] * p[0] + H[0][1] * p[1] + H[0][2]) / d,
-      (H[1][0] * p[0] + H[1][1] * p[1] + H[1][2]) / d
-    ];
+    if (Math.abs(d) < 1e-12) return null;
+    const x = (H[0][0] * p[0] + H[0][1] * p[1] + H[0][2]) / d;
+    const y = (H[1][0] * p[0] + H[1][1] * p[1] + H[1][2]) / d;
+    return isFinite(x) && isFinite(y) ? [x, y] : null;
   }
 
   function transformPoints(H, pts) {
-    return (pts || []).map(p => applyH(H, p));
+    if (!Array.isArray(pts)) return [];
+    return pts.map(p => applyH(H, p)).filter(Boolean);
   }
 
   // Build the homography for the calibration rectangle: four tapped
@@ -116,8 +132,10 @@
 
   // Real square feet of a drawn polygon under a calibration.
   function calibratedArea(H, pts) {
-    if (!H || !pts || pts.length < 3) return 0;
-    return polygonArea(transformPoints(H, pts));
+    if (!H || !Array.isArray(pts) || pts.length < 3) return 0;
+    const mapped = transformPoints(H, pts);
+    if (mapped.length !== pts.length) return 0;
+    return polygonArea(mapped);
   }
 
   // Flat scale (no perspective correction): feet per image pixel.
@@ -164,6 +182,9 @@
     const canvas = o.canvas;
     if (!canvas || typeof canvas.getContext !== 'function') return null;
     const ctx = canvas.getContext('2d');
+    // A canvas can refuse a 2D context (tainted/unsupported). The editor then
+    // has no surface to draw on, so let the work log fall back to manual entry.
+    if (!ctx) return null;
     const onChange = typeof o.onChange === 'function' ? o.onChange : function () {};
     const hintEl = o.hintEl || null;
     const buttons = o.buttons || {};

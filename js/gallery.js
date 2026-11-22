@@ -91,7 +91,10 @@
   }
   function writeRaw(data) {
     const s = backing();
-    let ok = true;
+    // No store means the write did not land. Reporting success here used to
+    // make a gallery "save" look successful on a browser where storage is
+    // unavailable, while nothing was persisted.
+    let ok = !!s;
     if (s) { try { s.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) { ok = false; } }
     if (root && root.document) {
       try { root.document.dispatchEvent(new CustomEvent('ppgallery:change')); } catch (e) { /* no CustomEvent */ }
@@ -276,7 +279,9 @@
   // are credited to nobody. Build a lower-cased name/id -> id map from the
   // roster and resolve every stored crew value through it.
   function crewAliases(members) {
-    const map = {};
+    // Null prototype: a stored member id/name of "__proto__" must become an
+    // ordinary key, not mutate Object.prototype.
+    const map = Object.create(null);
     (Array.isArray(members) ? members : []).forEach((m) => {
       if (!m || typeof m !== 'object') return;
       const id = textOf(m.id).trim();
@@ -370,7 +375,9 @@
     });
 
     // Co-workers: everyone who logged on any of the member's projects.
-    const projectMembers = {};   // projectKey -> [memberId]
+    // Null prototype: a project key of "__proto__" must not touch the
+    // prototype chain.
+    const projectMembers = Object.create(null);   // projectKey -> [memberId]
     days.forEach((d) => {
       const key = projectKey(d);
       if (!key) return;
@@ -444,7 +451,11 @@
           const h = Math.round(img.height * scale) || MAX;
           const c = root.document.createElement('canvas');
           c.width = w; c.height = h;
-          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          const ctx = c.getContext('2d');
+          // This runs inside an async `onload`, so an exception here would not
+          // be caught by the surrounding try/catch and `cb` would never fire.
+          if (!ctx) { cb(''); return; }
+          ctx.drawImage(img, 0, 0, w, h);
           cb(c.toDataURL('image/jpeg', 0.72));
         };
         img.onerror = () => cb('');
