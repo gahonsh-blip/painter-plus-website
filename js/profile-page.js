@@ -650,11 +650,14 @@
             const patch = {
               name: val('ppfName'), title: val('ppfTitle'), tagline: val('ppfTagline'),
               bio: val('ppfBio'), startYear: val('ppfStartYear'), quote: val('ppfQuote'),
-              photo: details.photo
+              photo: details.photo,
+              // A painter's own address is part of their profile, not the
+              // company's contact block.
+              address: val('ppfAddress')
             };
             if (A.can(me, 'profile.editContact', acct)) {
               patch.phone = val('ppfPhone'); patch.email = val('ppfEmail');
-              patch.address = val('ppfAddress'); patch.note = val('ppfNote');
+              patch.note = val('ppfNote');
             }
             settle(A.updateProfile(me, acct.id, patch), (res) => {
               if (!res.ok) { flashEditor(res.error, true); return; }

@@ -79,12 +79,13 @@
     rejected: { label: 'Rejected', tone: 'bad' }
   };
 
-  // Profile fields a painter owns about themselves (presentation only).
-  const SELF_FIELDS = ['name', 'title', 'tagline', 'bio', 'photo', 'startYear', 'quote'];
+  // Profile fields a painter owns about themselves. `address` is personal
+  // (where the painter is based); the company's phone, email and note stay
+  // authoritative and need the 'contact' right.
+  const SELF_FIELDS = ['name', 'title', 'tagline', 'bio', 'photo', 'startYear', 'quote', 'address'];
   // Company-required contact details. A painter may NOT change these unless an
-  // Admin/Head grants the 'contact' edit right — the company's own phone,
-  // email and address must stay authoritative.
-  const COMPANY_FIELDS = ['phone', 'email', 'address', 'note'];
+  // Admin/Head grants the 'contact' edit right.
+  const COMPANY_FIELDS = ['phone', 'email', 'note'];
   const PROFILE_FIELDS = SELF_FIELDS.concat(COMPANY_FIELDS);
   // Fields only an Admin may set on an account.
   const ADMIN_FIELDS = ['role', 'status', 'editRights', 'memberId'];

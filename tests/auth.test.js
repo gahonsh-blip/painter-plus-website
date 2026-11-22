@@ -284,12 +284,26 @@ test('a legacy per-field contact grant still works, and only for that field', as
   assert.strictEqual(acct.email, 'ramesh@example.com', 'email was not granted');
 });
 
+test('a painter can update their own address but not the company phone', async () => {
+  const { A } = fresh();
+  await makeActive(A, ADMIN);
+  const ramesh = await makeActive(A, PAINTER);
+  const res = A.updateProfile(A.getAccount(ramesh.id), ramesh.id, {
+    address: 'Arki, Khunti, Jharkhand', phone: '+91 9000000000'
+  });
+  assert.strictEqual(res.ok, true);
+  const acct = A.getAccount(ramesh.id);
+  assert.strictEqual(acct.address, 'Arki, Khunti, Jharkhand');
+  assert.strictEqual(acct.phone, '', 'phone still needs the contact right');
+});
+
 test('editableFields reflects the permission model', async () => {
   const { A } = fresh();
   const admin = await makeActive(A, ADMIN);
   const ramesh = await makeActive(A, PAINTER);
   const selfFields = A.editableFields(ramesh, ramesh);
   assert.ok(selfFields.indexOf('name') !== -1);
+  assert.ok(selfFields.indexOf('address') !== -1, 'a painter owns their own address');
   assert.ok(selfFields.indexOf('phone') === -1, 'phone needs the contact right');
   const adminFields = A.editableFields(admin, ramesh);
   assert.ok(adminFields.indexOf('phone') !== -1, 'an admin may edit contact fields');

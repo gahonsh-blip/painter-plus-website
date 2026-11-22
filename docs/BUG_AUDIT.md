@@ -2115,12 +2115,12 @@ schema change is required).
   hidden-attribute audit and the corrupt-store sweep).
 - Service-worker cache bumped `painter-plus-v37` → `v38`.
 
-## Eighteenth pass — 2026-11-22 (profile QA + 24 defects)
+## Eighteenth pass — 2026-11-22 (profile QA + 25 defects)
 
 The painter profile itself was completed in the seventeenth pass (§77–§78):
 photo upload, skills, languages, service areas, availability, certifications,
 tools, experience and a structured project history. This pass exercised that
-system and the layers around it, and fixes 24 further defects. The headline is
+system and the layers around it, and fixes 25 further defects. The headline is
 still the same: a value read from storage is untrusted, an id must be resolved
 to a human name, and money must never be billed on an unapproved or already
 invoiced day.
@@ -2269,7 +2269,7 @@ without claiming success.
 
 `js/accounts-page.js` rendered a checkbox for every `SELF_FIELD` and
 `COMPANY_FIELD`, but `PPAuth.can('profile.editContact')` only read
-`editRights.contact`. Ticking `phone`, `email` or `address` stored keys the
+`editRights.contact`. Ticking `phone`, `email` or `note` stored keys the
 engine never consulted, so the Admin saw a “granted” right that did nothing;
 unticking the block also left the old per-field keys in place. The pane now
 offers one **company contact details** checkbox (`data-right="contact"`), and
@@ -2331,7 +2331,7 @@ entries. The fetch fallback also returned `offline.html` for any failed
 request, including a missing `.js` or `.png`; the browser then parsed HTML as
 JavaScript and reported a syntax error. Only a navigation (`request.mode ===
 'navigate'`) gets the offline page; other failures return a clean `503`.
-`CACHE_NAME` is bumped to `painter-plus-v39`.
+`CACHE_NAME` is bumped to `painter-plus-v40`.
 
 ### §99 — The maskable icon was not maskable
 
@@ -2365,13 +2365,26 @@ name. The id is now resolved through `PPERP.getProject()` to its name; an
 unknown/stale id falls back to the stored name (or “no project”), never the raw
 slug.
 
+### §103 — A painter could not maintain their own address
+
+`address` lived in `COMPANY_FIELDS` (`phone,email,address,note`), so a painter
+could see the Address field in the profile editor but the account write silently
+dropped it unless an Admin had granted the `contact` right. The profile's
+contact section is company-authoritative for the company phone/email, but a
+painter's own base address is personal profile information. `address` moved to
+`SELF_FIELDS`, the profile save always includes it, and `COMPANY_FIELDS` is now
+`phone,email,note`. A painter can therefore fill in name, address, bio, photo,
+skills, languages, service areas, availability, certifications, tools,
+experience and project history themselves; phone/email/note still require the
+`contact` grant. Covered by two `tests/auth.test.js` checks.
+
 **Verified.**
 - `node tests/erp.test.js` — **84 checks** (3 new: orphan invoice refused, day
   rate quoted for a blank project, dashboard unbilled/pending paint).
 - `node tests/gallery.test.js` — **33 checks** (2 new: count/list agreement,
   null-slot add/remove).
-- `node tests/auth.test.js` — **46 checks** (1 new: legacy per-field contact
-  grant).
+- `node tests/auth.test.js` — **47 checks** (2 new: legacy per-field contact
+  grant; a painter can edit their own address but not the company phone).
 - `node tests/passcode.test.js` — **14 checks** (1 new: account vs passcode
   session, and sign-out ends it).
 - `node tests/smart-bot.test.mjs` — all pass.

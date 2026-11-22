@@ -92,7 +92,7 @@
       A.COMPANY_FIELDS.some((f) => a.editRights[f])));
     const rights = '<label><input type="checkbox" data-right="contact"' +
       (contactGranted ? ' checked' : '') + (manageable ? '' : ' disabled') +
-      ' /> company contact details (phone, email, address, note)</label>';
+      ' /> company contact details (phone, email, note)</label>';
 
     const avatar = a.photo
       ? '<img src="' + esc(a.photo) + '" alt="" onerror="this.remove()" />'
