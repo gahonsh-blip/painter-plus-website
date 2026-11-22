@@ -189,13 +189,34 @@
         if (Array.isArray(rows)) {
           for (var i = 0; i < rows.length; i++) {
             var r = rows[i] || {};
-            var key = String(r.key || r.id || r.memberId || r.painter || '');
-            if (key && key.toLowerCase() === String(memberId).toLowerCase()) return r;
+            // reportByPainter() rows expose the crew identity as `crewId`
+            // (the member id) and `crew` (the display name). Older/other
+            // callers used key/id/memberId/painter, so accept all of them —
+            // otherwise "my earnings" never found the row and always said
+            // "nothing recorded".
+            var keys = [r.crewId, r.key, r.id, r.memberId, r.painter, r.crew];
+            var want = String(memberId).toLowerCase();
+            for (var k = 0; k < keys.length; k++) {
+              var key = String(keys[k] == null ? '' : keys[k]);
+              if (key && key.toLowerCase() === want) return r;
+            }
           }
         }
       }
     } catch (e) { /* ignore */ }
     return null;
+  }
+
+  // A painter report row carries labour and paint separately (approvedLabour,
+  // approvedPaintCost, pendingLabour, …). Accept a pre-summed `<key>Total` from
+  // any caller, otherwise add the two halves — reading only approvedLabour used
+  // to report ₹0 for a paint-only job and hide pending/invoiced money.
+  function reportMoney(rep, key) {
+    var total = Number(rep && rep[key + 'Total']);
+    if (isFinite(total) && total) return total;
+    var labour = Number(rep && rep[key + 'Labour']) || 0;
+    var paint = Number(rep && rep[key + 'PaintCost']) || 0;
+    return labour + paint;
   }
 
   function money(n) {
@@ -283,11 +304,14 @@
   ];
 
   // A keyword must sit on a word boundary. Plain substring matching made
-  // "gold" hit the "old" keyword and answer the wrong question.
+  // "gold" hit the "old" keyword and answer the wrong question. A plural
+  // suffix is allowed, because the chips say "My earnings"/"My projects" while
+  // the keywords are singular — without it the chip fell through to the
+  // generic summary and never answered the question.
   function kwHit(norm, k) {
     if (/[^\x00-\x7F]/.test(k)) return norm.indexOf(k) >= 0;   // Devanagari: substring is fine
     var safe = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp('(^|[^a-z0-9])' + safe + '([^a-z0-9]|$)').test(norm);
+    return new RegExp('(^|[^a-z0-9])' + safe + '(s|es)?([^a-z0-9]|$)').test(norm);
   }
 
   function matchIntent(q, intents) {
@@ -488,8 +512,8 @@
       (hi ? ' · खुले: ' : ' · open: ') + open);
     lines.push((hi ? 'कुल क्षेत्र: ' : 'Total area: ') + num(totalSqft) + ' sqft');
 
-    var approved = rep.approvedTotal || rep.approvedLabour || 0;
-    var pending = rep.pendingLabour || rep.unbilledLabour || 0;
+    var approved = reportMoney(rep, 'approved');
+    var pending = reportMoney(rep, 'pending') || (Number(rep.unbilledLabour) || 0);
     if (approved) lines.push((hi ? 'अप्रूव्ड रकम: ' : 'Approved amount: ') + money(approved));
     if (pending) lines.push((hi ? 'अप्रूवल बाकी: ' : 'Awaiting approval: ') + money(pending));
 
@@ -537,9 +561,9 @@
 
       case 'p_money': {
         var rep = painterReport(m.id) || {};
-        var approved = rep.approvedTotal || rep.approvedLabour || 0;
-        var pending = rep.pendingLabour || rep.unbilledLabour || 0;
-        var invoiced = rep.invoicedTotal || 0;
+        var approved = reportMoney(rep, 'approved');
+        var pending = reportMoney(rep, 'pending') || (Number(rep.unbilledLabour) || 0);
+        var invoiced = reportMoney(rep, 'invoiced');
         if (!approved && !pending && !invoiced) {
           return { text: hi ? 'अभी आपके नाम पर कोई अप्रूव्ड या पेंडिंग रकम दर्ज नहीं है.' : 'No approved or pending amount is recorded for you yet.' };
         }
@@ -613,10 +637,10 @@
    * ------------------------------------------------------------- */
 
   var CSS = '' +
-    '.ppb-btn{position:fixed;right:18px;bottom:18px;z-index:9998;width:56px;height:56px;border-radius:50%;border:0;cursor:pointer;' +
+    '.ppb-btn{position:fixed;left:18px;bottom:18px;z-index:9998;width:56px;height:56px;border-radius:50%;border:0;cursor:pointer;' +
     'background:linear-gradient(135deg,#1f6feb,#0b4fc4);color:#fff;font-size:22px;box-shadow:0 10px 26px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center}' +
     '.ppb-btn:hover{transform:translateY(-2px)}' +
-    '.ppb-wrap{position:fixed;right:18px;bottom:86px;z-index:9999;width:min(370px,calc(100vw - 24px));height:min(560px,calc(100vh - 120px));' +
+    '.ppb-wrap{position:fixed;left:18px;bottom:86px;z-index:9999;width:min(370px,calc(100vw - 24px));height:min(560px,calc(100vh - 120px));' +
     'background:#fff;border:1px solid #dbe4f0;border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.22);display:none;flex-direction:column;overflow:hidden}' +
     '.ppb-wrap.open{display:flex}' +
     '.ppb-head{background:linear-gradient(135deg,#1f6feb,#0b4fc4);color:#fff;padding:13px 15px;display:flex;align-items:center;gap:9px}' +
@@ -915,6 +939,7 @@
     // Test / integration hooks. Not used by the widget itself.
     _internals: {
       session: function () { return session; },
+      painterReport: painterReport,
       setMode: function (m) { session.mode = m; session.step = (m === 'painter' ? 'await_code' : 'idle'); session.member = null; session.unlocked = false; },
       handlePainter: function (q, hi) { handlePainter(q, hi); },
       lastBotMessage: function () {

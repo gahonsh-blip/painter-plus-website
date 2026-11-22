@@ -94,12 +94,20 @@
       }
     }
 
+    // The painter's own specialisations, so a visitor can compare skills at a
+    // glance without opening every profile. Top three only.
+    const skills = String(m.skills || '').split(/[\n,;]+/).map((x) => x.trim()).filter(Boolean).slice(0, 3);
+    const skillRow = skills.length
+      ? '<span class="tm-skills">' + skills.map((x) => '<span class="tm-skill">' + T.esc(x) + '</span>').join('') + '</span>'
+      : '';
+
     return '<a class="card tm-card reveal role-' + T.esc(role.id) + '" href="./painter-profile.html?id=' + encodeURIComponent(m.id) + '">' +
       '<div class="tm-media">' + media + T.roleBadge(m) + '</div>' +
       '<h3>' + T.esc(m.name) + '</h3>' +
       rating +
       (m.title ? '<p class="tm-title-line">' + T.esc(m.title) + '</p>' : '') +
       (m.tagline ? '<p class="tm-tagline">' + T.esc(m.tagline) + '</p>' : '') +
+      skillRow +
       stats +
       '<span class="tm-link">View profile →</span>' +
       '</a>';

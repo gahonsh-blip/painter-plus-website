@@ -52,6 +52,10 @@
   function fmtCount(n) {
     return Math.round(num(n)).toLocaleString('en-IN');
   }
+  // Object-safe text coercion: a stored object/array becomes '', never
+  // "[object Object]".
+  function textOf(v) { return (v == null || typeof v === 'object') ? '' : String(v); }
+
   // A year like 2015, else 0. Used for the derived "years experience".
   function year(v) {
     const y = parseInt(v, 10);
@@ -255,15 +259,42 @@
     return Array.isArray(raw) ? raw.filter((e) => e && typeof e === 'object' && !Array.isArray(e)) : [];
   }
 
+  // Old work-log days (and days typed on a phone) can store the crew as a
+  // display name ("Ramesh Kumar") instead of the roster id ("ramesh-kumar").
+  // The ERP resolves both through PPTeam; the profile must too, or those days
+  // are credited to nobody. Build a lower-cased name/id -> id map from the
+  // roster and resolve every stored crew value through it.
+  function crewAliases(members) {
+    const map = {};
+    (Array.isArray(members) ? members : []).forEach((m) => {
+      if (!m || typeof m !== 'object') return;
+      const id = textOf(m.id).trim();
+      if (!id) return;
+      map[id.toLowerCase()] = id;
+      const name = textOf(m.name).trim();
+      if (name) map[name.toLowerCase()] = id;
+    });
+    return map;
+  }
+  function resolveCrew(value, aliases) {
+    const s = textOf(value).trim();
+    if (!s) return '';
+    if (aliases) {
+      const hit = aliases[s.toLowerCase()];
+      if (hit) return hit;
+    }
+    return s;
+  }
+
   // The members present on one work-log day: the day's own crew plus any
   // per-entry crew, de-duplicated.
-  function dayMembers(day) {
+  function dayMembers(day, aliases) {
     const set = [];
     const push = (id) => {
       // An object/array crew value would stringify to "[object Object]" and be
       // counted as a member; treat it as no crew.
       if (id && typeof id === 'object') return;
-      const v = String(id || '');
+      const v = resolveCrew(id, aliases);
       if (v && set.indexOf(v) === -1) set.push(v);
     };
     push(day && day.crew);
@@ -273,19 +304,19 @@
 
   // Square feet a member is credited with on a day: the whole day when the
   // day is theirs, else only the entries tagged to them.
-  function creditedEntries(day, memberId) {
+  function creditedEntries(day, memberId, aliases) {
     const entries = entryList(day);
-    const dayCrew = String((day && day.crew) || '');
+    const dayCrew = resolveCrew(day && day.crew, aliases);
     // An entry tagged to someone belongs to them; an untagged entry belongs
     // to the day's crew. This keeps a shared day from double-counting.
     return entries.filter((e) => {
-      const c = String((e && e.crew) || '');
+      const c = resolveCrew(e && e.crew, aliases);
       return c ? c === memberId : dayCrew === memberId;
     });
   }
 
-  function creditFor(day, memberId) {
-    const entries = creditedEntries(day, memberId);
+  function creditFor(day, memberId, aliases) {
+    const entries = creditedEntries(day, memberId, aliases);
     let sqft = 0, photos = 0;
     entries.forEach((e) => {
       sqft += num(e.sqft) || num(e.w) * num(e.h);
@@ -294,8 +325,8 @@
     return { sqft: sqft, photos: photos };
   }
 
-  function sqftFor(day, memberId) {
-    return creditFor(day, memberId).sqft;
+  function sqftFor(day, memberId, aliases) {
+    return creditFor(day, memberId, aliases).sqft;
   }
 
   function projectKey(day) {
@@ -310,16 +341,17 @@
     const days = worklogDays(ctx);
     const projects = erpProjects(ctx);
     const members = roster(ctx);
+    const aliases = crewAliases(members);
     const gallery = list(memberId, ctx && ctx.gallery);
 
-    const mine = days.filter((d) => dayMembers(d).indexOf(memberId) !== -1);
+    const mine = days.filter((d) => dayMembers(d, aliases).indexOf(memberId) !== -1);
 
     let sqft = 0, photos = 0, submitted = 0, daysOnSite = 0;
     const projectSet = [];
     mine.forEach((d) => {
       daysOnSite++;
       if (d.status === 'submitted') submitted++;
-      const credit = creditFor(d, memberId);
+      const credit = creditFor(d, memberId, aliases);
       sqft += credit.sqft;
       photos += credit.photos;
       const key = projectKey(d);
@@ -332,7 +364,7 @@
       const key = projectKey(d);
       if (!key) return;
       if (!projectMembers[key]) projectMembers[key] = [];
-      dayMembers(d).forEach((id) => { if (projectMembers[key].indexOf(id) === -1) projectMembers[key].push(id); });
+      dayMembers(d, aliases).forEach((id) => { if (projectMembers[key].indexOf(id) === -1) projectMembers[key].push(id); });
     });
     const coworkerSet = [];
     let sharedProjects = 0;
@@ -421,6 +453,19 @@
     box.className = 'pp-lightbox';
     box.setAttribute('role', 'dialog');
     box.setAttribute('aria-modal', 'true');
+    // One close path for every way out (✕, backdrop, Escape). The old code only
+    // removed the keydown listener on Escape, so closing with ✕ or the backdrop
+    // left it attached: arrow keys kept re-rendering a detached box and each
+    // reopen stacked another listener.
+    const onKey = (e) => {
+      if (e.key === 'Escape') { close(); return; }
+      if (e.key === 'ArrowLeft') { i = (i - 1 + items.length) % items.length; render(); }
+      if (e.key === 'ArrowRight') { i = (i + 1) % items.length; render(); }
+    };
+    function close() {
+      doc.removeEventListener('keydown', onKey);
+      box.remove();
+    }
     const render = () => {
       const it = (items || [])[i];
       if (!it) return;
@@ -433,24 +478,19 @@
           '<figcaption><strong>' + escHtml(it.title || 'Work photo') + '</strong>' +
             (it.meta ? '<span>' + escHtml(it.meta) + '</span>' : '') + '</figcaption>' +
         '</figure>';
-      const close = box.querySelector('.pp-lb-close');
-      if (close) close.addEventListener('click', () => box.remove());
+      const closeBtn = box.querySelector('.pp-lb-close');
+      if (closeBtn) closeBtn.addEventListener('click', close);
       const prev = box.querySelector('.pp-lb-prev');
       if (prev) prev.addEventListener('click', () => { i = (i - 1 + items.length) % items.length; render(); });
       const next = box.querySelector('.pp-lb-next');
       if (next) next.addEventListener('click', () => { i = (i + 1) % items.length; render(); });
     };
     render();
-    box.addEventListener('click', (e) => { if (e.target === box) box.remove(); });
-    const onKey = (e) => {
-      if (e.key === 'Escape') { box.remove(); doc.removeEventListener('keydown', onKey); }
-      if (e.key === 'ArrowLeft') { i = (i - 1 + items.length) % items.length; render(); }
-      if (e.key === 'ArrowRight') { i = (i + 1) % items.length; render(); }
-    };
+    box.addEventListener('click', (e) => { if (e.target === box) close(); });
     doc.addEventListener('keydown', onKey);
     doc.body.appendChild(box);
-    const close = box.querySelector('.pp-lb-close');
-    if (close) close.focus();
+    const closeBtn = box.querySelector('.pp-lb-close');
+    if (closeBtn) closeBtn.focus();
   }
 
   function escHtml(s) {
@@ -469,7 +509,7 @@
     read: readRaw, write: writeRaw, _setStore,
     blankItem, normaliseItem, sortItems, makeId,
     list, get, count, add, remove, removeAll, feed,
-    worklogDays, erpProjects, roster, dayMembers, creditedEntries, creditFor, sqftFor, projectKey,
+    worklogDays, erpProjects, roster, crewAliases, resolveCrew, dayMembers, creditedEntries, creditFor, sqftFor, projectKey,
     workRecord, downscaleFile, openLightbox, escHtml
   };
 });

@@ -34,7 +34,12 @@ global.PPTeam = {
 };
 global.PPWorkLog = { listDays:()=>Object.keys(JSON.parse(store.painterPlusWorkLog)).sort().reverse().map(k=>JSON.parse(store.painterPlusWorkLog)[k]) };
 global.PPERP = { listProjects:()=>JSON.parse(store.painterPlusErp||'{"projects":[]}').projects,
-  reportByPainter:()=>[{key:'ravi',approvedTotal:21500,pendingLabour:3000,invoicedTotal:15000}] };
+  reportByPainter:()=>[{
+    crew:'Ravi Kumar', crewId:'ravi', days:1, sqft:600,
+    approvedLabour:20000, approvedPaintCost:1500, approvedTotal:21500,
+    pendingLabour:3000, pendingPaintCost:0, pendingTotal:3000,
+    invoicedLabour:14000, invoicedPaintCost:1000, invoicedTotal:15000
+  }] };
 
 eval(fs.readFileSync(new URL('../js/smart-bot.js', import.meta.url),'utf8'));
 const B = global.PPBot;
@@ -74,11 +79,23 @@ const sum = B._internals.lastBotMessage();
 check('unlocked summary shows name', /Ravi/.test(sum), sum.slice(0,80));
 check('summary shows sqft 900', /900/.test(sum), sum.slice(0,160));
 B._internals.handlePainter('my earnings', false);
-check('earnings gated and shown', /21,500|21500/.test(B._internals.lastBotMessage()), B._internals.lastBotMessage().slice(0,80));
+const earn = B._internals.lastBotMessage();
+check('earnings gated and shown', /21,500|21500/.test(earn), earn.slice(0,80));
+check('pending money is shown', /3,000|3000/.test(earn), earn.slice(0,160));
+check('invoiced money is shown', /15,000|15000/.test(earn), earn.slice(0,160));
 B._internals.handlePainter('pending', false);
 check('pending lists open day', /2026-11-19/.test(B._internals.lastBotMessage()), B._internals.lastBotMessage().slice(0,80));
 B._internals.handlePainter('logout', false);
 check('logout returns to client', B._internals.session().mode === 'client');
+
+// A row that exposes labour + paint separately (the real ERP shape) must add
+// them, not read approvedLabour alone — a paint-only job used to read ₹0.
+global.PPERP.reportByPainter = () => [{ crew: 'Ravi Kumar', crewId: 'ravi', approvedLabour: 1000, approvedPaintCost: 250 }];
+B._internals.setMode('painter');
+B._internals.handlePainter('ravi', false);
+B._internals.handlePainter('good', false);
+B._internals.handlePainter('my earnings', false);
+check('labour + paint are summed', /1,250|1250/.test(B._internals.lastBotMessage()), B._internals.lastBotMessage().slice(0,80));
 
 // --- no-passcode leak check ---
 B._internals.setMode('painter');

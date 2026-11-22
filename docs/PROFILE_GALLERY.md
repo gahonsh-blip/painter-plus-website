@@ -99,6 +99,43 @@ keyed by member id:
   through the local `escAttr()` — the shared text `esc()` does **not** escape
   quotes, and a photo URL is attacker-influenced data.
 
+## Professional details and project history
+
+A profile is more than a photo and a bio. The roster also carries the fields a
+painter needs to present themselves, and the profile page renders them as two
+sections that hide themselves when empty:
+
+| Field | Rendering |
+|-------|-----------|
+| `skills` | Chips — "Specialisations". |
+| `languages` | Chips. |
+| `serviceAreas` | Chips. |
+| `tools` | Chips — "Tools & equipment". |
+| `availability` | A short line (days/hours, free inspection). |
+| `certifications` | A list, one per line. |
+| `experience` | A list, one per line. |
+| `projects` | A card grid — "Project experience". |
+
+Each project is a plain object:
+
+```js
+{ name, role, year, client, area, location, finish, note }
+```
+
+The editor offers a **photo** control (URL, downscaled upload, preview, remove)
+and repeatable project rows — **Add a project**, edit any field, **Remove** —
+so a painter can record every site they worked on without hand-editing JSON.
+
+These fields are **roster-only** (`painterPlusTeam`), deliberately: the account
+whitelist in `js/auth.js` is text-only, so adding them to the roster needs no
+Supabase schema change. `js/team.js` normalises them at the boundary:
+`cleanProjects()` drops anything that is not a plain object and caps the list at
+80 entries, and every text key coerces an object/array to `''`. Every value the
+profile renders goes through `T.esc`, which is object-safe.
+
+The team page shows the painter's top three specialisations on each roster card,
+so a visitor can compare skills without opening every profile.
+
 ## Self-service: "this is me"
 
 The roster is shared in `localStorage`, so a painter can claim their own profile
@@ -198,7 +235,11 @@ invented figures.
 | `painterPlusTeam` | The roster (owned by `js/team.js`). |
 | `ppClaimedMember` (session) | The member id this device is acting as. |
 
-Member fields added by this work: `startYear` (a four-digit year string).
+Member fields added by this work: `startYear` (a four-digit year string), and
+the professional fields `skills`, `languages`, `serviceAreas`, `availability`,
+`certifications`, `tools`, `experience` (text) plus `projects` (an array of
+project objects). A gallery photo may also carry `project` (name) and
+`projectId` (resolved from the ERP by exact name).
 
 ## What this does not do
 

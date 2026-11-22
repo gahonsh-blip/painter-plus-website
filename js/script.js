@@ -658,6 +658,48 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(mascot);
     }
 
+    // ----- CONTACT: prefill the enquiry from the Color / Photo Studio -----
+    // The Color Studio ("Request quote") and "Paint my photo" both link to
+    // contact.html with the chosen colours, area, coats and litres in the query
+    // string. Nothing used to read them, so the client's whole scheme was lost
+    // at the form. Prefill the message (never overwrite what the visitor typed).
+    const messageEl = document.getElementById('message');
+    if (messageEl && !messageEl.value.trim()) {
+        const q = new URLSearchParams(window.location.search);
+        const LABELS = {
+            back: 'Back wall', left: 'Left wall', right: 'Right wall', ceiling: 'Ceiling',
+            floor: 'Floor', accent: 'Accent', cabinet: 'Cabinets', cab: 'Cabinets',
+            tile: 'Tile wall', sky: 'Sky', main: 'Main wall', roof: 'Roof',
+            ground: 'Ground', trim: 'Trim', door: 'Door'
+        };
+        const lines = [];
+        const colorsRaw = q.get('colors') || '';
+        if (colorsRaw.indexOf('=') !== -1) {
+            const scheme = new URLSearchParams(colorsRaw);
+            if (scheme.get('scene')) lines.push('Room: ' + scheme.get('scene'));
+            if (scheme.get('finish')) lines.push('Finish: ' + scheme.get('finish'));
+            const swatches = [];
+            scheme.forEach((v, k) => {
+                if (['scene', 'finish', 'light', 'sqft', 'coats', 'litres'].indexOf(k) !== -1) return;
+                if (/^#?[0-9a-f]{3,8}$/i.test(v)) swatches.push((LABELS[k] || k) + ' #' + v.replace('#', '').toUpperCase());
+            });
+            if (swatches.length) lines.push('Colours: ' + swatches.join(', '));
+        } else if (/^#?[0-9a-f]{3,8}$/i.test(colorsRaw)) {
+            lines.push('Colour: #' + colorsRaw.replace('#', '').toUpperCase());
+        }
+        if (q.get('finish') && !lines.some(l => l.indexOf('Finish:') === 0)) lines.push('Finish: ' + q.get('finish'));
+        if (q.get('texture')) lines.push('Texture: ' + q.get('texture'));
+        if (q.get('area')) lines.push('Surface: ' + q.get('area'));
+        if (q.get('sqft')) {
+            lines.push('Area: ' + q.get('sqft') + ' sq ft' +
+                (q.get('coats') ? ' · ' + q.get('coats') + ' coats' : '') +
+                (q.get('litres') ? ' · about ' + q.get('litres') + ' L of paint' : ''));
+        }
+        if (lines.length) {
+            messageEl.value = 'Enquiry from the studio:\n' + lines.join('\n') + '\n\nPlease share a quote.';
+        }
+    }
+
     // ----- SERVICE WORKER REGISTRATION (PWA) -----
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').catch(() => {

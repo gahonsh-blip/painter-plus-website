@@ -298,5 +298,31 @@ test('a work record over corrupt days/entries does not throw', () => {
   assert.strictEqual(r.daysOnSite, 1);
 });
 
+test('a day whose crew is a display name is credited to the roster id', () => {
+  G._setStore(memStore({
+    painterPlusWorkLog: JSON.stringify({
+      '2026-11-01': {
+        date: '2026-11-01', crew: 'Ramesh Kumar', status: 'submitted', project: 'Sharma House',
+        entries: [{ id: 'e1', sqft: 55, crew: 'Ramesh Kumar' }]
+      }
+    }),
+    painterPlusERP: JSON.stringify({ projects: [{ id: 'p1', name: 'Sharma House' }], approvals: {}, bills: {} }),
+    painterPlusTeam: JSON.stringify([{ id: 'ramesh-kumar', name: 'Ramesh Kumar', role: 'painter' }])
+  }));
+  const r = G.workRecord('ramesh-kumar');
+  assert.strictEqual(r.daysOnSite, 1, 'a name-stored day must reach the id-based record');
+  assert.strictEqual(r.sqft, 55);
+  assert.strictEqual(r.projects, 1);
+});
+
+test('crewAliases maps both id and display name; unknown values are kept', () => {
+  const aliases = G.crewAliases([{ id: 'ramesh-kumar', name: 'Ramesh Kumar' }]);
+  assert.strictEqual(G.resolveCrew('Ramesh Kumar', aliases), 'ramesh-kumar');
+  assert.strictEqual(G.resolveCrew('RAMESH KUMAR', aliases), 'ramesh-kumar');
+  assert.strictEqual(G.resolveCrew('ramesh-kumar', aliases), 'ramesh-kumar');
+  assert.strictEqual(G.resolveCrew('Someone Else', aliases), 'Someone Else');
+  assert.strictEqual(G.resolveCrew({}, aliases), '');
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

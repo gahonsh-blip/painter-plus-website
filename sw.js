@@ -1,4 +1,4 @@
-const CACHE_NAME = 'painter-plus-v37';
+const CACHE_NAME = 'painter-plus-v38';
 const BASE_PATH = self.location.pathname.replace(/\/[^/]*$/, '/');
 const ASSETS = [
   `${BASE_PATH}`,
@@ -37,6 +37,7 @@ const ASSETS = [
   `${BASE_PATH}js/erp-page.js`,
   `${BASE_PATH}js/reviews.js`,
   `${BASE_PATH}js/reviews-page.js`,
+  `${BASE_PATH}js/smart-bot.js`,
   `${BASE_PATH}manifest.json`,
   `${BASE_PATH}images/icon-192.png`,
   `${BASE_PATH}images/icon-512.png`,

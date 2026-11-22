@@ -1624,6 +1624,8 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 .tm-title-line { color: var(--primary); font-weight: 600; font-size: .88rem; margin-bottom: 6px; }
 .tm-tagline { color: var(--text-light); font-size: .9rem; line-height: 1.6; }
 .tm-stats { display: block; margin-top: 10px; color: var(--text-light); font-size: .82rem; }
+.tm-skills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tm-skill { font-size: .72rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: rgba(37,99,235,.1); color: var(--primary); }
 .tm-toolbar-links { display: flex; gap: 8px; flex-wrap: wrap; }
 .tm-link { display: inline-block; margin-top: 14px; font-weight: 700; font-size: .85rem; color: var(--primary); }
 
@@ -2045,6 +2047,41 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 .pp-gallery-body strong { font-family: var(--font-display); }
 .pp-gallery-meta { color: var(--text-light); font-size: .82rem; }
 
+/* --- professional details & project experience (profile) --- */
+.pp-details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 18px; }
+.pp-detail-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 22px; box-shadow: var(--shadow-sm); min-width: 0;
+}
+.pp-detail-card h3 { font-family: var(--font-display); font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.pp-detail-list { margin: 0; padding-left: 20px; color: var(--text-light); display: flex; flex-direction: column; gap: 6px; }
+.pp-detail-text { color: var(--text-light); }
+.pp-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.pp-chip {
+  display: inline-flex; align-items: center; padding: 4px 11px; border-radius: 999px;
+  background: rgba(37,99,235,.1); color: var(--primary); font-size: .8rem; font-weight: 600;
+  border: 1px solid rgba(37,99,235,.18);
+}
+.pp-project-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 20px; }
+.pp-project-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 10px; min-width: 0;
+}
+.pp-project-card h3 { font-family: var(--font-display); font-size: 1.15rem; }
+.pp-project-meta { color: var(--primary); font-weight: 600; font-size: .86rem; }
+.pp-project-note { color: var(--text-light); font-size: .9rem; }
+.pp-photo-edit { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; align-items: end; margin-bottom: 14px; }
+.pp-photo-preview { grid-column: 1 / -1; }
+.pp-photo-preview img { width: 132px; height: 132px; object-fit: cover; border-radius: 18px; border: 1px solid var(--border); }
+.pp-proj-editor { display: grid; gap: 14px; }
+.pp-proj-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 8px 12px; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-hover);
+}
+.pp-proj-row .pp-field { margin-bottom: 0; }
+.pp-proj-row .pp-field span { font-size: .76rem; color: var(--text-light); }
+.pp-proj-del { grid-column: 1 / -1; justify-self: start; }
+
 /* --- self-edit card --- */
 .pp-edit-card { padding: 28px; }
 .pp-edit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 14px; }
@@ -2237,6 +2274,7 @@ a.pp-contact-item:hover { transform: translateY(-4px); border-color: var(--prima
 .rv-heading { font-family: var(--font-display); font-size: 1.15rem; margin: 0 0 14px; }
 
 /* Summary: big average + star histogram */
+.rv-anchor { display: block; height: 0; scroll-margin-top: 96px; }
 .rv-summary { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 28px; align-items: center;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px 30px; box-shadow: var(--shadow-sm); }
 .rv-score { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }

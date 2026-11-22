@@ -166,8 +166,9 @@ grep -rn "^<<<<<<< HEAD\|^=======$\|^>>>>>>>" . || echo "clean"
 ## 7. Optional future improvements (after recovery)
 
 - Add real project photos to `portfolio.html` and `images/`.
-- Replace `images/og-image.svg` with a 1200x630 PNG/JPG for better social
-  sharing previews.
+- ~~Replace `images/og-image.svg` with a 1200x630 PNG/JPG for better social
+  sharing previews.~~ Done — `images/og-image.png` (1200x630) is live and every
+  page's `og:image` / `twitter:image` points at it.
 - ~~Generate proper PWA icons (192/512/maskable).~~ Done — icons are in `images/`.
 - Add a lightweight form handler (Formspree / Netlify Forms / Google Forms)
   and spam protection (honeypot field).

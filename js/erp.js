@@ -74,6 +74,15 @@
     return isFinite(v) ? Math.round(v * 100) / 100 : 0;
   }
 
+  // A local calendar date (YYYY-MM-DD). `toISOString()` is UTC, so an invoice
+  // raised before 05:30 IST was dated the previous day. The business runs on
+  // Indian wall-clock time, so use the local date everywhere a date is stored.
+  function dateKey(d) {
+    const t = d || new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate());
+  }
+
   function fmtSqft(n) {
     const v = Math.round((parseFloat(n) || 0) * 10) / 10;
     return v.toLocaleString('en-IN') + ' sq ft';
@@ -679,7 +688,7 @@
       // numbering each project from PP-001 produced two different invoices
       // both called PP-001.
       no: (entry && entry.no) || nextBillNo(d),
-      date: (entry && entry.date) || new Date().toISOString().slice(0, 10),
+      date: (entry && entry.date) || dateKey(),
       note: (entry && entry.note) || '',
       // Round at the point of storage. `money()` only rounds for display, so an
       // amount like 95.89999999999999 was stored raw and later sums drifted.
@@ -835,6 +844,16 @@
   function reportByPainter(data, worklog) {
     const d = data || read();
     const wl = worklog || readWorkLog();
+    // Every date that appears on any invoice, so the report can say how much of
+    // a painter's approved work has actually been billed. A date is billed at
+    // most once (see addBill), so a global set is safe.
+    const billedAll = new Set();
+    Object.keys(d.bills || {}).forEach((pid) => {
+      const list = Array.isArray(d.bills[pid]) ? d.bills[pid] : [];
+      list.forEach((b) => {
+        (b && Array.isArray(b.dates) ? b.dates : []).forEach((x) => billedAll.add(String(x)));
+      });
+    });
     const map = {};
     Object.keys(wl).forEach((date) => {
       const day = wl[date];
@@ -843,7 +862,14 @@
       // report shows a human name instead of "ramesh-kumar".
       const ident = crewIdentity(day.crew);
       const who = ident.key;
-      if (!map[who]) map[who] = { crew: ident.name, crewId: who === 'Unassigned' ? '' : who, days: 0, sqft: 0, labour: 0, litres: 0, paintCost: 0, approvedSqft: 0, approvedLabour: 0, approvedLitres: 0, approvedPaintCost: 0 };
+      if (!map[who]) map[who] = {
+        crew: ident.name, crewId: who === 'Unassigned' ? '' : who,
+        days: 0, sqft: 0, labour: 0, litres: 0, paintCost: 0,
+        approvedSqft: 0, approvedLabour: 0, approvedLitres: 0, approvedPaintCost: 0,
+        pendingSqft: 0, pendingLabour: 0, pendingPaintCost: 0,
+        invoicedSqft: 0, invoicedLabour: 0, invoicedPaintCost: 0,
+        approvedTotal: 0, pendingTotal: 0, invoicedTotal: 0
+      };
       const project = projectForDay(day, d);
       const c = dayCosting(day, project);
       const a = approvalOf(date, d);
@@ -857,6 +883,20 @@
         map[who].approvedLabour += c.labour;
         map[who].approvedLitres += c.litres;
         map[who].approvedPaintCost += c.paintCost;
+        map[who].approvedTotal += c.total;
+        if (billedAll.has(String(day.date))) {
+          map[who].invoicedSqft += c.sqft;
+          map[who].invoicedLabour += c.labour;
+          map[who].invoicedPaintCost += c.paintCost;
+          map[who].invoicedTotal += c.total;
+        }
+      } else if (a.status !== 'rejected' && day.status === 'submitted') {
+        // Submitted but not yet signed off — the money the painter is waiting
+        // on. Open (in-progress) and rejected days are not "pending" pay.
+        map[who].pendingSqft += c.sqft;
+        map[who].pendingLabour += c.labour;
+        map[who].pendingPaintCost += c.paintCost;
+        map[who].pendingTotal += c.total;
       }
     });
     return Object.keys(map).map((k) => map[k]).sort((a, b) => b.sqft - a.sqft);
@@ -926,7 +966,7 @@
   return {
     STORE_KEY, WORKLOG_KEY, PROJECT_STATUS, APPROVAL_STATUS, DEFAULTS,
     // numbers
-    num, money, fmtSqft, fmtLitres, round2,
+    num, money, fmtSqft, fmtLitres, round2, dateKey,
     // store
     read, write, _setStore, STORAGE_ERROR,
     readWorkLog, dayTotals, dayCosting, paintLitres, effectiveRates, projectForDay,

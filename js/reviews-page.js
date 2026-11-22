@@ -241,13 +241,33 @@
     }
 
     const name = subjectName(sub.type, sub.key);
+    // The compact badge links to `#rv-<type>-<key>`. Give the detailed panel a
+    // real anchor with that id, or the badge was a dead link that jumped
+    // nowhere (profile badge) and the portfolio panel never switched project.
+    const anchorId = 'rv-' + sub.type + '-' + encodeURIComponent(sub.key);
     const heading = el.getAttribute('data-reviews-title');
     el.innerHTML =
       (heading ? '<h3 class="rv-heading">' + esc(heading) + '</h3>' : '') +
       summaryHtml(sub.type, sub.key, name) +
       formHtml(sub.type, sub.key, name) +
       listHtml(sub.type, sub.key, name);
+    if (!el.querySelector('#' + anchorId) && !document.getElementById(anchorId)) {
+      const anchor = document.createElement('span');
+      anchor.id = anchorId;
+      anchor.className = 'rv-anchor';
+      el.insertBefore(anchor, el.firstChild);
+    }
     bind(el, sub);
+  }
+
+  // Jump to a rating panel named by the URL hash. A hash link is rendered by
+  // the widget above only after the browser has already tried to scroll, so
+  // this runs after every render (and on hashchange) to land in the right place.
+  function scrollToHash() {
+    const m = /^#(rv-(?:painter|project|company)-.+)$/.exec(String(location.hash || ''));
+    if (!m) return;
+    const target = document.getElementById(m[1]);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function status(el, text, isError) {
@@ -315,9 +335,13 @@
   // Expose a manual mount so a page can build a widget dynamically.
   window.PPReviewsUI = { renderAll: renderAll, render: renderWidget };
 
-  renderAll();
-  document.addEventListener('DOMContentLoaded', renderAll);
+  function renderAllAndScroll() { renderAll(); scrollToHash(); }
+
+  renderAllAndScroll();
+  document.addEventListener('DOMContentLoaded', renderAllAndScroll);
+  window.addEventListener('hashchange', renderAllAndScroll);
   document.addEventListener('ppreviews:change', renderAll);
+  document.addEventListener('ppreviews:change', scrollToHash);
   document.addEventListener('ppauth:change', renderAll);
   document.addEventListener('ppteam:change', renderAll);
 })();

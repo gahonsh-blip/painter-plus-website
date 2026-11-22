@@ -230,6 +230,59 @@
       check(T.get(MEMBER).title === 'Master Painter', 'the change is persisted in the roster');
     }
 
+    // ---- PROFESSIONAL DETAILS + PROJECT EXPERIENCE ----
+    // The profile must let a painter record everything a client asks about:
+    // skills, languages, service areas, availability, tools, certifications,
+    // experience, a profile photo and a structured project history.
+    const addProj = $('ppfAddProject');
+    check(!!$('ppfSkills') && !!addProj, 'the edit form offers professional details and project rows');
+    if ($('ppfSkills') && addProj) {
+      const PHOTO = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+      $('ppfSkills').value = 'Interior painting, Texture finishes';
+      $('ppfLanguages').value = 'Hindi, English';
+      $('ppfServiceAreas').value = 'Khunti, Ranchi';
+      $('ppfAvailability').value = 'Mon–Sat · 9am–6pm';
+      $('ppfTools').value = 'Airless sprayer, Laser level';
+      $('ppfCertifications').value = 'Trained in premium emulsion';
+      $('ppfExperience').value = 'Five years of residential repainting';
+      $('ppfPhoto').value = PHOTO;
+      $('ppfPhoto').dispatchEvent(new Event('input', { bubbles: true }));
+      addProj.click();
+      await sleep(20);
+      const row = document.querySelector('#ppfProjects .pp-proj-row');
+      check(!!row, 'clicking Add a project adds an editable row');
+      const setRow = (k, v) => {
+        const el = row && row.querySelector('[data-k="' + k + '"]');
+        if (el) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }
+      };
+      setRow('name', 'Sharma House');
+      setRow('role', 'Lead painter');
+      setRow('year', '2025');
+      setRow('area', '1,200 sq ft');
+      setRow('location', 'Ranchi');
+      setRow('finish', 'Matte emulsion');
+      setRow('note', 'Full interior repaint.');
+      $('ppEditForm').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      await sleep(80);
+
+      check(!$('ppDetailsSection').hidden, 'the professional-details section is shown');
+      check((txt('ppDetails') || '').indexOf('Texture finishes') !== -1, 'specialisations render as chips');
+      check((txt('ppDetails') || '').indexOf('Mon–Sat') !== -1, 'availability renders');
+      check((txt('ppDetails') || '').indexOf('Trained in premium emulsion') !== -1, 'certifications render');
+      check(!$('ppProjectsSection').hidden, 'the project-experience section is shown');
+      check((txt('ppProjects') || '').indexOf('Sharma House') !== -1, 'a project card renders');
+      check((txt('ppProjects') || '').indexOf('Lead painter') !== -1, 'the project role renders');
+      check((txt('ppProjects') || '').indexOf('1,200 sq ft') !== -1, 'the project area renders');
+
+      const saved = T.get(MEMBER);
+      check(saved.skills === 'Interior painting, Texture finishes', 'skills persist in the roster');
+      check(saved.projects.length === 1 && saved.projects[0].name === 'Sharma House',
+        'the project persists in the roster');
+      check(saved.photo === PHOTO, 'the profile photo persists');
+      const av = $('ppAvatar');
+      check(!!(av && av.querySelector('img')), 'the new profile photo shows in the avatar');
+    }
+
     // ---- ADD A GALLERY PHOTO ----
     const before = G.list(MEMBER).length;
     $('ppgTitle').value = 'Living room repaint';
@@ -239,9 +292,13 @@
     $('ppgSqft').value = '120';
     $('ppgUrl').value = 'https://example.com/room.jpg';
     $('ppgUrl').dispatchEvent(new Event('input', { bubbles: true }));
+    if ($('ppgProject')) $('ppgProject').value = 'Profile Test Site';
     $('ppgAdd').click();
     await sleep(60);
     check(G.list(MEMBER).length === before + 1, 'the photo is added to the gallery store');
+    const added = G.list(MEMBER).find((it) => it.title === 'Living room repaint');
+    check(!!added && added.project === 'Profile Test Site', 'the photo records its project name');
+    check(!!added && added.projectId === 'profile-test-site', 'the photo resolves the ERP project id');
     check((txt('ppGallery') || '').indexOf('Living room repaint') !== -1, 'the photo shows on the profile gallery');
     check((txt('ppGallery') || '').indexOf('120 sq ft') !== -1, 'the photo caption shows its square feet');
 

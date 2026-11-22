@@ -1959,3 +1959,158 @@ sweep still reports **all pages clean**.
 `bash tests/run-all-headless.sh` reports **ALL BROWSER CHECKS PASSED**.
 Service-worker cache bumped `painter-plus-v36` → `v37` (two new `js` files
 precached).
+
+## Seventeenth pass — 2026-11-22 (profile system completed + 12 defects)
+
+The request was "make the profile system work properly — a painter's name,
+address, project detail and everything a painter needs" plus a full-site bug
+hunt. The profile was the largest gap: it could show a photo and a bio, but a
+painter had no way to upload the photo, describe their skills or record the
+sites they had worked on. The audit found 12 defects and the profile layer was
+completed.
+
+### §67 — The favicon was a malformed data URL
+
+Every page shipped:
+
+```html
+<link rel="icon" href=data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E…%3C/svg%3E" />
+```
+
+The opening quote is missing, a 1×1 transparent GIF is glued to an SVG payload,
+and the result is not a valid URL. Browsers fell back to a blank tab icon.
+Replaced in every page with a valid inline SVG favicon (the 🎨 mark):
+
+```html
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E" />
+```
+
+### §68 — `og:image` pointed at an SVG, so shared links had no preview
+
+All 16 pages declared `og:image` / `twitter:image` as `images/og-image.svg`,
+with `og:image:type` `image/svg+xml`. Facebook, WhatsApp, LinkedIn and X do not
+render SVG previews, so every shared link was a bare text card. Rendered the
+existing artwork to a real **1200×630 PNG** (`images/og-image.png`) with
+headless Chromium and pointed every `og:image`, `twitter:image` and JSON-LD
+`image` at it.
+
+### §69 — The Organization JSON-LD address was unparseable
+
+`index.html` put the whole address in `addressLocality` and supplied no
+`streetAddress`, `addressRegion`, `postalCode` or `addressCountry`, so a search
+engine could not resolve the business location. The schema now uses a proper
+`PostalAddress`, an E.164 `telephone`, `areaServed`, `openingHours` and
+`foundingDate`.
+
+### §70 — The assistant button sat on top of the WhatsApp pill
+
+`js/smart-bot.js` pinned both `.ppb-btn` and `.ppb-panel` to `right: 18px`,
+the same bottom-right corner as `.whatsapp-float` and the painter mascot. The
+assistant covered the WhatsApp button at every width, so a visitor could not
+tap it. The button and panel now live bottom-left (`left: 18px; right: auto`),
+and the UI self-test asserts the two rectangles do not overlap.
+
+### §71 — A painter's "my earnings" always said "nothing recorded"
+
+`painterReport()` in `js/smart-bot.js` matched the painter's row against
+`r.key`, `r.id`, `r.memberId`, `r.painter` and `r.crew`. But
+`PPERP.reportByPainter()` exposes the crew as **`crewId`** (the member id) and
+**`crew`** (the display name) — neither of which was in that list. Every
+painter was therefore told no work was recorded, however much they had. The
+lookup now checks `crewId` first (then the legacy keys), case-insensitively.
+`tests/smart-bot.test.mjs` loads the bot in a VM and pins the real row shape. Two further defects surfaced while fixing it: (a) the bot read `approvedTotal`/`pendingLabour`/`invoicedTotal`, which `reportByPainter()` never returned — it now sums `approvedLabour + approvedPaintCost` (and the same for pending/invoiced), and the ERP row gained `pendingTotal`/`invoicedTotal`; (b) `kwHit()` required an exact word, so the chip **"My earnings"** (plural) matched no intent and fell through to the generic summary. English keywords now accept a plural `s`/`es`.
+
+### §72 — The hero rating badge linked nowhere
+
+`js/reviews-page.js` rendered the compact painter badge as
+`<a href="#rv-painter-<id>">`, but the detailed panel never carried that id —
+clicking the badge did nothing. The panel now sets `id="rv-<type>-<key>"`, so
+the anchor resolves; the reviews self-test asserts both the href and the
+target element.
+
+### §73 — A bill raised before 05:30 IST was dated yesterday
+
+`js/erp.js` derived the default bill date from
+`new Date().toISOString().slice(0, 10)`, which is **UTC**. In India (UTC+05:30)
+every bill raised between 00:00 and 05:30 local was dated the previous day. A
+new `dateKey()` formats the local Y-M-D and is used for bill dates. Unit-tested
+with `new Date(2026, 0, 1, 0, 30)`.
+
+### §74 — The studio's quote parameters were thrown away
+
+`color-studio.html` and the photo studio both link to
+`contact.html?colors=…&sqft=…&coats=…&litres=…`. `js/script.js` never read
+those parameters, so the visitor arrived at an empty form and had to retype the
+room, the colours and the area. It now prefills `#message` with the room,
+finish, per-surface colours, area, coats and litres — and only when the field is
+still empty, so a typed message is never overwritten. New
+`tests/contact-selftest.js` drives the real page with a studio query string.
+
+### §75 — A day stored with a display name was not credited to the painter
+
+The work log stores `crew` as the roster **id**, but older/imported days can
+hold a display name ("Ramesh Kumar"). `js/gallery.js` compared the raw value to
+the member id, so those days fell into a separate `Ramesh Kumar` bucket: the
+painter's derived record lost the days, square feet and projects, and the
+gallery feed showed a duplicate person. `crewAliases()` / `resolveCrew()` now
+map both the id and the case-insensitive name, and `workRecord`, `creditFor` and
+`feed` use them. Two new tests in `tests/gallery.test.js`.
+
+### §76 — The gallery's Project field offered no projects
+
+The profile editor's "Project (optional)" input was free text, and the page
+never filled the datalist, so a photo could not be reliably attributed to an ERP
+project. The field is now backed by a datalist built from
+`PPERP.listProjects()`, and `G.add()` receives both `project` (the name) and
+`projectId` (resolved by exact name). The profile self-test asserts the stored
+id is `profile-test-site` for the seeded project.
+
+### §77 — A painter could not upload a profile photo
+
+`member.photo` was rendered (hero avatar and team cards), but the edit form had
+no control for it — the only way to set one was to hand-edit `localStorage`.
+The form now offers a photo URL, a file upload (downscaled to ≤1024 px JPEG with
+the gallery's own `downscaleFile`), a live preview and **Remove photo**. The
+save writes `photo` through the account whitelist and mirrors it into the
+roster, so a cleared photo clears the avatar.
+
+### §78 — A profile had no professional details or project history
+
+The only editable fields were name, title, tagline, bio, quote and start year.
+That is not enough for a painter to present themselves or for a client to
+choose one. Added:
+
+- **Roster fields** — `skills`, `languages`, `serviceAreas`, `availability`,
+  `certifications`, `tools`, `experience` and a structured `projects` array.
+  `js/team.js` normalises them at the boundary: the text keys coerce objects to
+  `''`, and `cleanProjects()` drops anything that is not a plain object (and
+  caps the list at 80 entries), so a hand-edited store cannot crash the page.
+- **Public "Professional details"** — chips for specialisations, languages,
+  service areas and tools, plus availability, certifications and experience
+  lists. The whole section hides itself when the painter has filled in nothing,
+  so no empty boxes appear.
+- **Public "Project experience"** — a card per site with name, role, year,
+  client, area, location, finish and note.
+- **Editor** — repeatable project rows (add, edit, remove) and all the detail
+  fields, saved with the same authorisation path as the rest of the profile.
+- **Team page** — the painter's top three specialisations on each roster card.
+
+Every rendered value goes through `T.esc`, which is object-safe, and the new
+fields are roster-only (the account whitelist stays text-only, so no Supabase
+schema change is required).
+
+**Verified.**
+- `node tests/smart-bot.test.mjs` — the existing bot suite, extended with the real `crewId` row shape, pending/invoiced money, labour+paint summing and the plural "my earnings" chip.
+- `tests/gallery.test.js` — 31 checks (2 new: legacy crew name, alias map).
+- `tests/erp.test.js` — 81 checks (2 new: local `dateKey`, and the painter report's approved/pending/invoiced split).
+- `tests/profile-selftest.js` — now drives the photo, all detail fields and a
+  project row through the real form, and asserts the public sections and the
+  stored roster values.
+- `tests/reviews-selftest.js` — asserts the badge anchor exists and resolves.
+- `tests/contact-selftest.js` — new; asserts the studio query prefill.
+- `tests/ui-selftest.js` — asserts the assistant button and WhatsApp float do
+  not overlap.
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED** (all Node
+  suites, every page self-test, the visitor-exposure sweep, the
+  hidden-attribute audit and the corrupt-store sweep).
+- Service-worker cache bumped `painter-plus-v37` → `v38`.

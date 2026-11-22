@@ -147,6 +147,17 @@
       stat3: '', stat3label: '',
       stat4: '', stat4label: '',
       quote: '',
+      // Professional details a painter maintains about themselves. Kept as
+      // text so they survive the account whitelist (which is text-only) and a
+      // Supabase profile row; `projects` is the one structured field.
+      skills: '',
+      languages: '',
+      serviceAreas: '',
+      availability: '',
+      certifications: '',
+      tools: '',
+      experience: '',
+      projects: [],
       order: 99
     }, contactDefaults());
   }
@@ -160,7 +171,28 @@
 
   const TEXT_KEYS = ['name', 'title', 'photo', 'tagline', 'bio', 'startYear',
     'stat1', 'stat1label', 'stat2', 'stat2label', 'stat3', 'stat3label',
-    'stat4', 'stat4label', 'quote', 'phone', 'email', 'address', 'note'];
+    'stat4', 'stat4label', 'quote', 'phone', 'email', 'address', 'note',
+    'skills', 'languages', 'serviceAreas', 'availability', 'certifications',
+    'tools', 'experience'];
+
+  // A project entry in a painter's history. `projects` can arrive as an array
+  // (the roster) or as a JSON string (an account field / a hand-edited store),
+  // and each entry is untrusted, so normalise both the list and its fields.
+  const PROJECT_KEYS = ['name', 'client', 'role', 'location', 'year', 'area', 'finish', 'note'];
+  function cleanProject(p) {
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+    const out = {};
+    PROJECT_KEYS.forEach((k) => { out[k] = text(p[k]); });
+    return (out.name || out.location || out.note) ? out : null;
+  }
+  function cleanProjects(v) {
+    let list = v;
+    if (typeof v === 'string') {
+      try { list = JSON.parse(v); } catch (e) { list = []; }
+    }
+    if (!Array.isArray(list)) return [];
+    return list.map(cleanProject).filter(Boolean).slice(0, 80);
+  }
 
   // The one place a raw stored member becomes a usable one. `id` and `role` are
   // left alone: an id feeds profile links and lookups (coercing an object id to
@@ -169,6 +201,7 @@
   function cleanMember(m) {
     const out = Object.assign(blankMember(m.role), m);
     TEXT_KEYS.forEach((k) => { out[k] = text(out[k]); });
+    out.projects = cleanProjects(out.projects);
     return out;
   }
 
@@ -184,6 +217,17 @@
       tagline: 'Master painter crafting premium finishes across Jharkhand since 2015.',
       bio: 'A hands-on painting specialist with a decade of on-site experience. From precise surface preparation to the final flawless coat, every project is treated as a signature piece. The belief is simple: great paint is 70% preparation and 100% care.',
       quote: '“Paint is the first thing a room says about itself. I make sure it always says quality.”',
+      skills: 'Interior painting, Exterior painting, Wall putty, Texture finishes, Colour consultation, Quality assurance',
+      languages: 'Hindi, English, Nagpuri',
+      serviceAreas: 'Khunti, Ranchi, Arki, Simdega, Gumla',
+      availability: 'Mon–Sat · 9:00 am – 6:00 pm · Free site inspection',
+      certifications: '5-year workmanship warranty on every project\nTrained in premium emulsion and texture systems',
+      tools: 'Airless sprayer, Texture roller, Laser level, Moisture meter, Sanding machine',
+      experience: 'Running Painter Plus since 2015 — residential and commercial painting across Jharkhand.\nLeads surface preparation, colour selection and the final quality walkthrough on every site.',
+      projects: [
+        { name: 'Warm Earth Villa', client: 'Private home', role: 'Lead painter', location: 'Ranchi', year: '2025', area: '3,200 sq ft', finish: 'Textured accent walls', note: 'Full interior repaint with putty, primer and two finish coats.' },
+        { name: 'Retail Brand Space', client: 'Retail store', role: 'Supervisor', location: 'Khunti', year: '2024', area: '1,800 sq ft', finish: 'Satin emulsion', note: 'Tight five-day turnaround between fit-out and opening.' }
+      ],
       order: 0
     });
   }
@@ -196,19 +240,31 @@
         id: 'ramesh-kumar', name: 'Ramesh Kumar', role: 'painter', order: 1,
         title: 'Senior Painter',
         tagline: 'Interior and exterior finishing with a steady hand.',
-        bio: 'Handles interior and exterior coats, cutting-in and trim work. Known for clean edges and tidy sites.'
+        bio: 'Handles interior and exterior coats, cutting-in and trim work. Known for clean edges and tidy sites.',
+        skills: 'Interior painting, Exterior painting, Cutting-in, Trim work',
+        languages: 'Hindi, Nagpuri',
+        serviceAreas: 'Khunti, Ranchi',
+        availability: 'Mon–Sat · 9:00 am – 6:00 pm'
       }),
       Object.assign(blankMember('painter'), {
         id: 'suresh-mahto', name: 'Suresh Mahto', role: 'painter', order: 2,
         title: 'Texture & Putty Specialist',
         tagline: 'Wall putty, crack filling and designer textures.',
-        bio: 'Specialises in surface preparation — putty, sanding and hand-troweled texture finishes.'
+        bio: 'Specialises in surface preparation — putty, sanding and hand-troweled texture finishes.',
+        skills: 'Wall putty, Crack filling, Sanding, Designer textures',
+        languages: 'Hindi, English',
+        serviceAreas: 'Khunti, Ranchi, Simdega',
+        availability: 'Mon–Sat · 9:00 am – 6:00 pm'
       }),
       Object.assign(blankMember('painter'), {
         id: 'ajay-munda', name: 'Ajay Munda', role: 'painter', order: 3,
         title: 'Painter',
         tagline: 'Reliable coats, on time, on budget.',
-        bio: 'Works across residential and commercial projects, from single rooms to full buildings.'
+        bio: 'Works across residential and commercial projects, from single rooms to full buildings.',
+        skills: 'Interior painting, Exterior painting, Roller work',
+        languages: 'Hindi, Nagpuri',
+        serviceAreas: 'Khunti, Gumla',
+        availability: 'Mon–Sat · 9:00 am – 6:00 pm'
       })
     ];
   }

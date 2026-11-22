@@ -46,6 +46,19 @@
     const active = document.querySelector('#primary-nav a.active');
     check(!!active, 'the current page link is marked active');
     check(active && active.getAttribute('aria-current') === 'page', 'the active link has aria-current=page');
+
+    // The assistant button used to sit on top of the WhatsApp pill (both were
+    // pinned bottom-right). It now lives bottom-left, so neither covers the
+    // other at any viewport width.
+    const botBtn = document.querySelector('.ppb-btn');
+    const wa = document.querySelector('.whatsapp-float');
+    check(!!botBtn && !!wa, 'the assistant button and WhatsApp float are both present');
+    if (botBtn && wa) {
+      const b = botBtn.getBoundingClientRect();
+      const w = wa.getBoundingClientRect();
+      const overlap = !(b.right <= w.left || b.left >= w.right || b.bottom <= w.top || b.top >= w.bottom);
+      check(!overlap, 'the assistant button does not overlap the WhatsApp float');
+    }
     finish();
   })().catch(e => { fail('harness threw: ' + e.message); finish(); });
 })();

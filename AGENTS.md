@@ -99,6 +99,8 @@ A fully static marketing website for "Painter Plus", a painting-services busines
 
 43. **A stored object where text belongs printed `[object Object]` — FIXED.** The corrupt-store sweep only failed a page on a *thrown* error, so a stored object/array in a text field rendered the literal `[object Object]` (a bogus project name in the ERP picker/reports/invoice, an object project in the work-log picker, `[object Object]` in the profile's "Projects on record" and the portfolio cards) and passed. The sweep now **fails on a leaked `[object Object]`** too, and every reader coerces text at the boundary (`erp.js cleanProjectText`, `gallery.js list→normaliseItem`, `worklog.js getDay→cleanEntry`, `script.js ppRead`) while every escaper (`esc`/`escAttr`/`escHtml`/`capital`) returns `''` for a non-primitive. See §66.
 
+44. **Profile system completed + 12 defects — see `docs/BUG_AUDIT.md` §67-78.** The painter profile could display a photo but had no way to set one, and no place for the skills, languages, service areas, availability, tools, certifications, experience or project history a painter needs. The profile now has a photo upload (downscaled, previewed, removable), all of those detail fields (public chips/lists, hidden when empty) and a repeatable **Project experience** editor (name, role, year, client, area, location, finish, note). The same pass fixed: the malformed `data:image/gif;base64…` favicon (now a valid inline SVG 🎨), `og:image` pointing at an SVG (now a real 1200x630 PNG), the invalid `PostalAddress` JSON-LD, the assistant button covering the WhatsApp pill (now bottom-left), "my earnings" never matching the ERP row (`crewId`, not `id`) and reading the wrong money fields, the singular-only keyword match that made the "My earnings" chip fall through to the summary, the dead `#rv-…` rating anchor, bills dated a day early before 05:30 IST (`dateKey()`), the studio's quote parameters being ignored by `contact.html`, legacy crew **names** not credited to the roster id, and the gallery's empty Project datalist.
+
 **Money-path gotcha:** the ERP's job is to *not* charge the wrong amount. Three invariants must hold and each has a test that fails if it breaks: (1) unapproved work is never billed; (2) approved work is billed **once** — a bill must record the dates it covers; (3) a report and an invoice must resolve a day's project by the *same* rule (`dayMatchesProject`, id authoritative). Also round money at *storage* (`round2`), not only at display.
 
 
@@ -530,6 +532,21 @@ stats were removed (`stat1..stat4` cleared in `js/team.js`) and replaced by this
   path** — a public visitor sees a passcode prompt on `painter-profile.html`,
   never an edit form. Role changes still need the Owner/Head gate, and the roster
   still guards the last lead.
+- **A painter owns their professional story.** The roster carries
+  `skills`, `languages`, `serviceAreas`, `availability`, `certifications`,
+  `tools`, `experience` (text) and `projects` (an array of
+  `{ name, role, year, client, area, location, finish, note }`). The profile
+  renders them as a **Professional details** section (chips + lists) and a
+  **Project experience** grid; both sections hide themselves when empty. The
+  editor has a photo URL/upload/preview/remove control and repeatable project
+  rows. These fields are roster-only on purpose: the account whitelist stays
+  text-only, so Supabase needs no schema change.
+- **Legacy crew names resolve to ids.** A day may hold `crew: "Ramesh Kumar"`
+  instead of `ramesh-kumar`. `PPGallery.crewAliases()` / `resolveCrew()` map
+  both forms (case-insensitive), and `workRecord`/`creditFor`/`feed` use them —
+  otherwise the painter's derived record loses those days and the gallery feed
+  shows a duplicate person. `cleanProjects()` drops non-objects and caps the
+  list, so a hand-edited store cannot crash the render.
 - **Attribute safety.** Every interpolated attribute (`src`, `alt`, `data-id`,
   option `value`) goes through `escAttr()` — the shared text `esc()` does not
   escape quotes, and a photo URL is attacker-influenced data.
@@ -686,7 +703,7 @@ grep -rn "^<<<<<<<\|^=======\|^>>>>>>>" .
 node --check js/script.js
 
 # Pure unit tests (no dependencies)
-node tests/gallery.test.js && node tests/erp.test.js && node tests/measure.test.js && node tests/photo-studio.test.js && node tests/exposure.test.js && node tests/auth.test.js && node tests/supabase-auth.test.js && node tests/reviews.test.js
+node tests/gallery.test.js && node tests/erp.test.js && node tests/measure.test.js && node tests/photo-studio.test.js && node tests/exposure.test.js && node tests/auth.test.js && node tests/supabase-auth.test.js && node tests/reviews.test.js && node tests/smart-bot.test.mjs
 
 # Browser self-tests, headless — builds every page, runs chromium, exits non-zero on any FAIL
 # (includes the VISITOR EXPOSURE sweep and the HIDDEN-ATTRIBUTE audit)

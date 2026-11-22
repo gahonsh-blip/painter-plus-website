@@ -10,12 +10,15 @@
     <meta property="og:description" content="Meet a member of the Painter Plus crew — their role, experience, specialisations, and the craft behind every finish." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://gahonsh-blip.github.io/painter-plus-website/painter-profile.html" />
-    <meta property="og:image" content="https://gahonsh-blip.github.io/painter-plus-website/images/og-image.svg" />
+    <meta property="og:image" content="https://gahonsh-blip.github.io/painter-plus-website/images/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Painter Plus team member profile page" />
     <meta property="og:site_name" content="Painter Plus" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="canonical" href="https://gahonsh-blip.github.io/painter-plus-website/painter-profile.html" />
-    <link rel="icon" href=data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E" />
     <link rel="manifest" href="./manifest.json" />
     <link rel="apple-touch-icon" href="./images/icon-192.png" />
     <link rel="stylesheet" href="./css/style.css" />
@@ -80,6 +83,24 @@
               <a href="./team.html" class="btn-ghost">👥 All team</a>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- Professional details — the painter's own skills and availability -->
+      <section class="section surface-section" id="ppDetailsSection" hidden>
+        <div class="container">
+          <h2 class="section-title">Professional <span>details</span></h2>
+          <p class="pp-record-sub">Skills, languages, service areas and site availability, maintained by the painter.</p>
+          <div class="pp-details-grid" id="ppDetails"></div>
+        </div>
+      </section>
+
+      <!-- Project experience — a detailed, per-project record -->
+      <section class="section" id="ppProjectsSection" hidden>
+        <div class="container">
+          <h2 class="section-title">Project <span>experience</span></h2>
+          <p class="pp-record-sub">Sites this painter has worked on, with the role, area, finish and year.</p>
+          <div class="pp-project-grid" id="ppProjects"></div>
         </div>
       </section>
 
@@ -160,10 +181,36 @@
                 <label class="pp-field"><span>Email</span><input type="email" id="ppfEmail" class="form-control" /></label>
                 <label class="pp-field"><span>Address</span><input type="text" id="ppfAddress" class="form-control" /></label>
               </div>
+              <h3 class="pp-edit-subhead">Profile photo</h3>
+              <div class="pp-photo-edit">
+                <label class="pp-field"><span>Photo URL</span><input type="url" id="ppfPhoto" class="form-control" placeholder="https://…" /></label>
+                <label class="pp-field"><span>…or upload a photo</span><input type="file" id="ppfPhotoFile" class="form-control" accept="image/*" /></label>
+                <div class="pp-photo-preview" id="ppfPhotoPreview" hidden><img id="ppfPhotoPreviewImg" alt="Profile photo preview" /></div>
+                <button type="button" class="btn-ghost" id="ppfPhotoRemove">🗑 Remove photo</button>
+              </div>
               <label class="pp-field"><span>Tagline</span><input type="text" id="ppfTagline" class="form-control" placeholder="A short one-line summary" /></label>
               <label class="pp-field"><span>Bio / about</span><textarea id="ppfBio" class="form-control" rows="3"></textarea></label>
               <label class="pp-field"><span>Favourite quote</span><textarea id="ppfQuote" class="form-control" rows="2"></textarea></label>
               <label class="pp-field"><span>Footer note</span><input type="text" id="ppfNote" class="form-control" /></label>
+
+              <h3 class="pp-edit-subhead">Professional details</h3>
+              <div class="pp-edit-grid">
+                <label class="pp-field"><span>Specialisations (comma separated)</span><input type="text" id="ppfSkills" class="form-control" placeholder="e.g. Interior painting, Texture finishes" /></label>
+                <label class="pp-field"><span>Languages</span><input type="text" id="ppfLanguages" class="form-control" placeholder="e.g. Hindi, English, Nagpuri" /></label>
+                <label class="pp-field"><span>Service areas</span><input type="text" id="ppfServiceAreas" class="form-control" placeholder="e.g. Khunti, Ranchi, Simdega" /></label>
+                <label class="pp-field"><span>Availability</span><input type="text" id="ppfAvailability" class="form-control" placeholder="e.g. Mon–Sat · 9am–6pm" /></label>
+                <label class="pp-field"><span>Tools &amp; equipment</span><input type="text" id="ppfTools" class="form-control" placeholder="e.g. Airless sprayer, Laser level" /></label>
+              </div>
+              <label class="pp-field"><span>Certifications &amp; training (one per line)</span><textarea id="ppfCertifications" class="form-control" rows="2" placeholder="e.g. Trained in premium emulsion systems"></textarea></label>
+              <label class="pp-field"><span>Experience (one point per line)</span><textarea id="ppfExperience" class="form-control" rows="3" placeholder="e.g. Five years of residential repainting across Khunti"></textarea></label>
+
+              <h3 class="pp-edit-subhead">Project experience</h3>
+              <p class="pp-role-note">Add each site you worked on. Name, role, year, area, location and finish make a strong, checkable record.</p>
+              <div id="ppfProjects" class="pp-proj-editor"></div>
+              <div class="pp-edit-actions">
+                <button type="button" class="btn-secondary" id="ppfAddProject">➕ Add a project</button>
+              </div>
+
               <div class="pp-edit-actions">
                 <button type="submit" class="btn-primary">💾 Save profile</button>
               </div>
@@ -179,7 +226,9 @@
               <label class="pp-field"><span>Year</span><input type="text" id="ppgYear" class="form-control" placeholder="e.g. 2026" inputmode="numeric" /></label>
               <label class="pp-field"><span>Finish</span><input type="text" id="ppgFinish" class="form-control" placeholder="e.g. Matte finish" /></label>
               <label class="pp-field"><span>Area (sq ft)</span><input type="number" id="ppgSqft" class="form-control" min="0" step="0.1" placeholder="e.g. 120" /></label>
+              <label class="pp-field"><span>Project (optional)</span><input type="text" id="ppgProject" class="form-control" list="ppgProjectList" placeholder="e.g. Sharma House" /></label>
             </div>
+            <datalist id="ppgProjectList"></datalist>
             <label class="pp-field"><span>Note</span><input type="text" id="ppgNote" class="form-control" placeholder="Optional short note" /></label>
             <div class="pp-preview" id="ppgPreview" hidden><img id="ppgPreviewImg" alt="Preview" /></div>
             <div class="pp-edit-actions">
@@ -338,6 +387,6 @@
     <script src="./js/reviews-page.js" defer></script>
     <script src="./js/profile-page.js" defer></script>
     <script src="./js/script.js"></script>
-  <script defer src="./js/smart-bot.js?v=3"></script>
+  <script defer src="./js/smart-bot.js"></script>
 </body>
 </html>

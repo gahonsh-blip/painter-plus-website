@@ -980,5 +980,32 @@ test('binds to window and persists through window.localStorage', () => {
   assert.strictEqual(win.PPERP.listProjects()[0].name, 'Browser Test');
 });
 
+test('reportByPainter separates approved, pending and invoiced money', () => {
+  seedWorld();
+  // 2026-10-10 is the only approved day; bill it so its money is invoiced.
+  E.addBill('sharma-house', { amount: 1200 });
+  const rows = E.reportByPainter();
+  const ramesh = rows.find((r) => r.crew === 'Ramesh Kumar');
+  assert.ok(ramesh, 'Ramesh row missing');
+  close(ramesh.approvedTotal, 1200);
+  close(ramesh.pendingTotal, 600);   // 2026-10-11: submitted, not approved
+  close(ramesh.invoicedTotal, 1200); // 2026-10-10 is on the invoice
+  const suresh = rows.find((r) => r.crew === 'Suresh Mahto');
+  close(suresh.pendingTotal, 0);     // 2026-10-12 is still open — not pending pay
+  const ajay = rows.find((r) => r.crew === 'Ajay Munda');
+  close(ajay.pendingTotal, 800);     // submitted, awaiting approval
+});
+
+test('dateKey uses the local calendar date, not UTC', () => {
+  // 00:30 local on 1 Jan must stay 1 Jan even when UTC is still 31 Dec.
+  assert.strictEqual(E.dateKey(new Date(2026, 0, 1, 0, 30)), '2026-01-01');
+  assert.strictEqual(E.dateKey(new Date(2026, 11, 31, 23, 59)), '2026-12-31');
+  // A bill raised without an explicit date defaults to the local date.
+  E._setStore(memStore());
+  const p = E.saveProject({ name: 'Local Date Co', rate: 10 });
+  const b = E.addBill(p.project.id, { amount: 100, dates: [] });
+  assert.strictEqual(b.bill.date, E.dateKey());
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

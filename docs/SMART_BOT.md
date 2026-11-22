@@ -92,6 +92,21 @@ PPBot._internals.session()    // current mode/step
 
 - **Keyword substring bug** — `"gold paint"` matched the `old` keyword and
   answered the experience question. Keywords now match on word boundaries.
+- **Plural chips fell through** — `kwHit()` required an exact word, so the
+  **"My earnings"** / **"My projects"** chips (plural) matched no intent and
+  returned the generic summary. English keywords now accept a plural `s`/`es`.
+- **"My earnings" never found the row** — `painterReport()` looked for
+  `key/id/memberId/painter`, but `PPERP.reportByPainter()` exposes `crewId` (the
+  id) and `crew` (the name). Every painter was told nothing was recorded. It now
+  checks `crewId` first, case-insensitively.
+- **The money fields were wrong** — the bot read `approvedTotal` /
+  `pendingLabour` / `invoicedTotal`, which the report never returned. The report
+  now exposes `pendingTotal` / `invoicedTotal` (and per-field labour + paint),
+  and the bot sums labour + paint when no pre-summed total is present — so a
+  paint-only job is no longer reported as ₹0.
+- **The button covered WhatsApp** — both the assistant and the WhatsApp pill
+  were pinned bottom-right. The assistant (button and panel) now lives
+  bottom-left, so neither covers the other.
 - **Dead link** — the reviews answer pointed at `reviews.html`, which does not
   exist; it now points at the home page's reviews section.
 - **Confusing passcode prompt** — a full question typed at the passcode step
@@ -107,5 +122,7 @@ and the gap log.
 
 ## Bumping the widget
 
-Pages load `js/smart-bot.js?v=N`. Raise `N` after changing the file so browsers
-pick up the new build.
+Pages load `js/smart-bot.js` unversioned, and the service worker precaches it.
+After changing the file, bump `CACHE_NAME` in `sw.js` (currently
+`painter-plus-v38`) so a returning visitor gets the new build. If a page ever
+adds a `?v=N` query again, raise `N` as well.

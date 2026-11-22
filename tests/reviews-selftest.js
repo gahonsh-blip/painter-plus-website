@@ -106,6 +106,15 @@
     check(panel && !panel.querySelector('.rv-star-input'), 'an anonymous visitor sees no star form');
     check(panel && panel.querySelector('.rv-summary'), 'the summary (average + histogram) renders for everyone');
 
+    // The hero badge links to the detailed panel. That link used to be dead:
+    // it pointed at #rv-painter-<id> but no element carried that id.
+    const badgeLink = document.querySelector('#ppRating a');
+    check(!!badgeLink, 'the hero rating badge is a link');
+    check(!!badgeLink && badgeLink.getAttribute('href') === '#rv-painter-ramesh-kumar',
+      'the badge links to the #rv-painter-<id> anchor');
+    check(!!document.getElementById('rv-painter-ramesh-kumar'),
+      'the detailed reviews panel carries that anchor id');
+
     // ---- register the accounts and activate them (as a lead would) ----
     const r1 = await A.register({ name: 'Ramesh Kumar', username: 'ramesh', email: 'ramesh@example.com', password: 'secret123' });
     const r2 = await A.register({ name: 'Suresh Mahto', username: 'suresh', email: 'suresh@example.com', password: 'secret123' });

@@ -21,7 +21,7 @@ A fully static, premium business website for a painting services company. Built 
 
 ### Remaining / optional (see docs/NEXT_STEPS.md section 7)
 - The Formspree endpoint `xeebvvko` is from the original HEAD version — confirm it is the owner's real form ID, or replace it.
-- Replace placeholder `images/og-image.svg` and Unsplash portfolio images with real photography.
+- Replace the Unsplash portfolio images with real photography. (`images/og-image.png` is now a real 1200x630 social-share image.)
 - Improve accessibility and add Lighthouse/CI checks.
 
 ## 🏢 Business information
@@ -69,7 +69,8 @@ painter-plus-website/
 │   ├── erp.js        ERP core — projects, approvals, billing, reports (window.PPERP)
 │   └── erp-page.js   ERP page controller for erp.html
 ├── images/
-│   └── og-image.svg  Open Graph / social share image (placeholder)
+│   ├── og-image.png  Open Graph / social share image (1200x630, rendered from the SVG)
+│   └── og-image.svg  Source artwork for the social image
 ├── manifest.json     PWA manifest
 ├── sw.js             Service worker (offline caching)
 ├── robots.txt        SEO crawl rules + sitemap reference
@@ -282,7 +283,7 @@ an id with a legacy name, and `billTotal()` includes the paint cost.
 
 - Replace business name, phone, email, and address in all HTML files (use the values in the table above).
 - Manage the crew on the **Admin → Team & Roles** tab: `gahonsh` is the Head, everyone else starts as a Painter, and an Owner/Head can re-role anyone (Painter / Helper / Supervisor / Head / Owner). See the Team roles section above.
-- Replace `images/og-image.svg` and any placeholder images with real photography.
+- Replace any remaining placeholder photography; the social image is a real 1200x630 `images/og-image.png`.
 - Update the Formspree endpoint in `contact.html`.
 - Adjust colors via the CSS custom properties at the top of `css/style.css` (`--primary`, `--bg`, etc.).
 - Update `sitemap.xml`, `robots.txt`, and `manifest.json` with the final live domain.

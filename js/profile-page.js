@@ -30,6 +30,8 @@
 
   let member = T.memberFromQuery();
   let pendingRole = member ? member.role : 'painter';
+  let pendingProfilePhoto = '';
+  let editorProjects = [];
 
   // Set an element's text. An empty value CLEARS the element (and hides it),
   // rather than leaving whatever is in the markup. The page ships with the
@@ -53,6 +55,10 @@
   // on screen. A non-primitive becomes '' (not the literal "[object Object]",
   // which `String({})` would produce and which used to reach the page).
   const str = (v) => ((v && typeof v === 'object') ? '' : (v == null ? '' : String(v)));
+  // "a, b; c" -> ['a','b','c'] for chip fields.
+  const listOf = (v) => str(v).split(/[\n,;]+/).map((x) => x.trim()).filter(Boolean);
+  // One item per line for the list fields (certifications, experience).
+  const linesOf = (v) => str(v).split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
 
   // The avatar's static fallback (the line-art painter). Captured before the
   // first render overwrites it, so a member with no photo can be given it back
@@ -129,6 +135,67 @@
           '" alt="' + esc(name) + '" onerror="this.remove()" />'
         : avatarPlaceholder;
     }
+  }
+
+  // ------------------------------------------------------------
+  // PROFESSIONAL DETAILS & PROJECT EXPERIENCE
+  // ------------------------------------------------------------
+  // The painter's own skills, languages, service areas, availability, tools,
+  // certifications and experience. Every group is optional: the section hides
+  // itself when the painter has filled in nothing, so no empty boxes appear.
+  function renderDetails() {
+    const section = $('ppDetailsSection');
+    const wrap = $('ppDetails');
+    if (!section || !wrap) return;
+    const groups = [
+      { icon: '🖌️', title: 'Specialisations', chips: listOf(member.skills) },
+      { icon: '🗣️', title: 'Languages', chips: listOf(member.languages) },
+      { icon: '📍', title: 'Service areas', chips: listOf(member.serviceAreas) },
+      { icon: '🧰', title: 'Tools & equipment', chips: listOf(member.tools) },
+      { icon: '🕘', title: 'Availability', text: str(member.availability) },
+      { icon: '🏅', title: 'Certifications & training', list: linesOf(member.certifications) },
+      { icon: '📋', title: 'Experience', list: linesOf(member.experience) }
+    ].filter((g) => (g.chips && g.chips.length) || g.text || (g.list && g.list.length));
+
+    section.hidden = !groups.length;
+    wrap.innerHTML = groups.map((g) => {
+      let body;
+      if (g.chips && g.chips.length) {
+        body = '<div class="pp-chip-row">' +
+          g.chips.map((c) => '<span class="pp-chip">' + esc(c) + '</span>').join('') + '</div>';
+      } else if (g.list && g.list.length) {
+        body = '<ul class="pp-detail-list">' +
+          g.list.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>';
+      } else {
+        body = '<p class="pp-detail-text">' + esc(g.text) + '</p>';
+      }
+      return '<article class="pp-detail-card reveal"><h3><span aria-hidden="true">' + g.icon +
+        '</span> ' + esc(g.title) + '</h3>' + body + '</article>';
+    }).join('');
+    observe(wrap);
+  }
+
+  // A structured, per-project history. This is the "project detailing" a
+  // painter needs: client/site, their role, year, area, location and finish.
+  function renderProjects() {
+    const section = $('ppProjectsSection');
+    const wrap = $('ppProjects');
+    if (!section || !wrap) return;
+    const list = Array.isArray(member.projects) ? member.projects : [];
+    section.hidden = !list.length;
+    if (!list.length) { wrap.innerHTML = ''; return; }
+    wrap.innerHTML = list.map((p) => {
+      const meta = [str(p.role), str(p.year), str(p.location)].filter(Boolean).join(' · ');
+      const chips = [str(p.client), str(p.area), str(p.finish)].filter(Boolean);
+      return '<article class="pp-project-card reveal">' +
+        '<h3>' + esc(p.name || 'Project') + '</h3>' +
+        (meta ? '<p class="pp-project-meta">' + esc(meta) + '</p>' : '') +
+        (chips.length ? '<div class="pp-chip-row">' +
+          chips.map((c) => '<span class="pp-chip">' + esc(c) + '</span>').join('') + '</div>' : '') +
+        (p.note ? '<p class="pp-project-note">' + esc(p.note) + '</p>' : '') +
+      '</article>';
+    }).join('');
+    observe(wrap);
   }
 
   // ------------------------------------------------------------
@@ -304,6 +371,91 @@
     v('ppfEmail', member.email);
     v('ppfAddress', member.address);
     v('ppfNote', member.note);
+    v('ppfSkills', member.skills);
+    v('ppfLanguages', member.languages);
+    v('ppfServiceAreas', member.serviceAreas);
+    v('ppfAvailability', member.availability);
+    v('ppfTools', member.tools);
+    v('ppfCertifications', member.certifications);
+    v('ppfExperience', member.experience);
+
+    pendingProfilePhoto = str(member.photo);
+    v('ppfPhoto', /^https?:/i.test(pendingProfilePhoto) ? pendingProfilePhoto : '');
+    renderPhotoPreview();
+
+    editorProjects = (Array.isArray(member.projects) ? member.projects : []).map((p) => ({
+      name: str(p.name), role: str(p.role), year: str(p.year), area: str(p.area),
+      location: str(p.location), finish: str(p.finish), note: str(p.note), client: str(p.client)
+    }));
+    renderProjectRows();
+  }
+
+  const PROJECT_FIELDS = [
+    ['name', 'Project / site name'], ['role', 'Your role'], ['year', 'Year'],
+    ['area', 'Area (sq ft)'], ['location', 'Location'], ['finish', 'Finish'],
+    ['client', 'Client'], ['note', 'Note']
+  ];
+
+  function renderProjectRows() {
+    const wrap = $('ppfProjects');
+    if (!wrap) return;
+    if (!editorProjects.length) {
+      wrap.innerHTML = '<p class="pp-gallery-empty">No projects added yet — use “Add a project”.</p>';
+      return;
+    }
+    wrap.innerHTML = editorProjects.map((p, i) =>
+      '<div class="pp-proj-row" data-i="' + i + '">' +
+        PROJECT_FIELDS.map(([k, label]) =>
+          '<label class="pp-field"><span>' + label + '</span>' +
+            '<input type="text" class="form-control" data-k="' + k + '" value="' + esc(p[k]) + '" />' +
+          '</label>').join('') +
+        '<button type="button" class="btn-ghost pp-proj-del" data-del="' + i + '">🗑 Remove</button>' +
+      '</div>').join('');
+
+    wrap.querySelectorAll('[data-k]').forEach((inp) => {
+      inp.addEventListener('input', () => {
+        const row = inp.closest('[data-i]');
+        const i = parseInt(row.dataset.i, 10);
+        if (editorProjects[i]) editorProjects[i][inp.dataset.k] = inp.value;
+      });
+    });
+    wrap.querySelectorAll('[data-del]').forEach((b) => {
+      b.addEventListener('click', () => {
+        editorProjects.splice(parseInt(b.dataset.del, 10), 1);
+        renderProjectRows();
+      });
+    });
+  }
+
+  function collectProjects() {
+    return editorProjects.map((p) => {
+      const out = {};
+      PROJECT_FIELDS.forEach(([k]) => { out[k] = str(p[k]).trim(); });
+      return out;
+    }).filter((p) => p.name || p.location || p.note || p.role);
+  }
+
+  function renderPhotoPreview() {
+    const box = $('ppfPhotoPreview');
+    const img = $('ppfPhotoPreviewImg');
+    if (!box || !img) return;
+    if (pendingProfilePhoto) { img.src = pendingProfilePhoto; box.hidden = false; }
+    else { img.removeAttribute('src'); box.hidden = true; }
+  }
+
+  function collectDetails() {
+    const val = (id) => { const el = $(id); return el ? (el.value || '').trim() : ''; };
+    return {
+      photo: pendingProfilePhoto,
+      skills: val('ppfSkills'),
+      languages: val('ppfLanguages'),
+      serviceAreas: val('ppfServiceAreas'),
+      availability: val('ppfAvailability'),
+      certifications: val('ppfCertifications'),
+      tools: val('ppfTools'),
+      experience: val('ppfExperience'),
+      projects: collectProjects()
+    };
   }
 
   function flashEditor(text, isError) {
@@ -329,6 +481,16 @@
     fillEditor();
     renderClaim();
     renderEditorGallery();
+    fillGalleryProjects();
+  }
+
+  // Suggestions for the gallery's "Project" field, taken from the ERP so a
+  // photo can be attributed to a real project. Free text is still allowed.
+  function fillGalleryProjects() {
+    const dl = $('ppgProjectList');
+    if (!dl || !window.PPERP || typeof window.PPERP.listProjects !== 'function') return;
+    dl.innerHTML = window.PPERP.listProjects().map((p) =>
+      '<option value="' + esc(p.name) + '"></option>').join('');
   }
 
   function renderClaim() {
@@ -473,6 +635,10 @@
         if (!canEditThis(member)) { flashEditor('You can only edit your own profile.', true); return; }
         const val = (id) => { const el = $(id); return el ? (el.value || '').trim() : ''; };
         if (!val('ppfName')) { flashEditor('Please enter a name.', true); return; }
+        // Everything below the account-whitelisted basics: photo, skills,
+        // languages, service areas, availability, tools, certifications,
+        // experience and the structured project history.
+        const details = collectDetails();
 
         // When a signed-in account is editing, route the write through the
         // account engine so authorisation + the field whitelist are enforced
@@ -483,7 +649,8 @@
           if (acct && A.can(me, 'profile.edit', acct)) {
             const patch = {
               name: val('ppfName'), title: val('ppfTitle'), tagline: val('ppfTagline'),
-              bio: val('ppfBio'), startYear: val('ppfStartYear'), quote: val('ppfQuote')
+              bio: val('ppfBio'), startYear: val('ppfStartYear'), quote: val('ppfQuote'),
+              photo: details.photo
             };
             if (A.can(me, 'profile.editContact', acct)) {
               patch.phone = val('ppfPhone'); patch.email = val('ppfEmail');
@@ -493,11 +660,12 @@
               if (!res.ok) { flashEditor(res.error, true); return; }
               // Mirror the permitted fields into the roster so the public team
               // page stays in step (the roster is the site's display layer).
-              const mirror = Object.assign({}, member, { id: member.id, role: member.role });
+              const mirror = Object.assign({}, member, { id: member.id, role: member.role }, details);
               Object.keys(patch).forEach((k) => { if (k !== 'name' || A.can(me, 'profile.edit', acct)) mirror[k] = patch[k]; });
               const rosterRes = T.save(mirror);
               if (rosterRes.ok) member = rosterRes.member;
-              renderProfile(); renderRecord(); renderPrivacy(); flashEditor('✅ Profile saved.');
+              renderProfile(); renderDetails(); renderProjects(); renderRecord(); renderPrivacy();
+              flashEditor('✅ Profile saved.');
             });
             return;
           }
@@ -519,10 +687,11 @@
               email: val('ppfEmail'),
               address: val('ppfAddress'),
               note: val('ppfNote')
-            }));
+            }, details));
             if (!rosterRes.ok) { flashEditor(rosterRes.error, true); return; }
             member = rosterRes.member;
-            renderProfile(); renderRecord(); renderPrivacy(); flashEditor('✅ Profile saved.');
+            renderProfile(); renderDetails(); renderProjects(); renderRecord(); renderPrivacy();
+            flashEditor('✅ Profile saved.');
             return;
           }
           // Signed in but not allowed to edit this member.
@@ -544,12 +713,50 @@
           email: val('ppfEmail'),
           address: val('ppfAddress'),
           note: val('ppfNote')
-        }));
+        }, details));
         if (!res.ok) { flashEditor(res.error, true); return; }
         member = res.member;
-        renderProfile(); renderRecord(); flashEditor('✅ Profile saved.');
+        renderProfile(); renderDetails(); renderProjects(); renderRecord();
+        flashEditor('✅ Profile saved.');
       });
     }
+
+    // Profile photo: URL or an uploaded file (downscaled like the gallery), or
+    // remove it. `pendingProfilePhoto` is what Save writes into member.photo.
+    const profPhotoUrl = $('ppfPhoto');
+    const profPhotoFile = $('ppfPhotoFile');
+    const profPhotoRemove = $('ppfPhotoRemove');
+    if (profPhotoUrl) profPhotoUrl.addEventListener('input', () => {
+      const v = profPhotoUrl.value.trim();
+      if (v) { pendingProfilePhoto = v; renderPhotoPreview(); }
+    });
+    if (profPhotoFile) profPhotoFile.addEventListener('change', () => {
+      const f = profPhotoFile.files && profPhotoFile.files[0];
+      if (!f) return;
+      G.downscaleFile(f, (data) => {
+        if (!data) { flashEditor('Could not read that image — try a URL instead.', true); return; }
+        if (profPhotoUrl) profPhotoUrl.value = '';
+        pendingProfilePhoto = data;
+        renderPhotoPreview();
+      });
+    });
+    if (profPhotoRemove) profPhotoRemove.addEventListener('click', () => {
+      pendingProfilePhoto = '';
+      if (profPhotoUrl) profPhotoUrl.value = '';
+      if (profPhotoFile) profPhotoFile.value = '';
+      renderPhotoPreview();
+    });
+
+    // Project history rows: add, edit and remove before saving.
+    const addProjectBtn = $('ppfAddProject');
+    if (addProjectBtn) addProjectBtn.addEventListener('click', () => {
+      editorProjects.push({ name: '', role: '', year: '', area: '', location: '', finish: '', client: '', note: '' });
+      renderProjectRows();
+      const rows = document.querySelectorAll('#ppfProjects .pp-proj-row');
+      const last = rows[rows.length - 1];
+      const first = last && last.querySelector('input');
+      if (first) first.focus();
+    });
 
     // Gallery photo: file (downscaled) or URL, plus the caption fields.
     let pendingPhoto = '';
@@ -582,13 +789,20 @@
       const url = val('ppgUrl');
       const photo = url || pendingPhoto;
       if (!title && !photo) { flashEditor('Add a title or a photo first.', true); return; }
+      const projectName = val('ppgProject');
+      let projectId = '';
+      if (projectName && window.PPERP && typeof window.PPERP.listProjects === 'function') {
+        const match = window.PPERP.listProjects().find((p) => str(p.name).toLowerCase() === projectName.toLowerCase());
+        if (match) projectId = str(match.id);
+      }
       const res = G.add(member.id, {
         title: title, photo: photo, label: val('ppgLabel'),
         location: val('ppgLocation'), year: val('ppgYear'), finish: val('ppgFinish'),
-        sqft: val('ppgSqft'), note: val('ppgNote')
+        sqft: val('ppgSqft'), note: val('ppgNote'),
+        project: projectName, projectId: projectId
       });
       if (!res.ok) { flashEditor(res.error, true); return; }
-      ['ppgTitle', 'ppgLabel', 'ppgLocation', 'ppgYear', 'ppgFinish', 'ppgSqft', 'ppgNote'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
+      ['ppgTitle', 'ppgLabel', 'ppgLocation', 'ppgYear', 'ppgFinish', 'ppgSqft', 'ppgNote', 'ppgProject'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
       if (urlInput) urlInput.value = '';
       if (fileInput) fileInput.value = '';
       showPreview('');
@@ -730,6 +944,8 @@
     if (!member) { renderNotFound(); return; }
     pendingRole = member.role;
     renderProfile();
+    renderDetails();
+    renderProjects();
     renderRecord();
     renderGallery();
     renderEditor();
