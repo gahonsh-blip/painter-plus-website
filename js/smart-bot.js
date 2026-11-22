@@ -130,9 +130,23 @@
     return total;
   }
 
+  // Resolve a stored crew value (an id or a legacy display name) to the roster
+  // id, so days logged before the picker stored ids still belong to the painter.
+  function crewIdOf(value) {
+    var q = String(value || '').trim().toLowerCase();
+    if (!q) return '';
+    var list = members();
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i] || {};
+      if (String(m.id || '').toLowerCase() === q || String(m.name || '').toLowerCase() === q) return String(m.id || '');
+    }
+    return q;
+  }
+
   function daysFor(memberId) {
+    var want = String(memberId || '').trim().toLowerCase();
     return workDays().filter(function (d) {
-      return String(d.crew || '') === String(memberId);
+      return crewIdOf(d.crew) === want;
     });
   }
 
@@ -149,11 +163,26 @@
   }
 
   function reviewsData() {
-    var raw = ls('painterPlusReviews');
     var list = [];
-    if (Array.isArray(raw)) list = raw;
-    else if (raw && Array.isArray(raw.items)) list = raw.items;
-    else if (raw && Array.isArray(raw.reviews)) list = raw.reviews;
+    // The real engine is the source of truth: it resolves subject keys, hides
+    // moderated reviews and normalises the stored map. Reading the raw store
+    // only as an array missed the actual shape (an object keyed by subject),
+    // so the bot always said "no reviews".
+    var R = window.PPReviews;
+    if (R && typeof R.feed === 'function') {
+      try { list = R.feed().filter(function (r) { return r && !r.hidden; }); } catch (e) { list = []; }
+    } else {
+      var raw = ls('painterPlusReviews');
+      if (Array.isArray(raw)) list = raw;
+      else if (raw && Array.isArray(raw.items)) list = raw.items;
+      else if (raw && Array.isArray(raw.reviews)) list = raw.reviews;
+      else if (raw && typeof raw === 'object') {
+        Object.keys(raw).forEach(function (k) {
+          if (Array.isArray(raw[k])) list = list.concat(raw[k]);
+        });
+      }
+      list = list.filter(function (r) { return r && typeof r === 'object' && !r.hidden; });
+    }
     var scores = list.map(function (r) {
       var s = Number(r && (r.score || r.rating || r.stars));
       return isFinite(s) && s > 0 ? s : null;

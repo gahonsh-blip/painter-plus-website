@@ -669,16 +669,18 @@
 
   function addBill(projectId, entry, data) {
     const d = data || read();
+    const project = getProject(projectId, d);
+    // An invoice for a project that does not exist is an orphan: it appears in
+    // no project list, its days are never released, and the money is invisible
+    // in every report. Refuse it instead of silently storing it.
+    if (!project) return { ok: false, error: 'Project not found.' };
     if (!d.bills[projectId]) d.bills[projectId] = [];
     const list = d.bills[projectId];
     // The dates this invoice covers. Derived here rather than trusted from the
     // caller: `bucketDays` needs it to stop the same measurements being billed
     // twice, and a caller that forgot to pass it would silently re-open the
     // double-billing hole. An explicit list (a back-dated invoice) still wins.
-    const project = getProject(projectId, d);
-    const derived = project
-      ? bucketDays(project, d).unbilled.map((r) => String(r.date))
-      : [];
+    const derived = bucketDays(project, d).unbilled.map((r) => String(r.date));
     const dates = (entry && Array.isArray(entry.dates)) ? entry.dates.map(String) : derived;
     const e = {
       // Two bills raised in the same millisecond must not share an id, or
@@ -835,7 +837,12 @@
         approved: sumRows(b.approved),
         pending: sumRows(b.pending),
         open: sumRows(b.open),
-        rejected: sumRows(b.rejected)
+        rejected: sumRows(b.rejected),
+        // The rate the approved work was actually costed at. A project whose
+        // own rate is blank uses the day rates, so the report must quote those
+        // rather than `project.rate` (which printed "₹0 / sq ft" beside real
+        // money).
+        rateInfo: billedRateInfo(p, b.approved, wl)
       };
     });
   }
@@ -908,7 +915,7 @@
     const daily = reportDaily(d, worklog);
     let sqft = 0, labour = 0, litres = 0, paintCost = 0;
     let approvedSqft = 0, approvedLabour = 0, approvedLitres = 0, approvedPaintCost = 0;
-    let pendingCount = 0, pendingSqft = 0, pendingLabour = 0;
+    let pendingCount = 0, pendingSqft = 0, pendingLabour = 0, pendingPaintCost = 0;
     let openCount = 0, openSqft = 0, openLabour = 0;
     let rejectedSqft = 0, rejectedLabour = 0;
     // Money that has actually been invoiced, across every project. Without it
@@ -931,7 +938,10 @@
       // Awaiting approval means: final-submitted, and no decision yet. A day
       // still OPEN is being edited, so its money is work-in-progress, not
       // pending revenue — it goes in its own bucket.
-      else if (r.status === 'submitted') { pendingCount++; pendingSqft += r.sqft; pendingLabour += r.labour; }
+      else if (r.status === 'submitted') {
+        pendingCount++; pendingSqft += r.sqft; pendingLabour += r.labour;
+        pendingPaintCost += r.paintCost;
+      }
       else { openCount++; openSqft += r.sqft; openLabour += r.labour; }
     });
     return {
@@ -948,9 +958,17 @@
       approvedPaintCost: approvedPaintCost,
       approvedTotal: approvedLabour + approvedPaintCost,
       invoicedTotal: round2(invoicedTotal),
+      // What is still owed on approved work: approved money minus what has
+      // already been invoiced. `approvedTotal` is a lifetime figure, so using
+      // it as "billable" counted invoices that had already been raised.
+      unbilledApprovedTotal: Math.max(0, round2(approvedLabour + approvedPaintCost - invoicedTotal)),
       pendingDays: pendingCount,
       pendingSqft: pendingSqft,
       pendingLabour: pendingLabour,
+      pendingPaintCost: pendingPaintCost,
+      // Pending money includes paint; the dashboard used to show labour only
+      // while the project rows beside it included paint.
+      pendingTotal: round2(pendingLabour + pendingPaintCost),
       openDays: openCount,
       openSqft: openSqft,
       openLabour: openLabour,

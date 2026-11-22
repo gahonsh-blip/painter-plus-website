@@ -324,5 +324,21 @@ test('crewAliases maps both id and display name; unknown values are kept', () =>
   assert.strictEqual(G.resolveCrew({}, aliases), '');
 });
 
+test('count() counts the same normalised items list() renders', () => {
+  const data = { m: [null, { id: '1', title: 'A' }, 'junk', { id: '2', photo: 'p.jpg' }] };
+  assert.strictEqual(G.list('m', data).length, 2);
+  assert.strictEqual(G.count('m', data), 2, 'a null/scalar must not inflate the count');
+});
+
+test('add and remove survive a null or scalar gallery slot', () => {
+  const data = { m: [null, 'junk'] };
+  const added = G.add('m', { title: 'A' }, data);
+  assert.strictEqual(added.ok, true);
+  assert.strictEqual(G.list('m', data).length, 1);
+  const removed = G.remove('m', added.item.id, data);
+  assert.strictEqual(removed.ok, true);
+  assert.strictEqual(G.list('m', data).length, 0);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

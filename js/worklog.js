@@ -114,7 +114,10 @@
     const entries = Array.isArray(d.entries)
       ? d.entries.filter(e => e && typeof e === 'object' && !Array.isArray(e)).map(cleanEntry)
       : [];
-    const day = Object.assign(blankDay(date), d, { entries: entries });
+    // The store key is the authoritative date. A hand-edited or copied day can
+    // carry a different `date` field, and saving it then wrote a second copy
+    // under that field while leaving the requested date in place.
+    const day = Object.assign(blankDay(date), d, { entries: entries, date: date });
     // A stored text field can be an object/array; `String({})` is
     // "[object Object]", which then reached the summary and the day bar.
     ['date', 'project', 'projectId', 'crew', 'status', 'submittedAt', 'submittedBy']
@@ -238,6 +241,13 @@
     const day = getDay(date);
     if (day.status === 'submitted') return { ok: false, error: 'This day is already submitted. Reopen it to make changes.' };
     day.entries = day.entries.filter(x => x.id !== id);
+    // Removing the last entry leaves no work to report. Keep the day would show
+    // a phantom "0 sq ft" row in the history, so drop it entirely.
+    if (!day.entries.length) {
+      const removed = removeDay(date);
+      if (removed && removed.ok === false) return removed;
+      return { ok: true, removed: true, day: getDay(date) };
+    }
     const saved = saveDay(day);
     if (saved && saved.ok === false) return saved;
     return { ok: true, day: day };
@@ -374,9 +384,19 @@
     if (areaEl) areaEl.innerHTML = AREAS.map(a => '<option value="' + escAttr(a.id) + '">' + esc(a.label) + '</option>').join('');
     function fillCrew() {
       if (!crewEl) return;
+      // Keep the current selection (or the stored day's crew) across a refresh.
+      // A stored crew id that is no longer in the roster still needs an option,
+      // or selecting a rate would silently clear the attribution.
+      const stored = PPWorkLog.getDay(currentDate()).crew || '';
+      const current = crewEl.value || stored;
       const opts = ['<option value="">— select crew —</option>'];
       if (T) T.list().forEach(m => opts.push('<option value="' + escAttr(m.id) + '">' + esc(m.name) + ' · ' + esc(T.roleOf(m.role).label) + '</option>'));
+      const extra = [current, stored].filter((v, i, a) => v && a.indexOf(v) === i && !(T && T.get(v)));
+      extra.forEach((v) => {
+        opts.push('<option value="' + escAttr(v) + '">' + esc(v) + ' (not in roster)</option>');
+      });
       crewEl.innerHTML = opts.join('');
+      if (current) crewEl.value = current;
     }
 
     function currentDate() { return (dateEl && dateEl.value) || PPWorkLog.todayKey(); }
@@ -639,10 +659,18 @@
         // painter does not retype them on every new day.
         if (p) {
           if (projectEl) projectEl.value = p.name;
-          if (rateEl && p.rate) rateEl.value = p.rate;
-          if (coverageEl && p.coverage) coverageEl.value = p.coverage;
-          if (coatsEl && p.coats) coatsEl.value = p.coats;
+          // Copy the project's figures even when unset. A truthiness guard left
+          // the PREVIOUS project's rate in the field, so switching to a
+          // rate-less project silently billed the new site at the old rate.
+          if (rateEl) rateEl.value = p.rate || '';
+          if (coverageEl) coverageEl.value = p.coverage || '';
+          if (coatsEl) coatsEl.value = p.coats || '';
         }
+      } else if (projectEl) {
+        // Unlinking must clear the copied name too. The ERP falls back to a
+        // name match, so leaving it behind kept the day attached to the old
+        // project (and its bill) even though the picker said "no project".
+        projectEl.value = '';
       }
       persistDayMeta();
     }
@@ -653,7 +681,7 @@
     fillProjectPicker();
     // Projects may be added in another tab; refresh when we come back. Approval
     // badges in the history also come from the ERP, so re-render those too.
-    window.addEventListener('focus', () => { fillProjectPicker(); renderHistory(); });
+    window.addEventListener('focus', () => { fillProjectPicker(); fillCrew(); renderHistory(); });
 
     function persistDayMeta() {
       const date = currentDate();
@@ -698,6 +726,7 @@
       const day = PPWorkLog.getDay(currentDate());
       if (projectEl) projectEl.value = day.project || '';
       syncProjectPicker(day);
+      fillCrew();
       if (crewEl) crewEl.value = day.crew || '';
       if (rateEl) rateEl.value = day.rate || '';
       if (coverageEl) coverageEl.value = day.coverage || PPWorkLog.DEFAULTS.coverage;
@@ -796,6 +825,10 @@
       }
       days.forEach(d => {
         const t = PPWorkLog.totals(d);
+        // A day can carry only a project id (the free-text name was left
+        // blank); resolve it through the ERP so the history shows the site.
+        const linked = (ERP && d.projectId && ERP.getProject) ? ERP.getProject(d.projectId) : null;
+        const projectLabel = (linked && linked.name) || d.project || '—';
         // Approval state comes from the ERP; a submitted day still reads as
         // pending until an Owner/Head approves it there.
         const appr = (ERP && ERP.approvalOf) ? ERP.approvalOf(d.date).status : 'pending';
@@ -809,7 +842,7 @@
         btn.className = 'wl-hist-row' + (d.date === currentDate() ? ' active' : '');
         btn.innerHTML =
           '<span class="wl-hist-date">' + esc(d.date) + (d.status === 'submitted' ? ' ✅' : '') + '</span>' +
-          '<span class="wl-hist-proj">' + esc(d.project || '—') + apprBadge + '</span>' +
+          '<span class="wl-hist-proj">' + esc(projectLabel) + apprBadge + '</span>' +
           '<span class="wl-hist-val">' + esc(PPWorkLog.fmt(t.sqft)) + '</span>';
         btn.addEventListener('click', () => {
           if (dateEl) dateEl.value = d.date;
@@ -883,8 +916,19 @@
     updateLiveSqft();
     resetForm();
 
-    // Already unlocked in this session? Go straight in.
-    if (T && T.isActingHead && T.isActingHead()) openPanel();
+    // Already unlocked in this session? Go straight in. A signed-in active
+    // Admin/Head is an equally valid gate — the account check is the authority
+    // — so they should not be asked for the passcode again on this page.
+    const Auth = window.PPAuth;
+    let authedManager = null;
+    try {
+      const u = Auth && typeof Auth.currentUser === 'function' ? Auth.currentUser() : null;
+      if (u && u.status === 'active' && (u.role === 'admin' || u.role === 'head')) authedManager = u;
+    } catch (e) { /* no account engine */ }
+    if (authedManager) {
+      if (T && T.unlockSession) T.unlockSession();
+      openPanel();
+    } else if (T && T.isActingHead && T.isActingHead()) openPanel();
     else if (gateErr) gateErr.hidden = true;
   }
 

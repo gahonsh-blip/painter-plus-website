@@ -663,7 +663,14 @@
               const mirror = Object.assign({}, member, { id: member.id, role: member.role }, details);
               Object.keys(patch).forEach((k) => { if (k !== 'name' || A.can(me, 'profile.edit', acct)) mirror[k] = patch[k]; });
               const rosterRes = T.save(mirror);
-              if (rosterRes.ok) member = rosterRes.member;
+              if (!rosterRes.ok) {
+                // The account write landed but the public roster did not (full
+                // or blocked storage). Reporting success left the profile
+                // showing old details with no way to know the save failed.
+                flashEditor('Account saved, but the public profile could not be stored: ' + rosterRes.error, true);
+                return;
+              }
+              member = rosterRes.member;
               renderProfile(); renderDetails(); renderProjects(); renderRecord(); renderPrivacy();
               flashEditor('✅ Profile saved.');
             });
@@ -939,8 +946,16 @@
     // the object it first loaded, so a change made elsewhere — the admin page,
     // another tab, or a cleared photo — never appeared here (a removed photo
     // kept rendering the old image). Re-reading keeps the page in step.
-    if (member) member = T.get(member.id) || member;
-    else member = T.memberFromQuery();
+    if (member) {
+      const fresh = T.get(member.id);
+      // Do not fall back to the stale object: a member removed on the admin
+      // page (or another tab) must stop rendering here, not keep the old
+      // profile on screen under a dead URL.
+      if (!fresh) { member = null; renderNotFound(); return; }
+      member = fresh;
+    } else {
+      member = T.memberFromQuery();
+    }
     if (!member) { renderNotFound(); return; }
     pendingRole = member.role;
     renderProfile();

@@ -270,6 +270,20 @@ test('company contact fields need the contact edit right for a painter', async (
   assert.strictEqual(A.getAccount(ramesh.id).phone, '+91 9000000000');
 });
 
+test('a legacy per-field contact grant still works, and only for that field', async () => {
+  const { A } = fresh();
+  const admin = await makeActive(A, ADMIN);
+  const ramesh = await makeActive(A, PAINTER);
+  // The old Accounts UI stored one key per field; the engine must still honour
+  // it, but must not let it grant the rest of the company block.
+  A.setEditRights(admin, ramesh.id, { phone: true });
+  const res = A.updateProfile(A.getAccount(ramesh.id), ramesh.id, { phone: '+91 9111111111', email: 'leak@example.com' });
+  assert.strictEqual(res.ok, true);
+  const acct = A.getAccount(ramesh.id);
+  assert.strictEqual(acct.phone, '+91 9111111111');
+  assert.strictEqual(acct.email, 'ramesh@example.com', 'email was not granted');
+});
+
 test('editableFields reflects the permission model', async () => {
   const { A } = fresh();
   const admin = await makeActive(A, ADMIN);

@@ -151,6 +151,18 @@ test('claim rejects an unknown member id', () => {
   assert.strictEqual(T.claim('nobody', REAL_PASSCODE), false);
 });
 
+test('an account session is distinguishable from a passcode session and can be ended', () => {
+  const { T } = loadTeam();
+  T.unlockSession();
+  assert.strictEqual(T.isActingHead(), true);
+  assert.strictEqual(T.sessionKind(), 'account');
+  T.lockHead();
+  assert.strictEqual(T.isActingHead(), false, 'sign-out must end the staff session');
+  assert.strictEqual(T.sessionKind(), '');
+  assert.strictEqual(T.unlockHead(REAL_PASSCODE), true);
+  assert.strictEqual(T.sessionKind(), 'passcode', 'the legacy gate must stay a passcode session');
+});
+
 // ---------- 5. the helper tool agrees with the file ----------
 test('tests/hash-passcode.js prints the digest js/team.js actually stores', () => {
   const { T } = loadTeam();

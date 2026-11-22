@@ -1,4 +1,4 @@
-const CACHE_NAME = 'painter-plus-v38';
+const CACHE_NAME = 'painter-plus-v39';
 const BASE_PATH = self.location.pathname.replace(/\/[^/]*$/, '/');
 const ASSETS = [
   `${BASE_PATH}`,
@@ -64,7 +64,11 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      // Only delete this app's own old caches. `caches` is shared by every
+      // service worker on the origin, so an unfiltered sweep deleted other
+      // apps' caches whenever this one activated.
+      Promise.all(keys.filter((k) => k !== CACHE_NAME && k.indexOf('painter-plus-') === 0)
+        .map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
@@ -81,7 +85,13 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         }
         return response;
-      }).catch(() => caches.match(`${BASE_PATH}offline.html`));
+      }).catch(() => event.request.mode === 'navigate'
+        // Only a page navigation can use the offline HTML page. Returning it
+        // for a missing .js/.png handed the page an HTML body with the wrong
+        // content type, so a script failed with a syntax error instead of a
+        // clean network error.
+        ? caches.match(`${BASE_PATH}offline.html`)
+        : new Response('', { status: 503, statusText: 'Offline' }));
     })
   );
 });

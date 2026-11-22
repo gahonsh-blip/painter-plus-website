@@ -390,18 +390,22 @@
       };
     }
 
+    // Restore a saved overlay. The stored measure is untrusted (a hand-edited
+    // or half-written day), so a null/scalar point must be dropped instead of
+    // read as p[0] — that threw and aborted the edit form.
+    const pointList = (v) => (Array.isArray(v) ? v : [])
+      .filter(p => Array.isArray(p) && p.length >= 2 && isFinite(Number(p[0])) && isFinite(Number(p[1])))
+      .map(p => [num0(p[0]), num0(p[1])]);
     function setInitial(data) {
-      if (!data) return;
+      if (!data || typeof data !== 'object') return;
       corners = [];
       poly = [];
       calibW = num(data.calib && data.calib.w);
       calibH = num(data.calib && data.calib.h);
       if (data.calib && Array.isArray(data.calib.corners)) {
-        corners = data.calib.corners.slice(0, 4).map(p => [num0(p[0]), num0(p[1])]);
+        corners = pointList(data.calib.corners).slice(0, 4);
       }
-      if (Array.isArray(data.points)) {
-        poly = data.points.map(p => [num0(p[0]), num0(p[1])]);
-      }
+      poly = pointList(data.points);
       recompute();
       render(); emit();
     }

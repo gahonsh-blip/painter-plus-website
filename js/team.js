@@ -293,8 +293,12 @@
         const legacy = JSON.parse(localStorage.getItem(LEGACY_PROFILE_KEY));
         if (legacy && typeof legacy === 'object') Object.assign(seeded[0], legacy, { id: OWNER_ID, role: 'head' });
       } catch { /* ignore malformed legacy data */ }
-      write(seeded);
-      return seeded;
+      // The legacy profile is as untrusted as the roster: a field saved as an
+      // object/number would otherwise reach the page unnormalised (and render
+      // "[object Object]" or crash a string method) on the very first visit.
+      const clean = seeded.map(cleanMember);
+      write(clean);
+      return clean;
     }
     // A hand-edited roster can hold a null, a scalar or a bare array. Every
     // reader (list/get/head) does `m.role`, `m.name`, so drop anything that is
@@ -410,6 +414,11 @@
       return { ok: false, error: 'The last Owner/Head cannot be removed. Promote someone else first.' };
     }
     if (!write(members.filter(m => m.id !== id))) return { ok: false, error: STORAGE_ERROR };
+    // Gallery photos are keyed by member id. Dropping the member without them
+    // left orphaned photos that could never be shown or deleted from the UI.
+    try {
+      if (window.PPGallery && typeof window.PPGallery.removeAll === 'function') window.PPGallery.removeAll(id);
+    } catch { /* gallery module absent or storage blocked */ }
     return { ok: true };
   }
 
@@ -424,7 +433,17 @@
 
   // ----- Head session (the passcode gate shared with admin.html) -----
   function isActingHead() {
-    try { return sessionStorage.getItem(SESSION_KEY) === '1'; } catch { return false; }
+    try { return !!sessionStorage.getItem(SESSION_KEY); } catch { return false; }
+  }
+
+  // How the staff session was opened: 'passcode' (the legacy gate) or
+  // 'account' (a signed-in Admin/Head). An account session must die with the
+  // account, so a sign-out cannot leave the panel open for the next visitor.
+  function sessionKind() {
+    try {
+      const v = sessionStorage.getItem(SESSION_KEY);
+      return v === 'account' ? 'account' : (v ? 'passcode' : '');
+    } catch { return ''; }
   }
 
   function unlockHead(passcode) {
@@ -434,6 +453,15 @@
     if (passcodeDigest(passcode) !== PASSCODE_SHA256) return false;
     try { sessionStorage.setItem(SESSION_KEY, '1'); } catch { /* blocked */ }
     return true;
+  }
+
+  // Open the staff session after a real account has already been authorised.
+  // PPAuth is the gate here: this must only be called once an active Admin/Head
+  // has been confirmed. Passing the stored digest to unlockHead() cannot work
+  // (it is hashed again), which left the role controls hidden for a signed-in
+  // Admin even though the panel had opened.
+  function unlockSession() {
+    try { sessionStorage.setItem(SESSION_KEY, 'account'); } catch { /* blocked */ }
   }
 
   function lockHead() {
@@ -507,7 +535,7 @@
     ROLES, ROLE_IDS, MANAGER_ROLE_IDS, LEAD_ROLE_IDS,
     roleOf, roleRank, list, get, head, save, setRole, remove,
     countLeads, countHeads, wouldStrandLeads,
-    isActingHead, isManager, unlockHead, lockHead,
+    isActingHead, sessionKind, isManager, unlockHead, unlockSession, lockHead,
     claim, unclaim, claimedId, isMe,
     memberFromQuery, roleBadge, roleOptions, initials, blankMember, cleanMember, text,
     ownerDefaults: ownerMember, esc

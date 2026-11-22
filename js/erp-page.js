@@ -122,8 +122,8 @@
     const k = $('erpKpis');
     if (k) {
       k.innerHTML =
-        kpi('Approved & billable', E.money(o.approvedTotal), E.fmtSqft(o.approvedSqft) + ' approved', 'ok') +
-        kpi('Awaiting approval', E.money(o.unbilledLabour), o.pendingDays + ' day(s) submitted', 'warn') +
+        kpi('Approved, not yet invoiced', E.money(o.unbilledApprovedTotal), E.fmtSqft(o.approvedSqft) + ' approved in total', 'ok') +
+        kpi('Awaiting approval', E.money(o.pendingTotal), o.pendingDays + ' day(s) submitted', 'warn') +
         (o.approvedTotal > o.invoicedTotal
           ? kpi('Invoiced', E.money(o.invoicedTotal), E.money(o.approvedTotal - o.invoicedTotal) + ' approved but not yet invoiced', 'ok')
           : '') +
@@ -518,7 +518,7 @@
       out.innerHTML = rows.length
         ? '<table class="erp-table"><thead><tr><th>Project</th><th>Rate</th><th>Approved</th><th>Pending</th><th>Paint</th><th>Approved total</th></tr></thead><tbody>' +
           rows.map((r) =>
-            '<tr><td>' + esc(r.project.name) + '</td><td>' + esc(E.money(r.project.rate)) + '</td>' +
+            '<tr><td>' + esc(r.project.name) + '</td><td>' + esc(rateLabel(r)) + '</td>' +
             '<td>' + esc(E.fmtSqft(r.approved.sqft)) + '</td>' +
             '<td>' + esc(E.fmtSqft(r.pending.sqft)) + '</td>' +
             '<td>' + esc(E.fmtLitres(r.approved.litres)) + '</td>' +
@@ -579,5 +579,18 @@
     if (e.key === 'Enter') { e.preventDefault(); tryUnlock(); }
   });
 
-  if (Team.isActingHead()) openPanel();
+  // A signed-in active Admin/Head is already authorised; do not ask them for
+  // the shared passcode again. The account check is the gate here.
+  let authedManager = null;
+  try {
+    const Auth = window.PPAuth;
+    const u = Auth && typeof Auth.currentUser === 'function' ? Auth.currentUser() : null;
+    if (u && u.status === 'active' && (u.role === 'admin' || u.role === 'head')) authedManager = u;
+  } catch (e) { /* no account engine */ }
+  if (authedManager) {
+    if (Team.unlockSession) Team.unlockSession();
+    openPanel();
+  } else if (Team.isActingHead()) {
+    openPanel();
+  }
 })();

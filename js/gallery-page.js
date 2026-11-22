@@ -35,7 +35,15 @@
   }
 
   function projectOf(it) {
-    return String(it.project || it.projectId || '').trim();
+    // Resolve the id to the project name. Printing `projectId` raw showed a
+    // slug in the filter and split one project into two buckets when some
+    // photos carried the name and others only the id.
+    const E = window.PPERP;
+    if (it.projectId && E && typeof E.getProject === 'function') {
+      const p = E.getProject(it.projectId);
+      if (p && p.name && typeof p.name !== 'object') return String(p.name).trim();
+    }
+    return (it.project && typeof it.project !== 'object') ? String(it.project).trim() : '';
   }
 
   function renderFilters() {

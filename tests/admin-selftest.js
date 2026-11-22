@@ -177,14 +177,15 @@
     await sleep(80);
     const card3 = Array.prototype.find.call(list.querySelectorAll('.acct-item'), (li) => /newbie/.test(li.textContent));
     const rightsBoxes = card3 ? card3.querySelectorAll('[data-right]') : [];
-    check(rightsBoxes.length > 0, 'the Admin sees per-field edit-rights checkboxes');
+    check(rightsBoxes.length === 1 && rightsBoxes[0].getAttribute('data-right') === 'contact',
+      'the Admin sees the contact edit-right checkbox');
     if (rightsBoxes.length) {
       rightsBoxes.forEach((cb) => { cb.checked = true; });
       const saveRights = card3.querySelector('[data-act="saveRights"]');
       saveRights.click();
       await sleep(120);
       const acct = A.getAccount(pend.account.id);
-      check(acct.editRights && acct.editRights.phone === true, 'edit rights are persisted');
+      check(acct.editRights && acct.editRights.contact === true, 'edit rights are persisted');
     }
 
     // ---- 6. The audit log records the approval ----

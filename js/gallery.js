@@ -154,14 +154,25 @@
     // Normalise here, not only in `add()`: items read straight from the store
     // (a hand-edited or older build) must also have their object/array text
     // fields dropped, or they render as "[object Object]" in the gallery.
-    return sortItems(d[memberId] || []).map(normaliseItem);
+    const arr = Array.isArray(d[memberId]) ? d[memberId] : [];
+    return sortItems(arr).map(normaliseItem);
   }
   function get(memberId, id, data) {
     return list(memberId, data).find((x) => x.id === id) || null;
   }
   function count(memberId, data) {
-    const v = (data || readRaw())[memberId];
-    return Array.isArray(v) ? v.length : 0;
+    // Count the same normalised set `list()` renders. Counting the raw array
+    // included nulls/scalars that list() drops, so a profile could say
+    // "3 photos" while showing two.
+    return list(memberId, data).length;
+  }
+  // A caller can hand `data` straight in (tests, or another page), so the
+  // member's slot may be absent or hold nulls/scalars. Normalise before any
+  // `.findIndex`/`.filter` — a bare null used to throw and abort the save.
+  function slot(d, memberId) {
+    if (!Array.isArray(d[memberId])) d[memberId] = [];
+    d[memberId] = d[memberId].filter((x) => x && typeof x === 'object' && !Array.isArray(x));
+    return d[memberId];
   }
   function add(memberId, item, data) {
     const d = data || readRaw();
@@ -169,15 +180,15 @@
     if (!clean.title && !clean.photo) return { ok: false, error: 'Add at least a title or a photo.' };
     if (!clean.id) clean.id = makeId();
     if (!clean.at) clean.at = new Date().toISOString();
-    if (!d[memberId]) d[memberId] = [];
-    const idx = d[memberId].findIndex((x) => x.id === clean.id);
-    if (idx >= 0) d[memberId][idx] = clean; else d[memberId].push(clean);
+    const arr = slot(d, memberId);
+    const idx = arr.findIndex((x) => x.id === clean.id);
+    if (idx >= 0) arr[idx] = clean; else arr.push(clean);
     if (data === undefined && !writeRaw(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, item: clean, data: d };
   }
   function remove(memberId, id, data) {
     const d = data || readRaw();
-    if (d[memberId]) d[memberId] = d[memberId].filter((x) => x.id !== id);
+    d[memberId] = slot(d, memberId).filter((x) => x.id !== id);
     if (data === undefined && !writeRaw(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, data: d };
   }

@@ -367,6 +367,7 @@
 
   // --- Scene switching ---
   function selectScene(s) {
+    if (!DEFAULTS[s]) s = 'living';
     scene = s;
     // Validate surface exists in this scene; fall back to first key.
     if (!DEFAULTS[scene][surface]) surface = Object.keys(DEFAULTS[scene])[0];
@@ -394,6 +395,7 @@
 
   // --- Finish ---
   function setFinish(f) {
+    if (!FINISH_NOTES[f]) f = 'flatmatte';
     finish = f;
     const sceneEl = stage.querySelector(".scene.active");
     if (sceneEl) sceneEl.dataset.finish = f;
@@ -406,6 +408,7 @@
 
   // --- Lighting ---
   function setLight(mode) {
+    if (mode !== 'day' && mode !== 'night') mode = 'day';
     light = mode;
     const sceneEl = stage.querySelector(".scene.active");
     if (sceneEl) sceneEl.dataset.light = mode;
@@ -645,7 +648,7 @@
   function persist() {
     try {
       localStorage.setItem("pp_studio", JSON.stringify({
-        colours, scene, surface, finish, light, areas,
+        colours, scene, surface, finish, light, coverage, areas,
         coats: areaCoatsEl ? parseInt(areaCoatsEl.value, 10) || 2 : 2
       }));
     } catch (e) {}
@@ -668,10 +671,12 @@
     quoteLink.href = "./contact.html?colors=" + encodeURIComponent(params.toString());
   }
   function loadPersisted() {
+    const restored = {};
     try {
       const raw = localStorage.getItem("pp_studio");
-      if (!raw) return;
+      if (!raw) return restored;
       const d = JSON.parse(raw);
+      if (!d || typeof d !== "object") return restored;
       if (d.colours) {
         Object.keys(d.colours).forEach((s) => {
           if (!colours[s] || !d.colours[s] || typeof d.colours[s] !== "object") return;
@@ -689,7 +694,17 @@
         });
       }
       if (d.coats && areaCoatsEl) areaCoatsEl.value = String(d.coats);
+      // Restore the view the client left: scene, surface, finish, lighting and
+      // the coverage preview. These were saved but never read back, so every
+      // returning visit snapped to living/flatmatte/day.
+      if (typeof d.scene === "string" && DEFAULTS[d.scene]) restored.scene = d.scene;
+      if (typeof d.surface === "string") restored.surface = d.surface;
+      if (typeof d.finish === "string" && FINISH_NOTES[d.finish]) restored.finish = d.finish;
+      if (d.light === "day" || d.light === "night") restored.light = d.light;
+      const cov = parseInt(d.coverage, 10);
+      if (isFinite(cov) && cov >= 0 && cov <= 100) restored.coverage = cov;
     } catch (e) {}
+    return restored;
   }
 
   // --- Save / share / reset ---
@@ -762,7 +777,12 @@
         !coverageInput || !coverageVal) return;
 
     buildPalette();
-    loadPersisted();
+    const restored = loadPersisted();
+    if (restored.coverage !== undefined) {
+      coverage = restored.coverage;
+      coverageInput.value = String(coverage);
+      coverageVal.textContent = coverage + "%";
+    }
 
     document.querySelectorAll(".scene-tab").forEach((t) =>
       t.addEventListener("click", () => selectScene(t.dataset.scene))
@@ -798,10 +818,11 @@
       if (el && el.dataset.surface) selectSurface(el.dataset.surface);
     });
 
-    selectScene("living");
-    setFinish("flatmatte");
-    setLight("day");
-    finishNote.textContent = FINISH_NOTES.flatmatte;
+    selectScene(restored.scene || "living");
+    setFinish(restored.finish || "flatmatte");
+    setLight(restored.light || "day");
+    if (restored.surface) selectSurface(restored.surface);
+    finishNote.textContent = FINISH_NOTES[finish] || FINISH_NOTES.flatmatte;
     syncAreaInputs();
     renderArea();
   }

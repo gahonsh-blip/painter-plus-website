@@ -2114,3 +2114,267 @@ schema change is required).
   suites, every page self-test, the visitor-exposure sweep, the
   hidden-attribute audit and the corrupt-store sweep).
 - Service-worker cache bumped `painter-plus-v37` → `v38`.
+
+## Eighteenth pass — 2026-11-22 (profile QA + 24 defects)
+
+The painter profile itself was completed in the seventeenth pass (§77–§78):
+photo upload, skills, languages, service areas, availability, certifications,
+tools, experience and a structured project history. This pass exercised that
+system and the layers around it, and fixes 24 further defects. The headline is
+still the same: a value read from storage is untrusted, an id must be resolved
+to a human name, and money must never be billed on an unapproved or already
+invoiced day.
+
+### §79 — A stale account session outlived the sign-out
+
+`js/team.js` treated the staff session as a bare flag (`ppAdminUnlocked ===
+'1'`), and `unlockSession()` wrote that same value. `js/script.js` opened the
+admin panel whenever the flag was truthy, and `openForAuthedManager()` only
+ever opened — it never closed. So after a signed-in Admin logged out, the flag
+survived for the rest of the tab and the next person walked into the panel
+without a passcode. Separately, `worklog.html` and `erp.html` checked only
+`isActingHead()`, so a signed-in Admin was asked for the passcode again even
+though `admin.html` had already accepted the account.
+
+The session now records **how** it was opened: `unlockSession()` stores
+`'account'`, `unlockHead()` stores `'1'`, and `sessionKind()` reports
+`account` / `passcode` / `''`. The admin boot only opens a passcode session on
+its own; `openForAuthedManager()` clears an `account` session when nobody is
+signed in; and the work-log/ERP boot accepts an active Admin/Head account
+directly (calling `unlockSession()` after the account check). Pinned by a new
+`tests/passcode.test.js` case.
+
+### §80 — Color Studio accepted an invalid saved scene/finish/light, and forgot the view
+
+`js/color-studio.js` wrote `scene`, `surface`, `finish`, `light` and `coverage`
+to `pp_studio` but never read them back, so every returning visit snapped to
+living room / flat matte / daylight. A hand-edited store could also carry a
+scene key that is not in `DEFAULTS`, a finish that is not in `FINISH_NOTES`, or
+an arbitrary `light`, and `selectScene`/`setFinish`/`setLight` would then index
+a missing object (`DEFAULTS[scene][surface]`, `FINISH_NOTES[f]`) and throw,
+aborting the render.
+
+`loadPersisted()` now returns the validated view, restores scene/surface/
+finish/light/coverage, and `init()` applies it. `selectScene`, `setFinish` and
+`setLight` fall back to the first/default value when handed an unknown key.
+The `pp_studio` coverage slider is restored too (it was saved but ignored).
+
+### §81 — The photo studio dropped the colour/finish from the quote, and left the material summary stale
+
+`js/photo-studio.js` only refreshed the paint/putty/primer summary when the
+wall size changed. Picking a colour, finish or texture did not re-render it, so
+the visible estimate could describe the previous finish. `updateQuote()` also
+returned `./contact.html` unchanged until a size was entered, throwing away the
+colour, finish and texture the client had already chosen.
+
+Colour/finish/texture handlers now call `renderMaterial()`, and
+`updateQuote()` always builds a `URLSearchParams` link with the colour, finish,
+texture and area; `sqft`, `coats` and `litres` are added only when a positive
+size exists. The empty-size branch calls `updateQuote(null)` so the choice
+still reaches `contact.html`.
+
+### §82 — A work-log day could be saved under the wrong date, and removing its last entry left a phantom day
+
+`PPWorkLog.getDay(date)` merged the stored object over `blankDay(date)` with
+`Object.assign(blankDay(date), d, …)`, so a stored `date` field won over the
+store key. A hand-edited or copied day could therefore be loaded from one key
+and then saved under another, leaving a second copy behind. `getDay()` now
+forces `date` to the requested key.
+
+`removeEntry()` filtered the entry out but kept the day even when nothing was
+left, so the history showed a `0 sq ft` row and an approval could still be
+attached to an empty day. Removing the last entry now removes the day (through
+`removeDay`, which also clears the approval), and reports `{ removed: true }`.
+
+### §83 — The work-log crew picker reset the stored attribution
+
+`fillCrew()` rebuilt the `<select>` from `PPTeam.list()` and then let the
+browser default to the first option. The day's stored crew — including a
+legacy id that is no longer on the roster — was silently cleared the next time
+the picker was refreshed, and a day logged with that crew lost its painter.
+The picker now keeps the current/stored value, adds an explicit
+`(not in roster)` option for an unknown id, and re-selects it. It is also
+refreshed on window `focus`, so a member added in another tab appears without a
+reload.
+
+### §84 — Switching to a rate-less project kept the previous project's rate
+
+`onPickProject()` copied a project's rates only when they were truthy
+(`if (p.rate) rateEl.value = p.rate`). Switching from a ₹20/sq ft site to a
+project whose labour rate was blank left `20` in the field, and the day was
+saved and billed at the old rate. The same applied to coverage and coats. The
+copy now writes the project's value even when unset, so a blank project rate
+correctly falls back to the day/default. The history row also resolves a
+project stored only as `projectId` through `PPERP.getProject()` instead of
+printing `—` (and never prints the raw id).
+
+### §85 — The gallery said "3 photos" while rendering two
+
+`PPGallery.count()` counted the raw stored array, but `list()` normalises the
+array and drops `null`/scalar slots. A hand-edited or older store therefore
+inflated the count on the profile and team cards. `count()` now delegates to
+`list()`, so the number and the visible photos are always the same set. New
+test in `tests/gallery.test.js`.
+
+### §86 — Gallery add/remove threw on a null or scalar slot
+
+`add()` called `d[memberId].findIndex(...)` and `remove()` called
+`d[memberId].filter(...)` without checking the slot's shape. A store holding
+`{ "member": [null] }` — exactly what the corrupt-store seed produces — threw
+`Cannot read properties of null`, aborting the save. A `slot()` helper now
+replaces a non-array slot with `[]`, filters out non-object elements, and is
+used by both mutators. New test in `tests/gallery.test.js`.
+
+### §87 — Restoring a saved measurement threw on a corrupt point
+
+`js/measure.js` `setInitial()` mapped `data.calib.corners` and `data.points`
+straight through `p[0]`/`p[1]`. A half-written day with `points: [null]` threw
+inside the work-log edit form, so the painter could not reopen the entry.
+`pointList()` now keeps only finite `[x, y]` pairs (and treats a non-array as
+empty), so a corrupt overlay restores what it can and never aborts the form.
+
+### §88 — The first-run team seed skipped normalisation
+
+`js/team.js` seeds the roster from `DEFAULT_MEMBERS` (plus a legacy single
+profile) and wrote it back without `cleanMember()`. A legacy profile with an
+object/number where text belongs therefore reached the page on the very first
+visit, rendering `[object Object]` or throwing on a string method. The seed is
+now normalised once before it is written and returned.
+
+### §89 — Removing a painter left their gallery photos orphaned
+
+Gallery photos are keyed by member id, but `PPTeam.remove()` only removed the
+roster entry. The photos stayed in `painterPlusGallery` with no UI path to
+show or delete them. `remove()` now calls `PPGallery.removeAll(id)` after the
+roster write lands (guarded, because the gallery module or storage may be
+absent).
+
+### §90 — A removed painter's profile stayed on screen
+
+`renderAll()` in `js/profile-page.js` refreshed the member with
+`T.get(member.id) || member`, falling back to the cached object. After the
+member was removed on `admin.html` (or in another tab), the old profile — name,
+tagline, bio, photo — kept rendering under the dead URL. A missing record now
+sets `member = null` and calls `renderNotFound()`.
+
+### §91 — A failed roster write was reported as a successful profile save
+
+The profile editor wrote the account first, then the public roster, but only
+updated `member` when `T.save()` succeeded. A blocked/full `localStorage` made
+the roster write fail while the UI still flashed “✅ Profile saved”, leaving the
+old details on screen. The handler now flashes the roster error and returns
+without claiming success.
+
+### §92 — The Accounts edit-rights checkboxes were no-ops
+
+`js/accounts-page.js` rendered a checkbox for every `SELF_FIELD` and
+`COMPANY_FIELD`, but `PPAuth.can('profile.editContact')` only read
+`editRights.contact`. Ticking `phone`, `email` or `address` stored keys the
+engine never consulted, so the Admin saw a “granted” right that did nothing;
+unticking the block also left the old per-field keys in place. The pane now
+offers one **company contact details** checkbox (`data-right="contact"`), and
+`setEditRights` clears the legacy per-field keys when it is unticked.
+`editableFields()` exposes only the granted company fields, while `can()` still
+honours a legacy per-field grant for that one field. Covered by a new
+`tests/auth.test.js` case and the updated `tests/admin-selftest.js`.
+
+### §93 — The ERP accepted an invoice for a project that does not exist
+
+`addBill(projectId, …)` created `d.bills[projectId]` even when
+`getProject(projectId)` returned `null`. The invoice appeared in no project
+list, its days were never released, and its money was invisible to every
+report. It now refuses with “Project not found.” before touching the store.
+New test in `tests/erp.test.js`.
+
+### §94 — The project report printed ₹0/sq ft beside real money
+
+`reportByProject()` exposed `project.rate`, and `erp-page.js` printed it. A
+project whose own rate is blank (`0`) is costed from the day's rate, so the row
+read `₹0` while its approved total was correct. The report now carries
+`rateInfo: billedRateInfo(project, approved, worklog)` — the same helper the
+invoice uses — and the table prints `rateLabel(row)` (“₹15 / sq ft (day
+rate)”). New test in `tests/erp.test.js`.
+
+### §95 — The dashboard counted already-invoiced work as billable and dropped paint from “awaiting approval”
+
+`overview()` labelled `approvedTotal` as “Approved & billable”, but
+`approvedTotal` is a lifetime figure: once a bill was raised, the dashboard
+still advertised that money as available to invoice. It now reports
+`unbilledApprovedTotal = approvedTotal − invoicedTotal` and the KPI reads
+“Approved, not yet invoiced”. The pending bucket also summed only `labour`,
+while the project rows beside it included paint; `pendingPaintCost` and
+`pendingTotal` now carry both, and the KPI uses `pendingTotal`. New test in
+`tests/erp.test.js`.
+
+### §96 — The assistant always said there were no reviews
+
+`js/smart-bot.js` `reviewsData()` read `painterPlusReviews` as an array (or
+`{items}`/`{reviews}`). The real store is an **object keyed by subject key**,
+so the bot found nothing and answered “no reviews yet” on a site with ratings.
+It now uses `PPReviews.feed()` (filtering hidden reviews), falling back to a
+shape-tolerant read of the object map. Moderated reviews stay out of the
+summary.
+
+### §97 — The assistant could not find a painter logged under a display name
+
+`daysFor()` compared `day.crew` to the member id exactly. Older days store the
+display name (“Ramesh Kumar”), so “my earnings” and “my work” were empty for
+that painter. `crewIdOf()` resolves either an id or a case-insensitive name
+through `PPTeam` before comparing.
+
+### §98 — The service worker deleted other apps' caches and served HTML for missing scripts
+
+`sw.js` `activate` deleted **every** cache whose name was not its own.
+`caches` is shared by all service workers on the origin, so activating Painter
+Plus wiped unrelated apps' caches. It now deletes only `painter-plus-*`
+entries. The fetch fallback also returned `offline.html` for any failed
+request, including a missing `.js` or `.png`; the browser then parsed HTML as
+JavaScript and reported a syntax error. Only a navigation (`request.mode ===
+'navigate'`) gets the offline page; other failures return a clean `503`.
+`CACHE_NAME` is bumped to `painter-plus-v39`.
+
+### §99 — The maskable icon was not maskable
+
+`images/icon-maskable-512.png` was a plain square icon with content in the
+safe-zone corners, so Android's mask cropped the logo. It was regenerated with
+the artwork inside the central 80% safe zone and a full-bleed background, as
+`manifest.json` already declared `"purpose": "maskable"`.
+
+### §100 — The login-id prefill was dead code
+
+`js/login-page.js` filled `#loginId` only after the `if (!me) return` guard,
+so the field was populated while the signed-in dashboard was shown and was
+empty exactly when the signed-out login form appeared. The prefill now runs
+before the guard.
+
+### §101 — A locked account still paid the full PBKDF2 cost
+
+`localLogin()` verified the password (150,000 PBKDF2 iterations) and only then
+checked `lockedUntil`. A script could therefore burn the full work factor on
+every attempt even after the account was locked, defeating the throttle's
+purpose. The lock is now checked first; a locked account is refused without
+hashing. The dummy verification for unknown users is unchanged, so a missing
+account still costs the same as a wrong password.
+
+### §102 — The gallery filter printed the raw project id
+
+`js/gallery-page.js` `projectOf()` returned `it.project || it.projectId`, so a
+photo tagged only with an ERP id showed `sharma-house` in the filter and the
+card, and the same project split into two buckets when other photos carried the
+name. The id is now resolved through `PPERP.getProject()` to its name; an
+unknown/stale id falls back to the stored name (or “no project”), never the raw
+slug.
+
+**Verified.**
+- `node tests/erp.test.js` — **84 checks** (3 new: orphan invoice refused, day
+  rate quoted for a blank project, dashboard unbilled/pending paint).
+- `node tests/gallery.test.js` — **33 checks** (2 new: count/list agreement,
+  null-slot add/remove).
+- `node tests/auth.test.js` — **46 checks** (1 new: legacy per-field contact
+  grant).
+- `node tests/passcode.test.js` — **14 checks** (1 new: account vs passcode
+  session, and sign-out ends it).
+- `node tests/smart-bot.test.mjs` — all pass.
+- `bash tests/run-all-headless.sh` — **ALL BROWSER CHECKS PASSED** (all Node
+  suites, every page self-test, the visitor-exposure sweep, the
+  hidden-attribute audit and the corrupt-store sweep).

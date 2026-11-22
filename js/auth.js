@@ -479,7 +479,10 @@
         // outrank; a painter only for themselves AND only when granted the
         // 'contact' right.
         if (lvl >= ROLE_LEVEL.admin) return true;
-        if (isSelf) return !!(u.editRights && u.editRights.contact);
+        // `contact` grants the whole company block; a per-field grant written
+        // by the older Accounts UI still counts for that field.
+        if (isSelf) return !!(u.editRights && (u.editRights.contact ||
+          COMPANY_FIELDS.some((f) => u.editRights[f])));
         return outranks(t);
       case 'account.manage':
         if (lvl < ROLE_LEVEL.head) return false;
@@ -508,7 +511,12 @@
   function editableFields(actor, target) {
     const fields = [];
     if (can(actor, 'profile.edit', target)) fields.push.apply(fields, SELF_FIELDS);
-    if (can(actor, 'profile.editContact', target)) fields.push.apply(fields, COMPANY_FIELDS);
+    if (can(actor, 'profile.editContact', target)) {
+      const self = target && actor.id === target.id;
+      const all = !self || actor.role === 'admin' || !!(actor.editRights && actor.editRights.contact);
+      if (all) fields.push.apply(fields, COMPANY_FIELDS);
+      else COMPANY_FIELDS.forEach((f) => { if (actor.editRights && actor.editRights[f]) fields.push(f); });
+    }
     return fields;
   }
 
@@ -562,16 +570,17 @@
   async function localLogin(loginId, password) {
     const accounts = read();
     const account = findByLogin(accounts, loginId);
+    // Throttle: refuse a locked account before running PBKDF2. Hashing first
+    // made every rejected attempt pay the full work factor (150k iterations),
+    // so a lock did not actually stop a script from burning the CPU.
+    if (account && account.lockedUntil && now() < account.lockedUntil) {
+      return { ok: false, error: 'Too many failed attempts. Try again in a few minutes.' };
+    }
     // Always run a verification (even with no account) so a missing user and a
     // wrong password take a similar amount of time.
     const rec = account ? account.pw : { algo: 'PBKDF2-SHA256', iter: iterations(), salt: b64.encode(new Uint8Array(16)), hash: 'AAAA' };
     const passOk = await verifyPassword(password, rec);
 
-    // Throttle: a locked account is refused before the password is even judged,
-    // so a script cannot grind passwords. A correct password clears the counter.
-    if (account && account.lockedUntil && now() < account.lockedUntil) {
-      return { ok: false, error: 'Too many failed attempts. Try again in a few minutes.' };
-    }
     if (!account || !passOk) {
       if (account) {
         account.fails = (parseInt(account.fails, 10) || 0) + 1;

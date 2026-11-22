@@ -85,8 +85,14 @@
       .filter((r) => A.can(u, 'role.assign', a, r.id) || r.id === a.role)
       .map((r) => '<option value="' + r.id + '"' + (r.id === a.role ? ' selected' : '') + '>' + r.icon + ' ' + esc(r.label) + '</option>').join('');
 
-    const rights = A.SELF_FIELDS.concat(A.COMPANY_FIELDS).map((f) =>
-      '<label><input type="checkbox" data-right="' + f + '"' + (a.editRights && a.editRights[f] ? ' checked' : '') + (manageable ? '' : ' disabled') + ' /> ' + esc(f) + '</label>').join('');
+    // Only company contact fields are rights at all: SELF_FIELDS (name, bio,
+    // photo, …) are always editable by the owner. The old list offered those
+    // checkboxes too, so ticking one stored a key the engine never reads.
+    const contactGranted = !!(a.editRights && (a.editRights.contact ||
+      A.COMPANY_FIELDS.some((f) => a.editRights[f])));
+    const rights = '<label><input type="checkbox" data-right="contact"' +
+      (contactGranted ? ' checked' : '') + (manageable ? '' : ' disabled') +
+      ' /> company contact details (phone, email, address, note)</label>';
 
     const avatar = a.photo
       ? '<img src="' + esc(a.photo) + '" alt="" onerror="this.remove()" />'
@@ -206,6 +212,9 @@
           if (a === 'saveRights') {
             const rights = {};
             li.querySelectorAll('[data-right]').forEach((cb) => { rights[cb.dataset.right] = cb.checked; });
+            // Unticking the block must also clear any per-field keys left by
+            // the older UI, or the engine would keep granting them.
+            if (!rights.contact) A.COMPANY_FIELDS.forEach((f) => { rights[f] = false; });
             return act((u) => A.setEditRights(u, id, rights));
           }
           if (a === 'resetPw') {

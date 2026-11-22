@@ -238,8 +238,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return (u && u.status === 'active' && (u.role === 'admin' || u.role === 'head')) ? u : null;
         };
         const openForAuthedManager = () => {
+            // A session opened by an account must end when that account does.
+            // Otherwise signing out left `ppAdminUnlocked` behind and the next
+            // person in the tab walked into the panel without a passcode.
+            if (!authedManager() && Team.sessionKind && Team.sessionKind() === 'account') Team.lockHead();
             if (authedManager() && admPanel.hidden) {
-                if (Team.PASSCODE_SHA256) Team.unlockHead(Team.PASSCODE_SHA256);
+                // The account check above is the gate. Mark the staff session
+                // trusted so Team.isManager() agrees; unlockHead(digest) cannot
+                // succeed because unlockHead hashes its input again.
+                if (Team.unlockSession) Team.unlockSession();
                 openPanel();
             }
         };
@@ -598,7 +605,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Auto-unlock if already unlocked in this session (placed last so all
         // consts/functions above are initialized before openPanel runs), or if
         // a signed-in Admin/Head account should go straight into the panel.
-        if (Team.isActingHead()) openPanel();
+        // An 'account' session with nobody signed in is stale (the account
+        // signed out); only a passcode session may open the panel on its own.
+        const passcodeSession = Team.isActingHead() && (!Team.sessionKind || Team.sessionKind() !== 'account');
+        if (passcodeSession) openPanel();
         else openForAuthedManager();
     }
 

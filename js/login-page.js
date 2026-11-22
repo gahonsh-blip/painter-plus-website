@@ -79,6 +79,12 @@
       }
     }
 
+    // Pre-fill the login id for a quick re-login after sign-out. This has to
+    // happen while `me` exists (before the signed-out early return), otherwise
+    // the input was only filled when it was hidden and stayed empty on logout.
+    const loginId = $('loginId');
+    if (me && loginId && !loginId.value) loginId.value = me.username || me.email;
+
     if (!me) return;
     txt($('authDashName'), me.name || me.username);
     txt($('authDashMeta'), [A.ROLES.find((r) => r.id === me.role) ? A.ROLES.find((r) => r.id === me.role).label : me.role, me.email].filter(Boolean).join(' · '));
@@ -101,9 +107,6 @@
         ? '<a class="btn-ghost" href="./admin.html">🛡️ Manage crew</a>'
         : '';
     }
-    // Pre-fill the login id for a quick re-login after sign-out.
-    const loginId = $('loginId');
-    if (loginId && !loginId.value) loginId.value = me.username || me.email;
   }
 
   function initials(name) {

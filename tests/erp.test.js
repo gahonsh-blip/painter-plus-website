@@ -1007,5 +1007,43 @@ test('dateKey uses the local calendar date, not UTC', () => {
   assert.strictEqual(b.bill.date, E.dateKey());
 });
 
+test('addBill refuses a project that does not exist', () => {
+  seedWorld();
+  const res = E.addBill('nope', { amount: 500 });
+  assert.strictEqual(res.ok, false, 'an orphan invoice must be refused');
+  assert.ok(/not found/i.test(res.error));
+});
+
+test('reportByProject quotes the day rate when the project rate is blank', () => {
+  const store = seedWorld();
+  const wl = JSON.parse(store._dump().painterPlusWorkLog);
+  wl['2026-10-14'] = {
+    date: '2026-10-14', projectId: 'blank-rate', status: 'submitted', rate: 15,
+    entries: [{ id: 'e5', area: 'wall', sqft: 10, method: 'measured' }]
+  };
+  store.setItem('painterPlusWorkLog', JSON.stringify(wl));
+  E.saveProject({ id: 'blank-rate', name: 'Blank Rate', rate: 0 });
+  E.setApproval('2026-10-14', 'approved', 'Test');
+  const row = E.reportByProject().find((r) => r.project.id === 'blank-rate');
+  assert.ok(row, 'project row missing');
+  assert.strictEqual(row.rateInfo.rate, 15, 'must quote the day rate, not ₹0');
+  assert.strictEqual(row.rateInfo.fromDay, true);
+});
+
+test('overview separates approved-unbilled money and includes pending paint', () => {
+  seedWorld();
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 12, coverage: 130, coats: 2, paintRate: 200 });
+  const o = E.overview();
+  // 2026-10-10: 100 sq ft × 12 labour + (100×2/130×1.1) litres × 200 paint.
+  const approvedPaint = (100 * 2 / 130) * 1.1 * 200;
+  close(o.approvedTotal, 1200 + approvedPaint, 0.01);
+  close(o.unbilledApprovedTotal, 1200 + approvedPaint, 0.01);
+  close(o.invoicedTotal, 0);
+  // 2026-10-11 (50 sq ft) is pending; 2026-10-13 is on the rate-less Verma
+  // project. Paint on the Sharma pending day must be included.
+  const pendingPaint = (50 * 2 / 130) * 1.1 * 200;
+  close(o.pendingTotal, 600 + 800 + pendingPaint, 0.01);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

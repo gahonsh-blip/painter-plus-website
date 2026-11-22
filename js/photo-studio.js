@@ -735,6 +735,7 @@
       if (hexIn) hexIn.value = state.hex;
       markSwatch();
       editor.setStyle({ hex: state.hex });
+      renderMaterial();
     }
 
     // ---- custom colour ----
@@ -751,6 +752,7 @@
       state.finish = b.dataset.finish;
       finEl.querySelectorAll('.pmp-finish').forEach(x => x.classList.toggle('active', x === b));
       editor.setStyle({ finish: state.finish });
+      renderMaterial();
     });
 
     // ---- textures ----
@@ -767,6 +769,7 @@
         const t = TEXTURES.find(x => x.id === state.texture);
         if ($('pmpTextureNote') && t) $('pmpTextureNote').textContent = t.name + ': ' + t.note + '.';
         editor.setStyle({ texture: state.texture });
+        renderMaterial();
       });
     }
 
@@ -793,6 +796,9 @@
       if (!box) return;
       if (!sq) {
         box.innerHTML = '<p class="pmp-note">Enter the wall width and height to see the paint, putty and primer needed.</p>';
+        // Keep the quote link in step even before a size is entered: the
+        // client's colour/finish choice must not be lost.
+        updateQuote(null);
         return;
       }
       const m = computeMaterial(sq, state.areaType, { coats: state.coats });
@@ -812,15 +818,17 @@
       const a = $('pmpQuote');
       if (!a) return;
       const sq = wallSqft();
-      if (!sq) { a.href = './contact.html'; return; }
-      const q = '?colors=' + encodeURIComponent(state.hex) +
-        '&sqft=' + encodeURIComponent(Math.round(sq)) +
-        '&coats=' + encodeURIComponent(state.coats) +
-        '&litres=' + encodeURIComponent(fmtNum(m.paint.litres)) +
-        '&finish=' + encodeURIComponent(state.finish) +
-        '&texture=' + encodeURIComponent(state.texture) +
-        '&area=' + encodeURIComponent(state.areaType);
-      a.href = './contact.html' + q;
+      const q = new URLSearchParams();
+      q.set('colors', state.hex);
+      q.set('finish', state.finish);
+      q.set('texture', state.texture);
+      q.set('area', state.areaType);
+      if (sq > 0) {
+        q.set('sqft', String(Math.round(sq)));
+        q.set('coats', String(state.coats));
+        if (m) q.set('litres', fmtNum(m.paint.litres));
+      }
+      a.href = './contact.html?' + q.toString();
     }
     if (wIn) wIn.addEventListener('input', renderMaterial);
     if (hIn) hIn.addEventListener('input', renderMaterial);
