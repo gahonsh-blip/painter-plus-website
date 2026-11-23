@@ -1187,11 +1187,14 @@
     try {
       // Re-authenticate with the current password, then update it.
       const tok = await sbAuth('token?grant_type=password', { email: me.email, password: currentPassword });
-      await root.fetch(supabaseCfg().url + '/auth/v1/user', {
+      const res = await root.fetch(supabaseCfg().url + '/auth/v1/user', {
         method: 'PUT',
         headers: { apikey: supabaseCfg().anonKey, Authorization: 'Bearer ' + tok.access_token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: newPassword })
       });
+      // fetch() does not throw on HTTP 4xx/5xx. Without this check a refused
+      // password change was reported as success and the old password stayed.
+      if (!res.ok) throw new Error('Password update failed (' + res.status + ')');
       if (s) { s.access_token = tok.access_token; sbSaveSession(s); }
       return { ok: true };
     } catch (e) { return { ok: false, error: ERR.WRONG_PASSWORD }; }

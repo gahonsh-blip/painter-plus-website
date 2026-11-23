@@ -133,8 +133,14 @@
   // reports and the invoice. Numeric and status fields are handled by
   // normaliseProject when a project is written.
   const PROJECT_TEXT = ['id', 'name', 'client', 'phone', 'address', 'startDate', 'status', 'note'];
+  // Keys that must never be used as a data-map key: assigning to them on a
+  // plain object walks the prototype chain instead of creating a row.
+  const UNSAFE_KEY = ['__proto__', 'constructor', 'prototype'];
+  function safeKey(k) { return UNSAFE_KEY.indexOf(String(k)) === -1; }
   function cleanProjectText(p) {
     PROJECT_TEXT.forEach((k) => { if (p[k] && typeof p[k] === 'object') p[k] = ''; });
+    if (typeof p.id === 'number') p.id = String(p.id);
+    if (!safeKey(p.id)) p.id = '';
     return p;
   }
 
@@ -151,13 +157,28 @@
     data.projects = data.projects
       .filter((p) => p && typeof p === 'object' && !Array.isArray(p))
       .map(cleanProjectText);
-    if (!data.approvals || typeof data.approvals !== 'object' || Array.isArray(data.approvals)) data.approvals = {};
-    if (!data.bills || typeof data.bills !== 'object' || Array.isArray(data.bills)) data.bills = {};
-    // Bills live per project id as an array; a corrupt store can hold anything.
-    Object.keys(data.bills).forEach((k) => {
-      const list = data.bills[k];
-      data.bills[k] = Array.isArray(list) ? list.filter((b) => b && typeof b === 'object' && !Array.isArray(b)) : [];
-    });
+    // Approvals and bills are maps keyed by a date / project id. Use
+    // null-prototype maps and skip unsafe keys, so a hostile `__proto__` key
+    // cannot mutate the prototype chain when a day is approved or billed.
+    const approvals = Object.create(null);
+    if (data.approvals && typeof data.approvals === 'object' && !Array.isArray(data.approvals)) {
+      Object.keys(data.approvals).forEach((k) => {
+        const a = data.approvals[k];
+        if (safeKey(k) && a && typeof a === 'object' && !Array.isArray(a)) approvals[k] = a;
+      });
+    }
+    data.approvals = approvals;
+    const bills = Object.create(null);
+    if (data.bills && typeof data.bills === 'object' && !Array.isArray(data.bills)) {
+      Object.keys(data.bills).forEach((k) => {
+        if (!safeKey(k)) return;
+        const list = data.bills[k];
+        bills[k] = Array.isArray(list)
+          ? list.filter((b) => b && typeof b === 'object' && !Array.isArray(b))
+          : [];
+      });
+    }
+    data.bills = bills;
     return data;
   }
 
@@ -174,8 +195,10 @@
     // A hand-edited or half-written day can be `null` or a scalar. Every
     // consumer reads `day.status`, `day.entries`, `day.date`… so drop anything
     // that is not a plain object here, once, rather than guarding at each call.
-    const out = {};
+    // A null-prototype map keeps a hostile `__proto__` date an ordinary row.
+    const out = Object.create(null);
     Object.keys(data).forEach((k) => {
+      if (!safeKey(k)) return;
       const day = data[k];
       if (!day || typeof day !== 'object' || Array.isArray(day)) return;
       // A stored text field can be an object/array; `String({})` is
@@ -273,6 +296,7 @@
     // `String({})` is "[object Object]". Treat a non-primitive as empty.
     const text = (v) => ((v && typeof v === 'object') ? '' : String(v || ''));
     out.id = text(out.id).trim();
+    if (!safeKey(out.id)) out.id = '';
     out.name = text(out.name).trim();
     out.client = text(out.client).trim();
     out.phone = text(out.phone).trim();
@@ -423,7 +447,7 @@
   // ============================================================
   function approvalOf(date, data) {
     const d = data || read();
-    const a = d.approvals[date];
+    const a = d.approvals && d.approvals[date];
     if (!a || APPROVAL_STATUS.indexOf(a.status) < 0) return { status: 'pending', by: '', at: '', note: '' };
     // An approval records the measurements it signed off. If the day was later
     // reopened and edited, the fingerprint no longer matches and the sign-off
@@ -460,6 +484,7 @@
     if (!canApprove(day)) {
       return { ok: false, error: 'Submit the day first — an open day is still being edited.' };
     }
+    if (!d.approvals || typeof d.approvals !== 'object') d.approvals = Object.create(null);
     d.approvals[date] = {
       status: status,
       by: by || '',
@@ -501,7 +526,7 @@
   // are about to change, so the old sign-off must not linger in storage.
   function clearApproval(date, data) {
     const d = data || read();
-    if (d.approvals[date]) delete d.approvals[date];
+    if (d.approvals && Object.prototype.hasOwnProperty.call(d.approvals, date)) delete d.approvals[date];
     if (data === undefined && !write(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, data: d };
   }
@@ -653,7 +678,7 @@
       billableLitres: unbilled.litres,
       billablePaintCost: unbilled.paintCost,
       billableTotal: unbilled.total,
-      bills: (d.bills[projectId] || []).slice()
+      bills: Array.isArray(d.bills && d.bills[projectId]) ? d.bills[projectId].slice() : []
     };
   }
 
@@ -668,20 +693,22 @@
   }
 
   function addBill(projectId, entry, data) {
+    if (!safeKey(projectId)) return { ok: false, error: 'Project not found.' };
     const d = data || read();
     const project = getProject(projectId, d);
     // An invoice for a project that does not exist is an orphan: it appears in
     // no project list, its days are never released, and the money is invisible
     // in every report. Refuse it instead of silently storing it.
     if (!project) return { ok: false, error: 'Project not found.' };
-    if (!d.bills[projectId]) d.bills[projectId] = [];
+    if (!d.bills || typeof d.bills !== 'object') d.bills = Object.create(null);
+    if (!Array.isArray(d.bills[projectId])) d.bills[projectId] = [];
     const list = d.bills[projectId];
-    // The dates this invoice covers. Derived here rather than trusted from the
-    // caller: `bucketDays` needs it to stop the same measurements being billed
-    // twice, and a caller that forgot to pass it would silently re-open the
-    // double-billing hole. An explicit list (a back-dated invoice) still wins.
-    const derived = bucketDays(project, d).unbilled.map((r) => String(r.date));
-    const dates = (entry && Array.isArray(entry.dates)) ? entry.dates.map(String) : derived;
+    // The dates this invoice covers are derived from the work that is actually
+    // unbilled — never trusted from the caller. A caller-supplied list could
+    // name a different day (or omit one), leaving the real measurements
+    // billable while marking the wrong day as paid. The UI still passes its
+    // lines, but this function is the one place that decides.
+    const dates = bucketDays(project, d).unbilled.map((r) => String(r.date));
     const e = {
       // Two bills raised in the same millisecond must not share an id, or
       // deleting one would delete both (removeBill filters by id).
@@ -728,7 +755,9 @@
 
   function removeBill(projectId, billId, data) {
     const d = data || read();
-    if (d.bills[projectId]) d.bills[projectId] = d.bills[projectId].filter((b) => b.id !== billId);
+    if (d.bills && Array.isArray(d.bills[projectId])) {
+      d.bills[projectId] = d.bills[projectId].filter((b) => b.id !== billId);
+    }
     if (data === undefined && !write(d)) return { ok: false, error: STORAGE_ERROR };
     return { ok: true, data: d };
   }
@@ -918,8 +947,8 @@
     let sqft = 0, labour = 0, litres = 0, paintCost = 0;
     let approvedSqft = 0, approvedLabour = 0, approvedLitres = 0, approvedPaintCost = 0;
     let pendingCount = 0, pendingSqft = 0, pendingLabour = 0, pendingPaintCost = 0;
-    let openCount = 0, openSqft = 0, openLabour = 0;
-    let rejectedSqft = 0, rejectedLabour = 0;
+    let openCount = 0, openSqft = 0, openLabour = 0, openPaintCost = 0;
+    let rejectedSqft = 0, rejectedLabour = 0, rejectedPaintCost = 0;
     // Money that has actually been invoiced, across every project. Without it
     // "Approved & billable" kept counting work that was already on an invoice,
     // so the dashboard never showed what was still owed.
@@ -936,7 +965,11 @@
       }
       // A rejected day is not awaiting approval — it needs rework, and its
       // area must not be advertised as pending money.
-      else if (r.approval === 'rejected') { rejectedSqft += r.sqft; rejectedLabour += r.labour; }
+      else if (r.approval === 'rejected') {
+        rejectedSqft += r.sqft;
+        rejectedLabour += r.labour;
+        rejectedPaintCost += r.paintCost;
+      }
       // Awaiting approval means: final-submitted, and no decision yet. A day
       // still OPEN is being edited, so its money is work-in-progress, not
       // pending revenue — it goes in its own bucket.
@@ -944,7 +977,12 @@
         pendingCount++; pendingSqft += r.sqft; pendingLabour += r.labour;
         pendingPaintCost += r.paintCost;
       }
-      else { openCount++; openSqft += r.sqft; openLabour += r.labour; }
+      else {
+        openCount++;
+        openSqft += r.sqft;
+        openLabour += r.labour;
+        openPaintCost += r.paintCost;
+      }
     });
     return {
       projects: d.projects.length,
@@ -974,8 +1012,16 @@
       openDays: openCount,
       openSqft: openSqft,
       openLabour: openLabour,
+      openPaintCost: round2(openPaintCost),
+      // Open work is in progress, but its paint is still a real estimate; the
+      // dashboard used to show labour only beside a paint-inclusive total.
+      openTotal: round2(openLabour + openPaintCost),
       rejectedSqft: rejectedSqft,
       rejectedLabour: rejectedLabour,
+      rejectedPaintCost: round2(rejectedPaintCost),
+      // Rejected work needs rework, but the dashboard's money figure must not
+      // drop the paint that was measured with the labour.
+      rejectedTotal: round2(rejectedLabour + rejectedPaintCost),
       // Money measured but not yet approved. Excludes OPEN days (still being
       // edited) and rejected days (needs rework) — only submitted-awaiting
       // work is "pending", so this now agrees with pendingDays.

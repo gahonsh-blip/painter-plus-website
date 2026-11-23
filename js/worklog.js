@@ -277,17 +277,27 @@
   }
   function reopenDay(date) {
     const day = getDay(date);
+    // Reopening withdraws any ERP approval: the numbers are about to change,
+    // so the old sign-off must not survive to bill the new figures. Clear it
+    // BEFORE saving the open day: if that write fails, leave the day submitted
+    // (and still approved) rather than opening it while a stale sign-off stays
+    // in the ERP. The ERP also compares the day's signature, but clearing here
+    // keeps storage honest.
+    const ERP = window.PPERP;
+    if (ERP && ERP.clearApproval) {
+      const a = (typeof ERP.approvalOf === 'function') ? ERP.approvalOf(date) : null;
+      // Do not touch the ERP store for a day that has no decision; a blocked
+      // ERP write must not stop an ordinary reopen.
+      if (!a || a.status !== 'pending' || a.stale) {
+        const cleared = ERP.clearApproval(date);
+        if (cleared && cleared.ok === false) return cleared;
+      }
+    }
     day.status = 'open';
     day.submittedAt = '';
     day.submittedBy = '';
     const saved = saveDay(day);
     if (saved && saved.ok === false) return saved;
-    // Reopening withdraws any ERP approval: the numbers are about to change,
-    // so the old sign-off must not survive to bill the new figures. The ERP
-    // also guards this by comparing the day's signature, but clearing here
-    // keeps storage honest.
-    const ERP = window.PPERP;
-    if (ERP && ERP.clearApproval) ERP.clearApproval(date);
     return { ok: true, day: day };
   }
 
@@ -519,7 +529,11 @@
       });
     });
     if (urlEl) urlEl.addEventListener('input', () => {
-      if (urlEl.value.trim()) { applyPhoto(urlEl.value.trim()); if (fileEl) fileEl.value = ''; }
+      const v = urlEl.value.trim();
+      if (v) { applyPhoto(v); if (fileEl) fileEl.value = ''; }
+      // Clearing the URL must clear the preview too, unless a file is still
+      // selected; otherwise the old photo stayed attached to the next entry.
+      else if (!fileEl || !fileEl.files || !fileEl.files.length) applyPhoto('');
     });
 
     // ----- live square feet for the entry being typed -----
@@ -713,7 +727,10 @@
       // phantom 0 sq ft day. The day rates are still read live from the form
       // (see liveDay), and get captured for real when the first entry is saved.
       if (!day.entries.length && !day.project && !day.projectId && !day.crew) {
-        if (PPWorkLog.hasDay(date)) PPWorkLog.removeDay(date);
+        if (PPWorkLog.hasDay(date)) {
+          const removed = PPWorkLog.removeDay(date);
+          if (removed && removed.ok === false) hint(removed.error, true);
+        }
         render();
         return;
       }

@@ -251,7 +251,10 @@
       summaryHtml(sub.type, sub.key, name) +
       formHtml(sub.type, sub.key, name) +
       listHtml(sub.type, sub.key, name);
-    if (!el.querySelector('#' + anchorId) && !document.getElementById(anchorId)) {
+    // Do not build a CSS selector from an encoded subject key: a key with
+    // spaces or punctuation makes `#rv-project-a%20b` an invalid selector and
+    // throws, aborting the whole widget render. getElementById is literal.
+    if (!document.getElementById(anchorId)) {
       const anchor = document.createElement('span');
       anchor.id = anchorId;
       anchor.className = 'rv-anchor';

@@ -82,8 +82,10 @@
     // A member's gallery must be an array of plain objects. A hand-edited
     // store can hold a scalar or an object there, which made `list()` /
     // `feed()` call `.forEach` on a non-array and abort the whole page script.
-    const out = {};
+    // Null prototype: a member id of "__proto__" is an ordinary key.
+    const out = Object.create(null);
     Object.keys(raw).forEach((k) => {
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') return;
       if (!Array.isArray(raw[k])) return;
       out[k] = raw[k].filter((it) => it && typeof it === 'object' && !Array.isArray(it));
     });
@@ -157,7 +159,9 @@
     // Normalise here, not only in `add()`: items read straight from the store
     // (a hand-edited or older build) must also have their object/array text
     // fields dropped, or they render as "[object Object]" in the gallery.
-    const arr = Array.isArray(d[memberId]) ? d[memberId] : [];
+    const arr = Object.prototype.hasOwnProperty.call(d, memberId) && Array.isArray(d[memberId])
+      ? d[memberId]
+      : [];
     return sortItems(arr).map(normaliseItem);
   }
   function get(memberId, id, data) {
@@ -173,7 +177,12 @@
   // member's slot may be absent or hold nulls/scalars. Normalise before any
   // `.findIndex`/`.filter` — a bare null used to throw and abort the save.
   function slot(d, memberId) {
-    if (!Array.isArray(d[memberId])) d[memberId] = [];
+    const has = Object.prototype.hasOwnProperty.call(d, memberId);
+    if (!has || !Array.isArray(d[memberId])) {
+      // Define an own property rather than assigning: a member id of
+      // "__proto__" must not walk the prototype chain.
+      Object.defineProperty(d, memberId, { value: [], writable: true, enumerable: true, configurable: true });
+    }
     d[memberId] = d[memberId].filter((x) => x && typeof x === 'object' && !Array.isArray(x));
     return d[memberId];
   }

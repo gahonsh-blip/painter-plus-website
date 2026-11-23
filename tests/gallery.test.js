@@ -330,6 +330,19 @@ test('count() counts the same normalised items list() renders', () => {
   assert.strictEqual(G.count('m', data), 2, 'a null/scalar must not inflate the count');
 });
 
+test('a __proto__ member key is an ordinary gallery slot', () => {
+  const raw = JSON.parse('{"__proto__":[{"id":"g1","title":"Evil"}]}');
+  G._setStore(memStore({ painterPlusGallery: JSON.stringify(raw) }));
+  assert.strictEqual({}.polluted, undefined);
+  assert.deepStrictEqual(G.list('__proto__'), [], 'an unsafe stored key is skipped');
+  const data = {};
+  const added = G.add('__proto__', { title: 'Mine' }, data);
+  assert.strictEqual(added.ok, true);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(data, '__proto__'), true);
+  assert.strictEqual(G.list('__proto__', data).length, 1);
+  assert.strictEqual({}.title, undefined, 'the prototype must stay clean');
+});
+
 test('add and remove survive a null or scalar gallery slot', () => {
   const data = { m: [null, 'junk'] };
   const added = G.add('m', { title: 'A' }, data);

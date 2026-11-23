@@ -45,7 +45,8 @@ function fakeSupabase() {
     users: {},          // email -> { id, password }
     profiles: [],       // rows
     audit: [],
-    calls: []
+    calls: [],
+    refusePassword: false
   };
   const url = 'https://fake.supabase.co';
 
@@ -73,7 +74,10 @@ function fakeSupabase() {
       return json(200, { access_token: 'tok-' + rec.id, user: { id: rec.id, email: body.email } });
     }
     if (p.indexOf('/auth/v1/logout') === 0) return json(204, null);
-    if (p.indexOf('/auth/v1/user') === 0) return json(200, { id: 'me' });
+    if (p.indexOf('/auth/v1/user') === 0) {
+      if (state.refusePassword) return json(400, { msg: 'Password update refused' });
+      return json(200, { id: 'me' });
+    }
     if (p.indexOf('/auth/v1/recover') === 0) return json(200, {});
 
     // ---- PostgREST ----
@@ -174,6 +178,18 @@ test('an active Supabase account signs in and the session is stored', async () =
   assert.ok(session.getItem('ppAuthSession'), 'a session was persisted');
   assert.ok(A.isLoggedIn(), 'isLoggedIn is true');
   assert.strictEqual(A.currentUser().email, 'ramesh@example.com');
+});
+
+test('a refused Supabase password change is not reported as success', async () => {
+  const fake = fakeSupabase();
+  const { A } = loadSupabaseEngine(fake);
+  await A.register({ name: 'Ramesh', username: 'ramesh', email: 'ramesh@example.com', password: 'secret123' });
+  fake.state.profiles[0].status = 'active';
+  const login = await A.login('ramesh@example.com', 'secret123');
+  assert.ok(login.ok);
+  fake.state.refusePassword = true;
+  const res = await A.changePassword(A.currentUser(), 'secret123', 'newsecret123');
+  assert.strictEqual(res.ok, false, 'an HTTP 400 from /auth/v1/user must fail the change');
 });
 
 test('a wrong Supabase password does not sign in', async () => {

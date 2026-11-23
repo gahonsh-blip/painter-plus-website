@@ -147,7 +147,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const TEXT = ['category', 'image', 'location', 'year', 'finish', 'challenge', 'solution', 'result', 'tag', 'title'];
         return raw
           .filter(p => p && typeof p === 'object' && !Array.isArray(p))
-          .map(p => { TEXT.forEach(k => { if (p[k] && typeof p[k] === 'object') p[k] = ''; }); return p; });
+          .map(p => {
+            // A numeric id would not match its own data-id string; keep the
+            // value but make it a string. A missing id is still a displayable
+            // portfolio project, so it is not dropped here.
+            if (typeof p.id === 'number') p.id = String(p.id);
+            TEXT.forEach(k => { if (p[k] && typeof p[k] === 'object') p[k] = ''; });
+            return p;
+          });
     }
     const pfGridMerge = document.getElementById('pfGrid');
     if (pfGridMerge) {
@@ -464,6 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             if (!pfVal('pfName')) { alert('Please enter the painter\'s name.'); return; }
             const head = Team.get(Team.OWNER_ID) || Team.head();
+            if (!head) { alert('No team member is available to edit. Restore the default roster first.'); return; }
             const res = Team.save(Object.assign({}, head, {
                 id: head.id,
                 name: pfVal('pfName'),
@@ -486,6 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('pfReset').addEventListener('click', () => {
             if (!confirm('Reset the Head profile to the default values? Your saved changes will be cleared.')) return;
             const head = Team.get(Team.OWNER_ID) || Team.head();
+            if (!head) { alert('No team member is available to reset. Restore the default roster first.'); return; }
             const res = Team.save(Object.assign(Team.ownerDefaults(), { id: head.id, role: head.role }));
             if (!res.ok) { alert(res.error); return; }
             initProfileEditor(); renderTeamList();

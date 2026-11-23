@@ -127,8 +127,8 @@
         (o.approvedTotal > o.invoicedTotal
           ? kpi('Invoiced', E.money(o.invoicedTotal), E.money(o.approvedTotal - o.invoicedTotal) + ' approved but not yet invoiced', 'ok')
           : '') +
-        (o.rejectedSqft ? kpi('Rejected', E.money(o.rejectedLabour), E.fmtSqft(o.rejectedSqft) + ' needs rework', 'bad') : '') +
-        (o.openDays ? kpi('Open (in progress)', E.money(o.openLabour), o.openDays + ' day(s) not submitted') : '') +
+        (o.rejectedSqft ? kpi('Rejected', E.money(o.rejectedTotal), E.fmtSqft(o.rejectedSqft) + ' needs rework', 'bad') : '') +
+        (o.openDays ? kpi('Open (in progress)', E.money(o.openTotal), o.openDays + ' day(s) not submitted') : '') +
         kpi('Paint needed', E.fmtLitres(o.approvedLitres), o.approvedPaintCost ? E.money(o.approvedPaintCost) + ' material' : 'approved work') +
         kpi('Total measured', E.fmtSqft(o.sqft), o.days + ' day(s) logged') +
         kpi('Projects', String(o.projects), o.projects === 1 ? 'project' : 'projects');
@@ -395,7 +395,7 @@
 
     const pendingNote = b.pending.count
       ? '<div class="erp-callout erp-callout-warn"><strong>' + b.pending.count + ' day(s) awaiting approval</strong> — ' +
-        esc(E.fmtSqft(b.pending.sqft)) + ', ' + esc(E.money(b.pending.labour)) +
+        esc(E.fmtSqft(b.pending.sqft)) + ', ' + esc(E.money(b.pending.total)) +
         '. <em>Not included in the bill total.</em></div>'
       : '';
 

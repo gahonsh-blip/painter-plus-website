@@ -2568,3 +2568,132 @@ surface the failure.
   (profile, admin, auth, ERP, work log, gallery, Color Studio, portfolio,
   reviews, contact, page sweep, visitor exposure, hidden-attribute audit and
   corrupt-store sweep).
+
+## Nineteenth pass — 2026-11-22 (money invariants, hostile keys & stale photo)
+
+The user asked for another full pass: the profile system must expose the
+details a painter actually needs, every remaining bug class must be fixed, and
+the work must be documented and merged to `main`. This pass re-audited the
+storage boundaries and the money path, then fixed the twelve concrete defects
+below.
+
+### §124 — An invoice could name a day the caller chose, not the day it billed
+
+`addBill()` derived the unbilled dates, then let `entry.dates` override them:
+
+```js
+const derived = bucketDays(project, d).unbilled.map((r) => String(r.date));
+const dates = (entry && Array.isArray(entry.dates)) ? entry.dates.map(String) : derived;
+```
+
+A caller could pass `dates: ['1999-01-01']`. The real approved measurement then
+stayed in `unbilled` forever while the invoice marked a nonexistent day as paid.
+That breaks the "approved work is billed once" invariant from the outside, even
+though the Billing button happens to pass the right list. `addBill()` now uses
+only the derived list. The UI may still pass its lines; the engine ignores them.
+A regression test pins the old wrong-list input.
+
+### §125 — Rejected and open dashboard money dropped the paint
+
+`overview()` added paint to `pendingTotal` but only labour to `rejectedLabour`
+and `openLabour`; the dashboard then printed those labour-only figures next to
+paint-inclusive project rows. Rejected and open work now carry
+`rejectedPaintCost` / `rejectedTotal` and `openPaintCost` / `openTotal`, and the
+dashboard uses the totals. A test checks both figures against the same
+litres × paint-rate maths as the invoice.
+
+### §126 — The "awaiting approval" note quoted labour only
+
+The Billing tab printed `E.money(b.pending.labour)` while the total beside it
+included paint. It now prints `b.pending.total`, so the warning and the invoice
+agree about what is waiting for approval.
+
+### §127 — A `__proto__` key could walk the prototype chain
+
+Stored maps are keyed by dates and project/member ids. `JSON.parse` can produce
+an own `"__proto__"` key, and `map['__proto__'] = value` on a plain object
+mutates the prototype instead of adding a row. `erp.js` now uses null-prototype
+maps for `approvals` and `bills`, skips `__proto__`/`constructor`/`prototype`
+keys in `read()` and `readWorkLog()`, and refuses to create an invoice under an
+unsafe project id. `gallery.js` does the same for its per-member map and
+`slot()` defines an own property rather than assigning. Regression tests prove
+`Object.prototype` stays clean and that a hostile stored date is dropped.
+
+### §128 — Reopening a day could leave a stale ERP approval behind
+
+`PPWorkLog.reopenDay()` saved the day as open, then called
+`PPERP.clearApproval()` and ignored its result. If the ERP write failed (storage
+full/blocked), the day was open while the old sign-off survived; resubmitting it
+unchanged made the old approval bill again. The approval is now withdrawn
+**before** the open day is saved, and a failed withdrawal aborts the reopen. A
+day with no approval does not touch the ERP store, so an ordinary reopen still
+works when only the ERP store is unavailable.
+
+### §129 — A failed phantom-day cleanup was silent
+
+When the crew typed then cleared a project, `persistDayMeta()` called
+`PPWorkLog.removeDay()` but never checked the result. A blocked/full store left
+the `0 sq ft` phantom day in history while the UI implied it was gone. The
+failure is now surfaced through the page's hint line.
+
+### §130 — Clearing a photo URL left the old photo pending
+
+On the profile editor, the gallery form and the work-log entry form, the URL
+input only acted when non-empty. Selecting a photo, then clearing the URL,
+still left the old data-URL in `pendingProfilePhoto` / `pendingPhoto` /
+`photoData`, so the next Save or Add attached a photo the user had removed. All
+three inputs now clear the pending photo when the URL is emptied and no file is
+selected.
+
+### §131 — A rating badge could crash the whole reviews widget
+
+`renderWidget()` built a CSS selector from an encoded subject key:
+`el.querySelector('#rv-project-a%20b')`. A key with spaces or punctuation makes
+that an invalid selector and `querySelector` throws, aborting the render of the
+entire widget (and every later widget on the page). The anchor check now uses
+`document.getElementById(anchorId)`, which is literal.
+
+### §132 — An all-invalid roster rendered an empty site
+
+`PPTeam.read()` dropped malformed members and members with no usable id, but
+returned `[]` when every stored row was invalid. The team page, every profile
+link and the admin roster then had no data at all. `read()` now seeds the
+default roster (and re-writes it) when the filtered list is empty, exactly as a
+first visit does.
+
+### §133 — Admin profile save/reset crashed with no Head
+
+The Head profile form and Reset button did `const head = ...; head.id` without a
+null check. A corrupt/empty roster made that throw inside the submit handler.
+Both paths now show an honest "restore the default roster" message instead.
+
+### §134 — The assistant printed `[object Object]` for a stored contact field
+
+`smart-bot.js` `contact()` trusted `PPTeam.ownerDefaults()` / the first member
+verbatim. An object phone/email/address/note is truthy, so the reply printed
+`[object Object]`. Every field is now coerced through `txt()` with the company
+defaults as a fallback.
+
+### §135 — A refused Supabase password change reported success
+
+`sbChangePassword()` awaited the `/auth/v1/user` PUT but never checked
+`res.ok`. `fetch()` resolves on HTTP 4xx/5xx, so a refused password update
+returned `{ ok: true }` while the old password stayed in force. The response is
+now checked and a failure returns the normal wrong-password error path.
+
+**Verified.**
+- `node tests/erp.test.js` — **87 checks** (new: derived invoice dates;
+  paint-inclusive rejected/open totals; hostile `__proto__` keys).
+- `node tests/gallery.test.js` — **34 checks** (new: `__proto__` member slot).
+- `node tests/auth.test.js` — 47; `node tests/supabase-auth.test.js` — 10
+  (new: a refused Supabase password change is not success);
+  `node tests/reviews.test.js` — 17; `node tests/measure.test.js` — 18;
+  `node tests/photo-studio.test.js` — 50; `node tests/passcode.test.js` — 14;
+  `node tests/exposure.test.js` — 17; `node tests/smart-bot.test.mjs` — all
+  pass.
+- `bash tests/run-all-headless.sh 8170` — **ALL BROWSER CHECKS PASSED**
+  (profile, admin, auth, ERP, work log, gallery, Color Studio, portfolio,
+  reviews, contact, page sweep, visitor exposure, hidden-attribute audit and
+  corrupt-store sweep).
+- `sw.js` cache bumped to `painter-plus-v42` so returning visitors get the
+  changed modules.

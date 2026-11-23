@@ -568,6 +568,15 @@ test('REG: addBill records the dates it covers, so re-billing is impossible', ()
   assert.deepStrictEqual(r.bill.dates, ['2026-10-10'], 'the invoice must name the day it covers');
   assert.strictEqual(E.billFor('sharma-house').totals.total, 0);
 });
+test('REG: addBill derives its dates and ignores a caller-supplied list', () => {
+  seedWorld();
+  // A caller can pass any dates; the invoice must still cover the day whose
+  // measurements it is charging, or the real work stays billable forever.
+  const r = E.addBill('sharma-house', { amount: 100, dates: ['1999-01-01'] });
+  assert.deepStrictEqual(r.bill.dates, ['2026-10-10']);
+  assert.strictEqual(E.billFor('sharma-house').totals.total, 0);
+  assert.strictEqual(E.billFor('sharma-house').billedTotals.sqft, 100);
+});
 test('REG: a new approval after billing becomes billable again', () => {
   seedWorld();
   E.addBill('sharma-house', { amount: E.billFor('sharma-house').totals.total });
@@ -885,6 +894,19 @@ test('REG: a corrupt ERP store does not throw and drops the bad rows', () => {
   assert.strictEqual(b.bills.length, 1, 'only the real bill survives');
 });
 
+test('REG: a hostile __proto__ key cannot pollute maps or create an invoice', () => {
+  const erpRaw = JSON.parse('{"projects":[{"id":"__proto__","name":"Evil"}],"approvals":{"__proto__":{"status":"approved"}},"bills":{"__proto__":[]}}');
+  const wlRaw = JSON.parse('{"__proto__":{"date":"__proto__","status":"submitted","entries":[{"id":"e","sqft":10}]}}');
+  E._setStore(memStore({
+    painterPlusERP: JSON.stringify(erpRaw),
+    painterPlusWorkLog: JSON.stringify(wlRaw)
+  }));
+  assert.doesNotThrow(() => E.read());
+  assert.doesNotThrow(() => E.readWorkLog());
+  assert.strictEqual({}.polluted, undefined, 'the prototype must stay clean');
+  assert.strictEqual(E.addBill('__proto__', { amount: 100 }).ok, false);
+  assert.strictEqual(Object.keys(E.readWorkLog()).length, 0);
+});
 test('REG: a corrupt work log does not throw', () => {
   const store = memStore({
     painterPlusWorkLog: JSON.stringify({
@@ -1030,6 +1052,15 @@ test('reportByProject quotes the day rate when the project rate is blank', () =>
   assert.strictEqual(row.rateInfo.fromDay, true);
 });
 
+test('overview includes paint in rejected and open money', () => {
+  seedWorld();
+  E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 12, coverage: 130, coats: 2, paintRate: 200 });
+  E.rejectDay('2026-10-11', 'Gahonsh', 'blurry');
+  const o = E.overview();
+  const paint = (sqft) => (sqft * 2 / 130) * 1.1 * 200;
+  close(o.rejectedTotal, 600 + paint(50), 0.01);
+  close(o.openTotal, 300 + paint(25), 0.01);
+});
 test('overview separates approved-unbilled money and includes pending paint', () => {
   seedWorld();
   E.saveProject({ id: 'sharma-house', name: 'Sharma House', rate: 12, coverage: 130, coats: 2, paintRate: 200 });

@@ -283,36 +283,44 @@
     return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  function seedRoster() {
+    const seeded = [ownerMember()].concat(sampleCrew());
+    // Carry over any profile saved by the older single-profile admin editor.
+    try {
+      const legacy = JSON.parse(localStorage.getItem(LEGACY_PROFILE_KEY));
+      if (legacy && typeof legacy === 'object') Object.assign(seeded[0], legacy, { id: OWNER_ID, role: 'head' });
+    } catch { /* ignore malformed legacy data */ }
+    // The legacy profile is as untrusted as the roster: a field saved as an
+    // object/number would otherwise reach the page unnormalised (and render
+    // "[object Object]" or crash a string method) on the very first visit.
+    const clean = seeded.map(cleanMember);
+    write(clean);
+    return clean;
+  }
+
   function read() {
     let stored;
     try { stored = JSON.parse(localStorage.getItem(STORE_KEY)); } catch { stored = null; }
 
-    if (!Array.isArray(stored) || !stored.length) {
-      const seeded = [ownerMember()].concat(sampleCrew());
-      // Carry over any profile saved by the older single-profile admin editor.
-      try {
-        const legacy = JSON.parse(localStorage.getItem(LEGACY_PROFILE_KEY));
-        if (legacy && typeof legacy === 'object') Object.assign(seeded[0], legacy, { id: OWNER_ID, role: 'head' });
-      } catch { /* ignore malformed legacy data */ }
-      // The legacy profile is as untrusted as the roster: a field saved as an
-      // object/number would otherwise reach the page unnormalised (and render
-      // "[object Object]" or crash a string method) on the very first visit.
-      const clean = seeded.map(cleanMember);
-      write(clean);
-      return clean;
-    }
     // A hand-edited roster can hold a null, a scalar or a bare array. Every
     // reader (list/get/head) does `m.role`, `m.name`, so drop anything that is
     // not a plain object before it can throw — and normalise the survivors so a
     // hostile object/array field is dropped rather than rendered as
     // "[object Object]".
-    return stored
-      .filter(m => m && typeof m === 'object' && !Array.isArray(m))
-      // An id is what profile links and lookups key on. A non-string/empty id
-      // cannot address a profile (and `?id=` would fall back to the founder),
-      // so drop that member rather than expose a misleading link.
-      .filter(m => (typeof m.id === 'string' && m.id.trim()) || typeof m.id === 'number')
-      .map(cleanMember);
+    const valid = Array.isArray(stored)
+      ? stored
+        .filter(m => m && typeof m === 'object' && !Array.isArray(m))
+        // An id is what profile links and lookups key on. A non-string/empty id
+        // cannot address a profile (and `?id=` would fall back to the founder),
+        // so drop that member rather than expose a misleading link.
+        .filter(m => (typeof m.id === 'string' && m.id.trim()) || typeof m.id === 'number')
+        .map(cleanMember)
+      : [];
+    // An empty or wholly invalid store must not leave the site with no roster
+    // at all: every public team/profile page would render nothing. Seed the
+    // defaults just as a first visit does.
+    if (!valid.length) return seedRoster();
+    return valid;
   }
 
   function write(members) {

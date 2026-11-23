@@ -739,6 +739,11 @@
     if (profPhotoUrl) profPhotoUrl.addEventListener('input', () => {
       const v = profPhotoUrl.value.trim();
       if (v) { pendingProfilePhoto = v; renderPhotoPreview(); }
+      // Clearing the URL must not leave the previous photo pending for Save.
+      else if (!profPhotoFile || !profPhotoFile.files || !profPhotoFile.files.length) {
+        pendingProfilePhoto = '';
+        renderPhotoPreview();
+      }
     });
     if (profPhotoFile) profPhotoFile.addEventListener('change', () => {
       const f = profPhotoFile.files && profPhotoFile.files[0];
@@ -790,7 +795,12 @@
         showPreview(data);
       });
     });
-    if (urlInput) urlInput.addEventListener('input', () => { if (urlInput.value.trim()) showPreview(urlInput.value.trim()); });
+    if (urlInput) urlInput.addEventListener('input', () => {
+      const v = urlInput.value.trim();
+      if (v) showPreview(v);
+      // Clearing the URL must not leave the previous photo pending for Add.
+      else if (!fileInput || !fileInput.files || !fileInput.files.length) showPreview('');
+    });
 
     const addBtn = $('ppgAdd');
     if (addBtn) addBtn.addEventListener('click', () => {

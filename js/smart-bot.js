@@ -99,16 +99,22 @@
     try {
       if (T && typeof T.ownerDefaults === 'function') d = T.ownerDefaults();
     } catch (e) { /* ignore */ }
-    if (!d) {
-      var head = members()[0] || {};
-      d = {
-        phone: txt(head.phone) || '+91 8825183628',
-        email: txt(head.email) || 'gahonsh@gmail.com',
-        address: txt(head.address) || 'Upar Balalong, Arki, Khunti, Jharkhand – 835225',
-        note: txt(head.note) || 'Active since 2015 · 5-year warranty on every project · Free site inspection'
-      };
-    }
-    return d;
+    var fallback = members()[0] || {};
+    var defaults = {
+      phone: '+91 8825183628',
+      email: 'gahonsh@gmail.com',
+      address: 'Upar Balalong, Arki, Khunti, Jharkhand – 835225',
+      note: 'Active since 2015 · 5-year warranty on every project · Free site inspection'
+    };
+    // ownerDefaults()/the roster come from storage; coerce every field so an
+    // object where a phone/address belongs cannot render "[object Object]".
+    var src = d || fallback;
+    return {
+      phone: txt(src.phone) || defaults.phone,
+      email: txt(src.email) || defaults.email,
+      address: txt(src.address) || defaults.address,
+      note: txt(src.note) || defaults.note
+    };
   }
 
   function workDays() {
